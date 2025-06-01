@@ -8,16 +8,16 @@ import {
   ChevronRightIcon, 
   PlayIcon,
   LinkIcon,
-  MailIcon
+  EnvelopeIcon // 修正：從 MailIcon 改為 EnvelopeIcon
 } from '@heroicons/react/24/outline';
-import { 
-  FaInstagram, 
-  FaGithub, 
-  FaBehance, 
-  FaDribbble,
-  FaLinkedin,
-  FaGlobe
-} from 'react-icons/fa';
+
+// 先檢查 react-icons 是否已安裝
+const FaInstagram = () => <span>IG</span>;
+const FaGithub = () => <span>GH</span>;
+const FaBehance = () => <span>BE</span>;
+const FaDribbble = () => <span>DR</span>;
+const FaLinkedin = () => <span>LI</span>;
+const FaGlobe = () => <span>Web</span>;
 
 const ArtworkTemplate = ({ pageContext }) => {
   const { id } = pageContext;
@@ -34,21 +34,30 @@ const ArtworkTemplate = ({ pageContext }) => {
 
   const fetchArtwork = async () => {
     try {
-      const response = await fetch(`${process.env.GATSBY_API_URL}/artworks/${id}`);
-      if (!response.ok) throw new Error('無法載入作品');
+      // 使用正確的環境變數
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/artwork/${id}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
+      console.log('Fetched artwork data:', data); // 除錯用
+      
       setArtwork(data);
       
       // 建立媒體列表（主圖 + 影片 + gallery）
       const media = [];
       
       // 主圖
-      media.push({
-        type: 'image',
-        url: data.main_image_url,
-        title: '作品主圖'
-      });
+      if (data.main_image_url) {
+        media.push({
+          type: 'image',
+          url: data.main_image_url,
+          title: '作品主圖'
+        });
+      }
       
       // 主影片
       if (data.video_url) {
@@ -61,7 +70,7 @@ const ArtworkTemplate = ({ pageContext }) => {
       }
       
       // Gallery 圖片
-      if (data.gallery_images) {
+      if (data.gallery_images && Array.isArray(data.gallery_images)) {
         data.gallery_images.forEach((url, index) => {
           media.push({
             type: 'image',
@@ -72,7 +81,7 @@ const ArtworkTemplate = ({ pageContext }) => {
       }
       
       // Gallery 影片
-      if (data.gallery_videos) {
+      if (data.gallery_videos && Array.isArray(data.gallery_videos)) {
         data.gallery_videos.forEach((url, index) => {
           media.push({
             type: 'video',
@@ -86,6 +95,7 @@ const ArtworkTemplate = ({ pageContext }) => {
       setMediaList(media);
       setLoading(false);
     } catch (err) {
+      console.error('Fetch error:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -115,13 +125,13 @@ const ArtworkTemplate = ({ pageContext }) => {
     if (!url) return <LinkIcon className="w-5 h-5" />;
     
     const urlLower = url.toLowerCase();
-    if (urlLower.includes('instagram.com')) return <FaInstagram className="w-5 h-5" />;
-    if (urlLower.includes('github.com')) return <FaGithub className="w-5 h-5" />;
-    if (urlLower.includes('behance.net')) return <FaBehance className="w-5 h-5" />;
-    if (urlLower.includes('dribbble.com')) return <FaDribbble className="w-5 h-5" />;
-    if (urlLower.includes('linkedin.com')) return <FaLinkedin className="w-5 h-5" />;
-    if (urlLower.includes('@') && !urlLower.includes('http')) return <MailIcon className="w-5 h-5" />;
-    return <FaGlobe className="w-5 h-5" />;
+    if (urlLower.includes('instagram.com')) return <FaInstagram />;
+    if (urlLower.includes('github.com')) return <FaGithub />;
+    if (urlLower.includes('behance.net')) return <FaBehance />;
+    if (urlLower.includes('dribbble.com')) return <FaDribbble />;
+    if (urlLower.includes('linkedin.com')) return <FaLinkedin />;
+    if (urlLower.includes('@') && !urlLower.includes('http')) return <EnvelopeIcon className="w-5 h-5" />;
+    return <FaGlobe />;
   };
 
   // 媒體導航
@@ -140,7 +150,9 @@ const ArtworkTemplate = ({ pageContext }) => {
   // 載入中
   if (loading) return (
     <Layout>
-      <Loading fullScreen text="載入作品中..." />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading type="spinner" size="lg" text="載入作品中..." />
+      </div>
     </Layout>
   );
 
@@ -158,7 +170,7 @@ const ArtworkTemplate = ({ pageContext }) => {
     </Layout>
   );
 
-  const currentMedia = mediaList[currentMediaIndex];
+  const currentMedia = mediaList[currentMediaIndex] || {};
 
   return (
     <Layout>
@@ -185,72 +197,82 @@ const ArtworkTemplate = ({ pageContext }) => {
           <div className="lg:col-span-2">
             {/* 主圖/影片區 */}
             <div className="relative bg-black rounded-lg overflow-hidden aspect-[4/3]">
-              {currentMedia.type === 'image' ? (
-                <img
-                  src={currentMedia.url}
-                  alt={currentMedia.title}
-                  className="w-full h-full object-contain"
-                />
-              ) : currentMedia.embedUrl ? (
-                <iframe
-                  src={currentMedia.embedUrl}
-                  title={currentMedia.title}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-white">
-                  <p>無法載入影片</p>
-                </div>
+              {mediaList.length > 0 && (
+                <>
+                  {currentMedia.type === 'image' ? (
+                    <img
+                      src={currentMedia.url}
+                      alt={currentMedia.title}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : currentMedia.embedUrl ? (
+                    <iframe
+                      src={currentMedia.embedUrl}
+                      title={currentMedia.title}
+                      className="w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-white">
+                      <p>無法載入影片</p>
+                    </div>
+                  )}
+                  
+                  {/* 導航按鈕 */}
+                  {mediaList.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => navigateMedia('prev')}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 transition-colors"
+                        aria-label="上一個"
+                      >
+                        <ChevronLeftIcon className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={() => navigateMedia('next')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 transition-colors"
+                        aria-label="下一個"
+                      >
+                        <ChevronRightIcon className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
+                </>
               )}
-              
-              {/* 導航按鈕 */}
-              <button
-                onClick={() => navigateMedia('prev')}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 transition-colors"
-                aria-label="上一個"
-              >
-                <ChevronLeftIcon className="w-6 h-6" />
-              </button>
-              <button
-                onClick={() => navigateMedia('next')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 transition-colors"
-                aria-label="下一個"
-              >
-                <ChevronRightIcon className="w-6 h-6" />
-              </button>
             </div>
             
             {/* 縮圖預覽列 */}
-            <div className="mt-4 overflow-x-auto">
-              <div className="flex gap-2 pb-2">
-                {mediaList.map((media, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentMediaIndex(index)}
-                    className={`
-                      relative flex-shrink-0 w-24 h-18 rounded overflow-hidden
-                      ${index === currentMediaIndex ? 'ring-2 ring-orange-500' : 'opacity-70 hover:opacity-100'}
-                      transition-opacity
-                    `}
-                  >
-                    {media.type === 'image' ? (
-                      <img
-                        src={media.url}
-                        alt={media.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                        <PlayIcon className="w-8 h-8 text-white" />
-                      </div>
-                    )}
-                  </button>
-                ))}
+            {mediaList.length > 1 && (
+              <div className="mt-4 overflow-x-auto">
+                <div className="flex gap-2 pb-2">
+                  {mediaList.map((media, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentMediaIndex(index)}
+                      className={`
+                        relative flex-shrink-0 w-24 h-18 rounded overflow-hidden
+                        ${index === currentMediaIndex ? 'ring-2 ring-orange-500' : 'opacity-70 hover:opacity-100'}
+                        transition-opacity
+                      `}
+                    >
+                      {media.type === 'image' ? (
+                        <img
+                          src={media.url}
+                          alt={media.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                          <PlayIcon className="w-8 h-8 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           
           {/* 右側：作品資訊 */}
@@ -306,28 +328,26 @@ const ArtworkTemplate = ({ pageContext }) => {
             
             {/* 社群連結 */}
             {artwork.social_link && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                🔗 links
-              </h3>
-              <a
-                href={
-                  artwork.social_link.includes('@') && !artwork.social_link.includes('http')
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  🔗 links
+                </h3>
+                <a
+                  href={artwork.social_link.includes('@') && !artwork.social_link.includes('http') 
                     ? `mailto:${artwork.social_link}`
-                    : artwork.social_link.includes('http')
-                    ? artwork.social_link
+                    : artwork.social_link.includes('http') 
+                    ? artwork.social_link 
                     : `https://${artwork.social_link}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                {getSocialIcon(artwork.social_link)}
-                <span className="text-sm">查看更多</span>
-              </a>
-            </div>
-          )}
-
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  {getSocialIcon(artwork.social_link)}
+                  <span className="text-sm">查看更多</span>
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
