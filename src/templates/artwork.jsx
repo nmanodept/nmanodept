@@ -326,28 +326,57 @@ const ArtworkTemplate = ({ pageContext }) => {
               </p>
             </div>
             
-            {/* 社群連結 */}
-            {artwork.social_link && (
+            {/* 社群連結 - 支援多個 */}
+            {(artwork.social_links && artwork.social_links.length > 0) || artwork.social_link ? (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
                   🔗 links
                 </h3>
-                <a
-                  href={artwork.social_link.includes('@') && !artwork.social_link.includes('http') 
-                    ? `mailto:${artwork.social_link}`
-                    : artwork.social_link.includes('http') 
-                    ? artwork.social_link 
-                    : `https://${artwork.social_link}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  {getSocialIcon(artwork.social_link)}
-                  <span className="text-sm">查看更多</span>
-                </a>
+                <div className="space-y-2">
+                  {/* 優先顯示新的多連結格式 */}
+                  {artwork.social_links && artwork.social_links.length > 0 ? (
+                    artwork.social_links.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.includes('@') && !link.includes('http') 
+                          ? `mailto:${link}`
+                          : link.includes('http') 
+                          ? link 
+                          : `https://${link}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors mr-2 mb-2"
+                      >
+                        {getSocialIcon(link)}
+                        <span className="text-sm">
+                          {link.includes('instagram.com') ? 'Instagram' :
+                           link.includes('github.com') ? 'GitHub' :
+                           link.includes('behance.net') ? 'Behance' :
+                           link.includes('@') ? 'Email' : '查看連結'}
+                        </span>
+                      </a>
+                    ))
+                  ) : artwork.social_link ? (
+                    // 向後相容：顯示單一連結
+                    <a
+                      href={artwork.social_link.includes('@') && !artwork.social_link.includes('http') 
+                        ? `mailto:${artwork.social_link}`
+                        : artwork.social_link.includes('http') 
+                        ? artwork.social_link 
+                        : `https://${artwork.social_link}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      {getSocialIcon(artwork.social_link)}
+                      <span className="text-sm">查看更多</span>
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

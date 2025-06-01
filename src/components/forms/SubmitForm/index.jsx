@@ -386,17 +386,61 @@ const SubmitForm = () => {
           </div>
         </div>
 
-        {/* 社交媒體連結 */}
+
+        {/* 社交媒體連結 - 支援多個 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            社交媒體連結
+            相關連結
           </label>
-          <input
-            type="text"
-            {...register('social_link')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="IG、GitHub、個人網站或 Email"
+          <Controller
+            name="social_links"
+            control={control}
+            defaultValue={['']}
+            render={({ field }) => (
+              <div className="space-y-2">
+                {field.value.map((link, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={link}
+                      onChange={(e) => {
+                        const newLinks = [...field.value];
+                        newLinks[index] = e.target.value;
+                        field.onChange(newLinks);
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Instagram、GitHub、個人網站、Email 等"
+                    />
+                    {field.value.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newLinks = field.value.filter((_, i) => i !== index);
+                          field.onChange(newLinks);
+                        }}
+                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    field.onChange([...field.value, '']);
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  新增連結
+                </button>
+              </div>
+            )}
           />
+          <p className="text-xs text-gray-500 mt-1">
+            可新增多個社群媒體、作品集或聯絡方式連結
+          </p>
         </div>
 
         {/* Gallery 區域 */}
