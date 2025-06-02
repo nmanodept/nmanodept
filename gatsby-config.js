@@ -7,6 +7,8 @@ module.exports = {
     description: `藝術作品展示平台`,
     author: `@nmanodept`,
     siteUrl: `https://gallery.nmanodept.com`,
+  },  flags: {
+    DEV_SSR: true // 開發時啟用 SSR
   },
   plugins: [
     // 圖片處理

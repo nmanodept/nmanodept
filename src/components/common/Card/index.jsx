@@ -76,7 +76,7 @@ const Card = ({
       </div>
     </>
   )
-  
+
   // 基礎樣式
   const baseStyles = `
     bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden
@@ -84,7 +84,7 @@ const Card = ({
     ${onClick ? 'cursor-pointer' : ''}
     ${className}
   `.trim()
-  
+
   // 如果有連結，使用 Gatsby Link
   if (link) {
     return (
@@ -93,16 +93,27 @@ const Card = ({
       </Link>
     )
   }
-  
-  // 如果有 onClick，使用 div
+
+  // 如果有 onClick，使用 div 並添加鍵盤事件處理
   if (onClick) {
     return (
-      <div onClick={onClick} className={baseStyles} role="button" tabIndex={0}>
+      <div 
+        onClick={onClick} 
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={baseStyles} 
+        role="button" 
+        tabIndex={0}
+      >
         {cardContent}
       </div>
     )
   }
-  
+
   // 否則只是靜態 Card
   return (
     <div className={baseStyles}>
@@ -120,7 +131,7 @@ export const CardGrid = ({ children, columns = 3, gap = 6, className = '' }) => 
     4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
     5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
   }
-  
+
   return (
     <div className={`grid ${gridCols[columns]} gap-${gap} ${className}`}>
       {children}
