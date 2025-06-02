@@ -70,14 +70,22 @@ const AdminPage = () => {
     setLoading(true)
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      console.log('Fetching from:', `${apiUrl}/admin/pending`) // 除錯用
+      
       const response = await fetch(`${apiUrl}/admin/pending`, {
+        method: 'GET',
         headers: {
-          'X-Admin-Password': '20241231NOdept'
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
         }
       })
       
+      console.log('Response status:', response.status) // 除錯用
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Pending artworks:', data) // 除錯用
+        
         // 解析標籤資料
         const artworksWithParsedData = data.map(artwork => ({
           ...artwork,
@@ -87,10 +95,15 @@ const AdminPage = () => {
         }))
         setPendingArtworks(artworksWithParsedData)
       } else if (response.status === 401) {
+        console.error('Unauthorized - logging out')
         handleLogout()
+      } else {
+        const errorData = await response.text()
+        console.error('Error response:', errorData)
       }
     } catch (error) {
       console.error('Failed to fetch pending artworks:', error)
+      alert('無法載入待審核作品，請檢查網路連線或稍後再試')
     } finally {
       setLoading(false)
     }
@@ -104,7 +117,8 @@ const AdminPage = () => {
       const response = await fetch(`${apiUrl}/admin/approve/${id}`, {
         method: 'PUT',
         headers: {
-          'X-Admin-Password': '20241231NOdept'
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
         }
       })
       
@@ -112,6 +126,10 @@ const AdminPage = () => {
         // 重新載入列表
         setRefreshKey(prev => prev + 1)
         alert('作品已通過審核！')
+      } else {
+        const error = await response.text()
+        console.error('Approve error:', error)
+        alert('操作失敗，請重試')
       }
     } catch (error) {
       console.error('Failed to approve artwork:', error)
@@ -131,7 +149,8 @@ const AdminPage = () => {
       const response = await fetch(`${apiUrl}/admin/reject/${id}`, {
         method: 'PUT',
         headers: {
-          'X-Admin-Password': '20241231NOdept'
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
         }
       })
       
@@ -139,6 +158,10 @@ const AdminPage = () => {
         // 重新載入列表
         setRefreshKey(prev => prev + 1)
         alert('作品已駁回')
+      } else {
+        const error = await response.text()
+        console.error('Reject error:', error)
+        alert('操作失敗，請重試')
       }
     } catch (error) {
       console.error('Failed to reject artwork:', error)
