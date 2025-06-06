@@ -8,7 +8,8 @@ import {
   ChevronRightIcon, 
   PlayIcon,
   LinkIcon,
-  EnvelopeIcon // 修正：從 MailIcon 改為 EnvelopeIcon
+  EnvelopeIcon, // 修正：從 MailIcon 改為 EnvelopeIcon
+  FolderIcon
 } from '@heroicons/react/24/outline';
 
 // 先檢查 react-icons 是否已安裝
@@ -283,16 +284,40 @@ const ArtworkTemplate = ({ pageContext }) => {
                 {artwork.title}
               </h1>
               
-              {/* 作者 */}
-              <p className="text-lg text-gray-700">
-                作者：
-                <Link 
-                  to={`/author/${encodeURIComponent(artwork.author)}`}
-                  className="hover:underline"
-                >
-                  {artwork.author}
-                </Link>
-              </p>
+              {/* 作者 - 支援多作者 */}
+              <div className="flex items-center gap-2 text-lg text-gray-700">
+                <span>作者：</span>
+                {artwork.authors && artwork.authors.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {artwork.authors.map((author, index) => (
+                      <span key={index}>
+                        <Link 
+                          to={`/author/${encodeURIComponent(author)}`}
+                          className="hover:underline text-blue-600"
+                        >
+                          {author}
+                        </Link>
+                        {index < artwork.authors.length - 1 && <span>、</span>}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <Link 
+                    to={`/author/${encodeURIComponent(artwork.author)}`}
+                    className="hover:underline text-blue-600"
+                  >
+                    {artwork.author}
+                  </Link>
+                )}
+              </div>
+              
+              {/* 類別 */}
+              {artwork.category_name && (
+                <p className="text-gray-600 flex items-center gap-2 mt-1">
+                  <FolderIcon className="w-4 h-4" />
+                  類別：{artwork.category_name}
+                </p>
+              )}
               
               {/* 年份 */}
               <p className="text-gray-600">

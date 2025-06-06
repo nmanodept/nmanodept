@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+// src/components/forms/SubmitForm/index.jsx
+import React, { useState, useCallback, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
 import { XMarkIcon, PhotoIcon, PlusIcon, TrashIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
@@ -7,19 +8,57 @@ import { navigate } from 'gatsby';
 const SubmitForm = () => {
   const { register, control, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     defaultValues: {
+      authors: [], // 改為多作者
       tags: [],
       gallery_images: [],
-      gallery_video_urls: ['']
+      gallery_video_urls: [''],
+      social_links: ['']
     }
   });
 
   const [previewImage, setPreviewImage] = useState(null);
   const [galleryPreviews, setGalleryPreviews] = useState([]);
   const [tagInput, setTagInput] = useState('');
+  const [authorInput, setAuthorInput] = useState(''); // 新增作者輸入
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [submitStatus, setSubmitStatus] = useState(null);
+  
+  // 新增狀態：可用的作者和類別
+  const [availableAuthors, setAvailableAuthors] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
 
   const description = watch('description', '');
+
+  // 載入可用的作者和類別
+  useEffect(() => {
+    fetchAuthors();
+    fetchCategories();
+  }, []);
+
+  const fetchAuthors = async () => {
+    try {
+      const response = await fetch(`${process.env.GATSBY_API_URL}/authors`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableAuthors(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch authors:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${process.env.GATSBY_API_URL}/categories`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableCategories(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
 
   // 主圖片上傳
   const onDropMain = useCallback((acceptedFiles) => {
@@ -70,7 +109,32 @@ const SubmitForm = () => {
     multiple: true
   });
 
-  // Tag 管理
+  // 作者管理（類似標籤）
+  const handleAddAuthor = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const author = authorInput.trim();
+      if (author && !watch('authors').includes(author)) {
+        setValue('authors', [...watch('authors'), author]);
+        setAuthorInput('');
+        setShowAuthorSuggestions(false);
+      }
+    }
+  };
+
+  const addAuthorFromSuggestion = (authorName) => {
+    if (!watch('authors').includes(authorName)) {
+      setValue('authors', [...watch('authors'), authorName]);
+    }
+    setAuthorInput('');
+    setShowAuthorSuggestions(false);
+  };
+
+  const removeAuthor = (authorToRemove) => {
+    setValue('authors', watch('authors').filter(author => author !== authorToRemove));
+  };
+
+  // 標籤管理
   const handleAddTag = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -110,6 +174,21 @@ const SubmitForm = () => {
     setGalleryPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  // 社群連結管理
+  const addSocialLink = () => {
+    setValue('social_links', [...watch('social_links'), '']);
+  };
+
+  const removeSocialLink = (index) => {
+    setValue('social_links', watch('social_links').filter((_, i) => i !== index));
+  };
+
+  const updateSocialLink = (index, value) => {
+    const links = [...watch('social_links')];
+    links[index] = value;
+    setValue('social_links', links);
+  };
+
   // 表單送出
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -121,16 +200,20 @@ const SubmitForm = () => {
       
       // 添加基本欄位
       formData.append('title', data.title);
-      formData.append('author', data.author);
+      formData.append('authors', JSON.stringify(data.authors)); // 多作者
       formData.append('year', data.year.toString());
       formData.append('video_url', data.video_url);
       formData.append('tags', JSON.stringify(data.tags));
       formData.append('description', data.description);
-      if (data.social_link) {
-        formData.append('social_link', data.social_link);
-      }
       formData.append('project_year', data.project_year);
       formData.append('project_semester', data.project_semester);
+      formData.append('category_id', data.category_id || ''); // 類別
+      
+      // 處理社群連結
+      const validSocialLinks = data.social_links.filter(link => link && link.trim() !== '');
+      if (validSocialLinks.length > 0) {
+        formData.append('social_links', JSON.stringify(validSocialLinks));
+      }
 
       // 添加主圖片
       if (data.image) {
@@ -151,11 +234,10 @@ const SubmitForm = () => {
       });
 
       // 發送 API 請求
-      const response = await fetch('https://artwork-submit-api.nmanodept.workers.dev/submit', {
+      const response = await fetch(`${process.env.GATSBY_API_URL}/submit`, {
         method: 'POST',
         body: formData
       });
-
 
       const result = await response.json();
 
@@ -166,6 +248,8 @@ const SubmitForm = () => {
         setPreviewImage(null);
         setGalleryPreviews([]);
         setTagInput('');
+        setAuthorInput('');
+        setValue('social_links', ['']);
         
         // 3秒後跳轉到首頁
         setTimeout(() => {
@@ -181,6 +265,12 @@ const SubmitForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  // 過濾作者建議
+  const filteredAuthors = availableAuthors.filter(author => 
+    author.name.toLowerCase().includes(authorInput.toLowerCase()) &&
+    !watch('authors').includes(author.name)
+  );
 
   return (
     <>
@@ -208,7 +298,7 @@ const SubmitForm = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl mx-auto space-y-8">
         {/* 作品預覽圖 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="main-image" className="block text-sm font-medium text-gray-700 mb-2">
             作品預覽圖 <span className="text-red-500">*</span>
           </label>
           <Controller
@@ -223,7 +313,7 @@ const SubmitForm = () => {
                     ${isMainDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
                     ${errors.image ? 'border-red-300' : ''}`}
                 >
-                  <input {...getMainInputProps()} />
+                  <input {...getMainInputProps()} id="main-image" />
                   {previewImage ? (
                     <div className="relative">
                       <img src={previewImage} alt="預覽" className="max-h-64 mx-auto rounded" />
@@ -255,11 +345,12 @@ const SubmitForm = () => {
 
         {/* 作品名稱 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
             作品名稱 <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
+            id="title"
             {...register('title', { required: '請輸入作品名稱' })}
             className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
               ${errors.title ? 'border-red-300' : 'border-gray-300'}`}
@@ -268,28 +359,102 @@ const SubmitForm = () => {
           {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
         </div>
 
-        {/* 作者名稱 */}
+        {/* 作者名稱 - 多作者 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            作者名稱或稱呼 <span className="text-red-500">*</span>
+            作者名稱 <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            {...register('author', { required: '請輸入作者名稱' })}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
-              ${errors.author ? 'border-red-300' : 'border-gray-300'}`}
-            placeholder="輸入作者名稱或稱呼"
+          <Controller
+            name="authors"
+            control={control}
+            rules={{ 
+              validate: value => value.length > 0 || '請至少新增一位作者'
+            }}
+            render={({ field }) => (
+              <div className="relative">
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {field.value.map((author, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
+                    >
+                      {author}
+                      <button
+                        type="button"
+                        onClick={() => removeAuthor(author)}
+                        className="ml-2 hover:text-blue-900"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={authorInput}
+                  onChange={(e) => {
+                    setAuthorInput(e.target.value);
+                    setShowAuthorSuggestions(e.target.value.length > 0);
+                  }}
+                  onKeyDown={handleAddAuthor}
+                  onFocus={() => setShowAuthorSuggestions(authorInput.length > 0)}
+                  onBlur={() => setTimeout(() => setShowAuthorSuggestions(false), 200)}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
+                    ${errors.authors ? 'border-red-300' : 'border-gray-300'}`}
+                  placeholder="輸入作者名稱後按 Enter 新增（可多位作者）"
+                />
+                
+                {/* 作者建議下拉選單 */}
+                {showAuthorSuggestions && filteredAuthors.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {filteredAuthors.map((author) => (
+                      <button
+                        key={author.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addAuthorFromSuggestion(author.name)}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100"
+                      >
+                        {author.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           />
-          {errors.author && <p className="text-red-500 text-sm mt-1">{errors.author.message}</p>}
+          {errors.authors && <p className="text-red-500 text-sm mt-1">{errors.authors.message}</p>}
+        </div>
+
+        {/* 作品類別 */}
+        <div>
+          <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+            作品類別 <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="category"
+            {...register('category_id', { required: '請選擇作品類別' })}
+            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
+              ${errors.category_id ? 'border-red-300' : 'border-gray-300'}`}
+          >
+            <option value="">請選擇類別</option>
+            {availableCategories.map(category => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          {errors.category_id && <p className="text-red-500 text-sm mt-1">{errors.category_id.message}</p>}
         </div>
 
         {/* 創作年份 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-2">
             創作年份 <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
+            id="year"
             {...register('year', {
               required: '請輸入創作年份',
               min: { value: 1900, message: '年份不能小於 1900' },
@@ -304,11 +469,12 @@ const SubmitForm = () => {
 
         {/* 作品紀錄連結 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="video-url" className="block text-sm font-medium text-gray-700 mb-2">
             作品紀錄連結 <span className="text-red-500">*</span>
           </label>
           <input
             type="url"
+            id="video-url"
             {...register('video_url', {
               required: '請輸入作品紀錄連結',
               pattern: {
@@ -326,7 +492,7 @@ const SubmitForm = () => {
         {/* 作品 Tag */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            作品 Tag <span className="text-red-500">*</span>
+            作品標籤 <span className="text-red-500">*</span>
           </label>
           <Controller
             name="tags"
@@ -340,13 +506,13 @@ const SubmitForm = () => {
                   {field.value.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-700"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
-                        className="ml-2 hover:text-blue-900"
+                        className="ml-2 hover:text-green-900"
                       >
                         <XMarkIcon className="w-4 h-4" />
                       </button>
@@ -370,10 +536,11 @@ const SubmitForm = () => {
 
         {/* 作品簡介 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
             作品簡介 <span className="text-red-500">*</span>
           </label>
           <textarea
+            id="description"
             {...register('description', { required: '請輸入作品簡介' })}
             rows={5}
             className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
@@ -386,8 +553,7 @@ const SubmitForm = () => {
           </div>
         </div>
 
-
-        {/* 社交媒體連結 - 支援多個 */}
+        {/* 相關連結 - 支援多個 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             相關連結
@@ -403,21 +569,14 @@ const SubmitForm = () => {
                     <input
                       type="text"
                       value={link}
-                      onChange={(e) => {
-                        const newLinks = [...field.value];
-                        newLinks[index] = e.target.value;
-                        field.onChange(newLinks);
-                      }}
+                      onChange={(e) => updateSocialLink(index, e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Instagram、GitHub、個人網站、Email 等"
                     />
                     {field.value.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          const newLinks = field.value.filter((_, i) => i !== index);
-                          field.onChange(newLinks);
-                        }}
+                        onClick={() => removeSocialLink(index)}
                         className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
                       >
                         <TrashIcon className="w-5 h-5" />
@@ -427,9 +586,7 @@ const SubmitForm = () => {
                 ))}
                 <button
                   type="button"
-                  onClick={() => {
-                    field.onChange([...field.value, '']);
-                  }}
+                  onClick={addSocialLink}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
@@ -522,11 +679,12 @@ const SubmitForm = () => {
           <h3 className="text-lg font-medium text-gray-900">專題區收錄 <span className="text-red-500">*</span></h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="project-year" className="block text-sm font-medium text-gray-700 mb-2">
                 學年度
               </label>
               <input
                 type="text"
+                id="project-year"
                 {...register('project_year', { required: '請輸入學年度' })}
                 className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
                   ${errors.project_year ? 'border-red-300' : 'border-gray-300'}`}
@@ -535,11 +693,12 @@ const SubmitForm = () => {
               {errors.project_year && <p className="text-red-500 text-sm mt-1">{errors.project_year.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="project-semester" className="block text-sm font-medium text-gray-700 mb-2">
                 年級學期
               </label>
               <input
                 type="text"
+                id="project-semester"
                 {...register('project_semester', { required: '請輸入年級學期' })}
                 className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
                   ${errors.project_semester ? 'border-red-300' : 'border-gray-300'}`}

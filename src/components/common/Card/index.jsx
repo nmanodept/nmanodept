@@ -45,9 +45,9 @@ const Card = ({
         
         {/* 副標題 */}
         {subtitle && (
-          <p className="text-sm text-gray-600 mb-2">
+          <div className="text-sm text-gray-600 mb-2">
             {subtitle}
-          </p>
+          </div>
         )}
         
         {/* 描述 */}

@@ -1,6 +1,5 @@
 // src/pages/admin.jsx
-import React, { useState, useEffect } from 'react'
-import { navigate } from 'gatsby'
+import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
 import Button from '../components/common/Button'
@@ -19,20 +18,30 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   TrashIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  PlusIcon,
+  FolderIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline'
 
 const AdminPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  const [activeTab, setActiveTab] = useState('pending') // 'pending' or 'approved'
+  const [activeTab, setActiveTab] = useState('pending') // 'pending', 'approved', 'profiles', 'categories'
   const [pendingArtworks, setPendingArtworks] = useState([])
   const [approvedArtworks, setApprovedArtworks] = useState([])
+  const [pendingProfiles, setPendingProfiles] = useState([])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState({})
-  const [expandedArtwork, setExpandedArtwork] = useState(null)
+  const [expandedItem, setExpandedItem] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  
+  // 類別管理狀態
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDescription, setNewCategoryDescription] = useState('')
 
   // 檢查是否已經登入（使用 sessionStorage）
   useEffect(() => {
@@ -42,40 +51,8 @@ const AdminPage = () => {
     }
   }, [])
 
-  // 載入作品
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (activeTab === 'pending') {
-        fetchPendingArtworks()
-      } else {
-        fetchApprovedArtworks()
-      }
-    }
-  }, [isAuthenticated, activeTab, refreshKey])
-
-  // 密碼驗證
-  const handleLogin = (e) => {
-    e.preventDefault()
-    if (password === '20241231NOdept') {
-      setIsAuthenticated(true)
-      sessionStorage.setItem('adminAuth', 'true')
-      setPasswordError('')
-      setPassword('')
-    } else {
-      setPasswordError('密碼錯誤，請重試')
-    }
-  }
-
-  // 登出
-  const handleLogout = () => {
-    setIsAuthenticated(false)
-    sessionStorage.removeItem('adminAuth')
-    setPendingArtworks([])
-    setApprovedArtworks([])
-  }
-
-  // 獲取待審核作品
-  const fetchPendingArtworks = async () => {
+  // 載入資料的 useCallback 函數
+  const fetchPendingArtworks = useCallback(async () => {
     setLoading(true)
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
@@ -100,10 +77,9 @@ const AdminPage = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  // 獲取已審核作品
-  const fetchApprovedArtworks = async () => {
+  const fetchApprovedArtworks = useCallback(async () => {
     setLoading(true)
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
@@ -128,9 +104,90 @@ const AdminPage = () => {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  const fetchPendingProfiles = useCallback(async () => {
+    setLoading(true)
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      
+      const response = await fetch(`${apiUrl}/admin/pending-profiles`, {
+        method: 'GET',
+        headers: {
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setPendingProfiles(data)
+      } else if (response.status === 401) {
+        handleLogout()
+      }
+    } catch (error) {
+      console.error('Failed to fetch pending profiles:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchCategories = useCallback(async () => {
+    setLoading(true)
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/categories`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // 載入資料
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (activeTab === 'pending') {
+        fetchPendingArtworks()
+      } else if (activeTab === 'approved') {
+        fetchApprovedArtworks()
+      } else if (activeTab === 'profiles') {
+        fetchPendingProfiles()
+      } else if (activeTab === 'categories') {
+        fetchCategories()
+      }
+    }
+  }, [isAuthenticated, activeTab, refreshKey, fetchPendingArtworks, fetchApprovedArtworks, fetchPendingProfiles, fetchCategories])
+
+  // 密碼驗證
+  const handleLogin = (e) => {
+    e.preventDefault()
+    if (password === '20241231NOdept') {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('adminAuth', 'true')
+      setPasswordError('')
+      setPassword('')
+    } else {
+      setPasswordError('密碼錯誤，請重試')
+    }
   }
 
-  // 通過審核
+  // 登出
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    sessionStorage.removeItem('adminAuth')
+    setPendingArtworks([])
+    setApprovedArtworks([])
+    setPendingProfiles([])
+    setCategories([])
+  }
+
+  // 作品管理功能
   const handleApprove = async (id) => {
     setActionLoading(prev => ({ ...prev, [id]: 'approve' }))
     try {
@@ -157,7 +214,6 @@ const AdminPage = () => {
     }
   }
 
-  // 駁回審核
   const handleReject = async (id) => {
     if (!window.confirm('確定要駁回這件作品嗎？')) return
     
@@ -186,7 +242,6 @@ const AdminPage = () => {
     }
   }
 
-  // 刪除作品
   const handleDelete = async (id) => {
     if (!window.confirm('確定要永久刪除這件作品嗎？此操作無法復原！')) return
     
@@ -215,7 +270,6 @@ const AdminPage = () => {
     }
   }
 
-  // 改回待審核
   const handleRevert = async (id) => {
     if (!window.confirm('確定要將這件作品改回待審核狀態嗎？')) return
     
@@ -244,9 +298,124 @@ const AdminPage = () => {
     }
   }
 
+  // 作者資料管理
+  const handleApproveProfile = async (id) => {
+    setActionLoading(prev => ({ ...prev, [`profile-${id}`]: 'approve' }))
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/admin/approve-profile/${id}`, {
+        method: 'PUT',
+        headers: {
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        setRefreshKey(prev => prev + 1)
+        alert('作者資料已通過審核！')
+      } else {
+        alert('操作失敗，請重試')
+      }
+    } catch (error) {
+      console.error('Failed to approve profile:', error)
+      alert('操作失敗，請重試')
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`profile-${id}`]: null }))
+    }
+  }
+
+  const handleRejectProfile = async (id) => {
+    if (!window.confirm('確定要駁回這份作者資料嗎？')) return
+    
+    setActionLoading(prev => ({ ...prev, [`profile-${id}`]: 'reject' }))
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/admin/reject-profile/${id}`, {
+        method: 'PUT',
+        headers: {
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        setRefreshKey(prev => prev + 1)
+        alert('作者資料已駁回')
+      } else {
+        alert('操作失敗，請重試')
+      }
+    } catch (error) {
+      console.error('Failed to reject profile:', error)
+      alert('操作失敗，請重試')
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`profile-${id}`]: null }))
+    }
+  }
+
+  // 類別管理
+  const handleCreateCategory = async (e) => {
+    e.preventDefault()
+    if (!newCategoryName.trim()) return
+    
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/admin/categories`, {
+        method: 'POST',
+        headers: {
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newCategoryName,
+          description: newCategoryDescription
+        })
+      })
+      
+      if (response.ok) {
+        setNewCategoryName('')
+        setNewCategoryDescription('')
+        setShowAddCategory(false)
+        setRefreshKey(prev => prev + 1)
+        alert('類別已創建')
+      } else {
+        const error = await response.json()
+        alert(error.error || '創建失敗')
+      }
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      alert('創建失敗，請重試')
+    }
+  }
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('確定要刪除這個類別嗎？')) return
+    
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/admin/categories/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Admin-Password': '20241231NOdept',
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        setRefreshKey(prev => prev + 1)
+        alert('類別已刪除')
+      } else {
+        alert('刪除失敗，請重試')
+      }
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      alert('刪除失敗，請重試')
+    }
+  }
+
   // 切換展開/收合
   const toggleExpand = (id) => {
-    setExpandedArtwork(expandedArtwork === id ? null : id)
+    setExpandedItem(expandedItem === id ? null : id)
   }
 
   // 格式化日期
@@ -265,10 +434,8 @@ const AdminPage = () => {
   // 渲染作品卡片
   const renderArtworkCard = (artwork, isPending = true) => (
     <div key={artwork.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      {/* 作品摘要 */}
       <div className="p-6">
         <div className="flex items-start gap-6">
-          {/* 預覽圖 */}
           <div className="flex-shrink-0">
             {artwork.main_image_url ? (
               <img 
@@ -283,7 +450,6 @@ const AdminPage = () => {
             )}
           </div>
           
-          {/* 基本資訊 */}
           <div className="flex-1">
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {artwork.title}
@@ -292,15 +458,15 @@ const AdminPage = () => {
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
               <div className="flex items-center gap-2">
                 <UserIcon className="w-4 h-4" />
-                <span>作者：{artwork.author}</span>
+                <span>作者：{artwork.authors?.join(', ') || artwork.author}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
                 <span>創作年份：{artwork.year}</span>
               </div>
               <div className="flex items-center gap-2">
-                <TagIcon className="w-4 h-4" />
-                <span>學年度：{artwork.project_year} · {artwork.project_semester}</span>
+                <FolderIcon className="w-4 h-4" />
+                <span>類別：{artwork.category_name || '未分類'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
@@ -330,8 +496,8 @@ const AdminPage = () => {
                 onClick={() => toggleExpand(artwork.id)}
               >
                 <EyeIcon className="w-4 h-4 mr-1" />
-                {expandedArtwork === artwork.id ? '收合' : '預覽'}
-                {expandedArtwork === artwork.id ? (
+                {expandedItem === artwork.id ? '收合' : '預覽'}
+                {expandedItem === artwork.id ? (
                   <ChevronUpIcon className="w-4 h-4 ml-1" />
                 ) : (
                   <ChevronDownIcon className="w-4 h-4 ml-1" />
@@ -392,16 +558,14 @@ const AdminPage = () => {
       </div>
       
       {/* 展開的詳細內容 */}
-      {expandedArtwork === artwork.id && (
+      {expandedItem === artwork.id && (
         <div className="border-t border-gray-200 bg-gray-50 p-6">
           <div className="space-y-6">
-            {/* 作品簡介 */}
             <div>
               <h4 className="font-medium text-gray-900 mb-2">作品簡介</h4>
               <p className="text-gray-700 whitespace-pre-wrap">{artwork.description}</p>
             </div>
             
-            {/* 影片連結 */}
             {artwork.video_url && (
               <div>
                 <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
@@ -419,7 +583,6 @@ const AdminPage = () => {
               </div>
             )}
             
-            {/* 社群連結 */}
             {(artwork.social_links && artwork.social_links.length > 0) || artwork.social_link ? (
               <div>
                 <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
@@ -454,7 +617,6 @@ const AdminPage = () => {
               </div>
             ) : null}
             
-            {/* Gallery 圖片 */}
             {artwork.gallery_images && artwork.gallery_images.length > 0 && (
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">其他展示圖片</h4>
@@ -471,7 +633,6 @@ const AdminPage = () => {
               </div>
             )}
             
-            {/* Gallery 影片 */}
             {artwork.gallery_videos && artwork.gallery_videos.length > 0 && (
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">其他影片連結</h4>
@@ -497,7 +658,92 @@ const AdminPage = () => {
     </div>
   )
 
-  // 未登入狀態 - 顯示登入表單
+  // 渲染作者資料卡片
+  const renderProfileCard = (profile) => (
+    <div key={profile.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-6">
+        <div className="flex items-start gap-6">
+          <div className="flex-shrink-0">
+            {profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.author_name}
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
+                <UserCircleIcon className="w-12 h-12 text-gray-400" />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {profile.author_name}
+            </h3>
+            
+            <div className="text-sm text-gray-600 mb-4">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" />
+                <span>提交時間：{formatDate(profile.created_at)}</span>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-900 mb-1">簡介：</h4>
+              <p className="text-gray-700 text-sm line-clamp-3">
+                {profile.bio}
+              </p>
+            </div>
+            
+            {profile.social_links && profile.social_links.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-900 mb-1">社交連結：</h4>
+                <div className="flex flex-wrap gap-2">
+                  {profile.social_links.map((link, index) => (
+                    <a
+                      key={index}
+                      href={link.includes('http') ? link : `https://${link}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      連結 {index + 1}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-3">
+              <Button
+                size="sm"
+                onClick={() => handleApproveProfile(profile.id)}
+                disabled={actionLoading[`profile-${profile.id}`] !== undefined}
+                loading={actionLoading[`profile-${profile.id}`] === 'approve'}
+              >
+                <CheckCircleIcon className="w-4 h-4 mr-1" />
+                通過
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleRejectProfile(profile.id)}
+                disabled={actionLoading[`profile-${profile.id}`] !== undefined}
+                loading={actionLoading[`profile-${profile.id}`] === 'reject'}
+              >
+                <XCircleIcon className="w-4 h-4 mr-1" />
+                駁回
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // 未登入狀態
   if (!isAuthenticated) {
     return (
       <Layout>
@@ -531,7 +777,6 @@ const AdminPage = () => {
                       passwordError ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="輸入管理員密碼"
-                    autoFocus
                   />
                   {passwordError && (
                     <p className="mt-2 text-sm text-red-600">{passwordError}</p>
@@ -549,17 +794,16 @@ const AdminPage = () => {
     )
   }
 
-  // 已登入狀態 - 顯示管理介面
+  // 已登入狀態
   return (
     <Layout>
       <Seo title="管理員後台" />
       
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 頂部標題列 */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">管理員後台</h1>
-            <p className="text-gray-600 mt-1">管理所有作品</p>
+            <p className="text-gray-600 mt-1">管理所有內容</p>
           </div>
           <Button variant="outline" onClick={handleLogout}>
             登出
@@ -576,7 +820,7 @@ const AdminPage = () => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            待審核 ({pendingArtworks.length})
+            待審核作品 ({pendingArtworks.length})
           </button>
           <button
             onClick={() => setActiveTab('approved')}
@@ -586,43 +830,162 @@ const AdminPage = () => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            已審核 ({approvedArtworks.length})
+            已審核作品 ({approvedArtworks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('profiles')}
+            className={`pb-4 px-2 font-medium text-sm transition-colors ${
+              activeTab === 'profiles'
+                ? 'text-orange-600 border-b-2 border-orange-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            待審核作者資料 ({pendingProfiles.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`pb-4 px-2 font-medium text-sm transition-colors ${
+              activeTab === 'categories'
+                ? 'text-orange-600 border-b-2 border-orange-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            類別管理 ({categories.length})
           </button>
         </div>
         
-        {/* 統計資訊 */}
-        <div className={`${activeTab === 'pending' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4 mb-8`}>
-          <p className={activeTab === 'pending' ? 'text-orange-800' : 'text-green-800'}>
-            {activeTab === 'pending' ? (
-              <>目前有 <span className="font-bold text-orange-900">{pendingArtworks.length}</span> 件作品待審核</>
-            ) : (
-              <>目前有 <span className="font-bold text-green-900">{approvedArtworks.length}</span> 件作品已審核通過</>
-            )}
-          </p>
-        </div>
-        
-        {/* 作品列表 */}
+        {/* 內容區域 */}
         {loading ? (
-          <Loading type="spinner" size="lg" text={`載入${activeTab === 'pending' ? '待審核' : '已審核'}作品...`} />
+          <Loading type="spinner" size="lg" text="載入中..." />
         ) : (
-          <div className="space-y-6">
-            {activeTab === 'pending' ? (
-              pendingArtworks.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-lg">
-                  <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <p className="text-gray-600 text-lg">太好了！目前沒有待審核的作品</p>
+          <div>
+            {/* 作品列表 */}
+            {(activeTab === 'pending' || activeTab === 'approved') && (
+              <div className="space-y-6">
+                {activeTab === 'pending' ? (
+                  pendingArtworks.length === 0 ? (
+                    <div className="text-center py-16 bg-gray-50 rounded-lg">
+                      <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg">太好了！目前沒有待審核的作品</p>
+                    </div>
+                  ) : (
+                    pendingArtworks.map(artwork => renderArtworkCard(artwork, true))
+                  )
+                ) : (
+                  approvedArtworks.length === 0 ? (
+                    <div className="text-center py-16 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600 text-lg">目前沒有已審核的作品</p>
+                    </div>
+                  ) : (
+                    approvedArtworks.map(artwork => renderArtworkCard(artwork, false))
+                  )
+                )}
+              </div>
+            )}
+            
+            {/* 作者資料列表 */}
+            {activeTab === 'profiles' && (
+              <div className="space-y-6">
+                {pendingProfiles.length === 0 ? (
+                  <div className="text-center py-16 bg-gray-50 rounded-lg">
+                    <UserCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 text-lg">目前沒有待審核的作者資料</p>
+                  </div>
+                ) : (
+                  pendingProfiles.map(profile => renderProfileCard(profile))
+                )}
+              </div>
+            )}
+            
+            {/* 類別管理 */}
+            {activeTab === 'categories' && (
+              <div>
+                <div className="mb-6">
+                  <Button
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    size="sm"
+                  >
+                    <PlusIcon className="w-4 h-4 mr-1" />
+                    新增類別
+                  </Button>
                 </div>
-              ) : (
-                pendingArtworks.map(artwork => renderArtworkCard(artwork, true))
-              )
-            ) : (
-              approvedArtworks.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-lg">
-                  <p className="text-gray-600 text-lg">目前沒有已審核的作品</p>
+                
+                {showAddCategory && (
+                  <form onSubmit={handleCreateCategory} className="bg-gray-50 rounded-lg p-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          類別名稱 <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="例如：數位藝術"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          類別說明
+                        </label>
+                        <input
+                          type="text"
+                          value={newCategoryDescription}
+                          onChange={(e) => setNewCategoryDescription(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="選填"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button type="submit" size="sm">
+                        創建
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddCategory(false)
+                          setNewCategoryName('')
+                          setNewCategoryDescription('')
+                        }}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </form>
+                )}
+                
+                <div className="space-y-4">
+                  {categories.length === 0 ? (
+                    <div className="text-center py-16 bg-gray-50 rounded-lg">
+                      <FolderIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg">尚未建立任何類別</p>
+                    </div>
+                  ) : (
+                    categories.map(category => (
+                      <div key={category.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                          {category.description && (
+                            <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleDeleteCategory(category.id)}
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : (
-                approvedArtworks.map(artwork => renderArtworkCard(artwork, false))
-              )
+              </div>
             )}
           </div>
         )}
@@ -631,4 +994,4 @@ const AdminPage = () => {
   )
 }
 
-export default AdminPage
+export default AdminPage;

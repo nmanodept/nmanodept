@@ -1,16 +1,27 @@
 // src/pages/search.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { navigate } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
 import Button from '../components/common/Button'
 import Card, { CardGrid } from '../components/common/Card'
-import Loading, { SkeletonGrid } from '../components/common/Loading'
-import { ChevronDownIcon, ChevronUpIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { SkeletonGrid } from '../components/common/Loading'
+import { 
+  ChevronDownIcon, 
+  ChevronUpIcon, 
+  FunnelIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon,
+  UserIcon,
+  TagIcon,
+  FolderIcon
+} from '@heroicons/react/24/outline'
 
 const SearchPage = ({ location }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
+  const [selectedAuthors, setSelectedAuthors] = useState([]) // 新增作者篩選
+  const [selectedCategory, setSelectedCategory] = useState('') // 新增類別篩選
   const [selectedYear, setSelectedYear] = useState('')
   const [selectedSemester, setSelectedSemester] = useState('')
   const [sortBy, setSortBy] = useState('newest')
@@ -19,6 +30,8 @@ const SearchPage = ({ location }) => {
   const [filteredArtworks, setFilteredArtworks] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   const [availableTags, setAvailableTags] = useState([])
+  const [availableAuthors, setAvailableAuthors] = useState([]) // 新增
+  const [availableCategories, setAvailableCategories] = useState([]) // 新增
   const [availableYears, setAvailableYears] = useState([])
   const [availableSemesters, setAvailableSemesters] = useState([])
   
@@ -31,6 +44,8 @@ const SearchPage = ({ location }) => {
     const params = new URLSearchParams(location.search)
     const q = params.get('q') || ''
     const tags = params.get('tags') ? params.get('tags').split(',') : []
+    const authors = params.get('authors') ? params.get('authors').split(',') : []
+    const category = params.get('category') || ''
     const year = params.get('year') || ''
     const semester = params.get('semester') || ''
     const sort = params.get('sort') || 'newest'
@@ -38,13 +53,15 @@ const SearchPage = ({ location }) => {
     
     setSearchTerm(q)
     setSelectedTags(tags)
+    setSelectedAuthors(authors)
+    setSelectedCategory(category)
     setSelectedYear(year)
     setSelectedSemester(semester)
     setSortBy(sort)
     setCurrentPage(page)
     
     // 如果有任何搜尋參數，展開篩選器
-    if (tags.length > 0 || year || semester) {
+    if (tags.length > 0 || authors.length > 0 || category || year || semester) {
       setShowFilters(true)
     }
   }, [location.search])
@@ -54,76 +71,8 @@ const SearchPage = ({ location }) => {
     fetchAllArtworks()
   }, [])
 
-  // 當篩選條件改變時，更新結果並重置頁數
-  useEffect(() => {
-    setCurrentPage(1)
-    applyFilters()
-  }, [searchTerm, selectedTags, selectedYear, selectedSemester, sortBy])
-
-  // 當allArtworks更新時也要重新過濾
-  useEffect(() => {
-    if (allArtworks.length > 0) {
-      applyFilters()
-    }
-  }, [allArtworks])
-
-  const fetchAllArtworks = async () => {
-    setIsLoading(true)
-    try {
-      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const response = await fetch(`${apiUrl}/artworks`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Fetched artworks:', data) // 除錯用
-        
-        setAllArtworks(data)
-        
-        // 提取所有可用的篩選選項
-        const tags = new Set()
-        const years = new Set()
-        const semesters = new Set()
-        
-        data.forEach(artwork => {
-          // 處理 tags - 確保正確解析
-          let artworkTags = []
-          if (artwork.tags) {
-            if (typeof artwork.tags === 'string') {
-              try {
-                artworkTags = JSON.parse(artwork.tags)
-              } catch (e) {
-                console.error('Failed to parse tags:', artwork.tags)
-                artworkTags = []
-              }
-            } else if (Array.isArray(artwork.tags)) {
-              artworkTags = artwork.tags
-            }
-          }
-          
-          artworkTags.forEach(tag => {
-            if (tag) tags.add(tag)
-          })
-          
-          // 處理年度和學期
-          if (artwork.project_year) years.add(artwork.project_year)
-          if (artwork.project_semester) semesters.add(artwork.project_semester)
-        })
-        
-        const sortedTags = Array.from(tags).sort()
-        setAvailableTags(sortedTags)
-        setAvailableYears(Array.from(years).sort((a, b) => b - a))
-        setAvailableSemesters(Array.from(semesters))
-        
-        console.log('Available tags:', sortedTags) // 除錯用
-      }
-    } catch (error) {
-      console.error('Failed to fetch artworks:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const applyFilters = () => {
+  // applyFilters 函數使用 useCallback
+  const applyFilters = useCallback(() => {
     if (allArtworks.length === 0) return
     
     let filtered = [...allArtworks]
@@ -132,31 +81,39 @@ const SearchPage = ({ location }) => {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter(artwork => {
-        return (
-          (artwork.title && artwork.title.toLowerCase().includes(searchLower)) ||
-          (artwork.author && artwork.author.toLowerCase().includes(searchLower)) ||
-          (artwork.description && artwork.description.toLowerCase().includes(searchLower))
+        const titleMatch = artwork.title && artwork.title.toLowerCase().includes(searchLower)
+        const descMatch = artwork.description && artwork.description.toLowerCase().includes(searchLower)
+        // 搜尋多個作者
+        const authorMatch = artwork.authors && artwork.authors.some(author => 
+          author.toLowerCase().includes(searchLower)
+        )
+        return titleMatch || descMatch || authorMatch
+      })
+    }
+    
+    // 作者篩選（新增）
+    if (selectedAuthors.length > 0) {
+      filtered = filtered.filter(artwork => {
+        const artworkAuthors = artwork.authors || []
+        return selectedAuthors.some(selectedAuthor => 
+          artworkAuthors.some(author => 
+            author.toLowerCase() === selectedAuthor.toLowerCase()
+          )
         )
       })
+    }
+    
+    // 類別篩選（新增）
+    if (selectedCategory) {
+      filtered = filtered.filter(artwork => 
+        artwork.category_id === selectedCategory
+      )
     }
     
     // Tag 篩選（不區分大小寫）
     if (selectedTags.length > 0) {
       filtered = filtered.filter(artwork => {
-        let artworkTags = []
-        if (artwork.tags) {
-          if (typeof artwork.tags === 'string') {
-            try {
-              artworkTags = JSON.parse(artwork.tags)
-            } catch (e) {
-              artworkTags = []
-            }
-          } else if (Array.isArray(artwork.tags)) {
-            artworkTags = artwork.tags
-          }
-        }
-        
-        // 不區分大小寫比對
+        const artworkTags = artwork.tags || []
         const lowerArtworkTags = artworkTags.map(t => t ? t.toLowerCase() : '')
         return selectedTags.some(selectedTag => 
           lowerArtworkTags.includes(selectedTag.toLowerCase())
@@ -189,15 +146,86 @@ const SearchPage = ({ location }) => {
     })
     
     setFilteredArtworks(filtered)
-    
-    // 更新 URL
+  }, [searchTerm, selectedTags, selectedAuthors, selectedCategory, selectedYear, selectedSemester, sortBy, allArtworks])
+
+  // 當篩選條件改變時，更新結果並重置頁數
+  useEffect(() => {
+    setCurrentPage(1)
+    applyFilters()
+  }, [searchTerm, selectedTags, selectedAuthors, selectedCategory, selectedYear, selectedSemester, sortBy, applyFilters])
+
+  // 當 currentPage 改變時更新 URL
+  useEffect(() => {
     updateURL()
+  }, [currentPage])
+
+  const fetchAllArtworks = async () => {
+    setIsLoading(true)
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/artworks`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Fetched artworks:', data)
+        
+        setAllArtworks(data)
+        
+        // 提取所有可用的篩選選項
+        const tags = new Set()
+        const authors = new Set()
+        const categories = new Map() // 使用 Map 來儲存 id 和 name
+        const years = new Set()
+        const semesters = new Set()
+        
+        data.forEach(artwork => {
+          // 處理 tags
+          const artworkTags = artwork.tags || []
+          artworkTags.forEach(tag => {
+            if (tag) tags.add(tag)
+          })
+          
+          // 處理作者
+          const artworkAuthors = artwork.authors || []
+          artworkAuthors.forEach(author => {
+            if (author) authors.add(author)
+          })
+          
+          // 處理類別
+          if (artwork.category_id && artwork.category_name) {
+            categories.set(artwork.category_id, artwork.category_name)
+          }
+          
+          // 處理年度和學期
+          if (artwork.project_year) years.add(artwork.project_year)
+          if (artwork.project_semester) semesters.add(artwork.project_semester)
+        })
+        
+        setAvailableTags(Array.from(tags).sort())
+        setAvailableAuthors(Array.from(authors).sort())
+        setAvailableCategories(Array.from(categories, ([id, name]) => ({ id, name })))
+        setAvailableYears(Array.from(years).sort((a, b) => b - a))
+        setAvailableSemesters(Array.from(semesters))
+        
+        console.log('Available filters:', { 
+          tags: Array.from(tags), 
+          authors: Array.from(authors),
+          categories: Array.from(categories)
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch artworks:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const updateURL = () => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('q', searchTerm)
     if (selectedTags.length > 0) params.set('tags', selectedTags.join(','))
+    if (selectedAuthors.length > 0) params.set('authors', selectedAuthors.join(','))
+    if (selectedCategory) params.set('category', selectedCategory)
     if (selectedYear) params.set('year', selectedYear)
     if (selectedSemester) params.set('semester', selectedSemester)
     if (sortBy !== 'newest') params.set('sort', sortBy)
@@ -216,10 +244,21 @@ const SearchPage = ({ location }) => {
     )
   }
 
+  // 切換作者
+  const toggleAuthor = (author) => {
+    setSelectedAuthors(prev => 
+      prev.includes(author) 
+        ? prev.filter(a => a !== author)
+        : [...prev, author]
+    )
+  }
+
   // 清除所有篩選
   const clearFilters = () => {
     setSearchTerm('')
     setSelectedTags([])
+    setSelectedAuthors([])
+    setSelectedCategory('')
     setSelectedYear('')
     setSelectedSemester('')
     setSortBy('newest')
@@ -243,18 +282,9 @@ const SearchPage = ({ location }) => {
 
   // 換頁
   const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    
-    // 更新 URL
-    const params = new URLSearchParams(location.search)
-    if (page > 1) {
-      params.set('page', page.toString())
-    } else {
-      params.delete('page')
-    }
-    const newURL = params.toString() ? `/search?${params.toString()}` : '/search'
-    navigate(newURL, { replace: true })
   }
 
   // 生成頁碼按鈕
@@ -386,9 +416,9 @@ const SearchPage = ({ location }) => {
               ) : (
                 <ChevronDownIcon className="w-4 h-4" />
               )}
-              {(selectedTags.length > 0 || selectedYear || selectedSemester) && (
+              {(selectedTags.length > 0 || selectedAuthors.length > 0 || selectedCategory || selectedYear || selectedSemester) && (
                 <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
-                  {selectedTags.length + (selectedYear ? 1 : 0) + (selectedSemester ? 1 : 0)}
+                  {selectedTags.length + selectedAuthors.length + (selectedCategory ? 1 : 0) + (selectedYear ? 1 : 0) + (selectedSemester ? 1 : 0)}
                 </span>
               )}
             </button>
@@ -398,12 +428,31 @@ const SearchPage = ({ location }) => {
           {showFilters && (
             <div className="bg-gray-50 rounded-lg p-6 mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                {/* 類別 */}
+                <div>
+                  <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    作品類別
+                  </label>
+                  <select
+                    id="category-filter"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">全部類別</option>
+                    {availableCategories.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
                 {/* 學年度 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     學年度
                   </label>
                   <select
+                    id="year-filter"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
@@ -417,10 +466,11 @@ const SearchPage = ({ location }) => {
                 
                 {/* 年級學期 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="semester-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     年級學期
                   </label>
                   <select
+                    id="semester-filter"
                     value={selectedSemester}
                     onChange={(e) => setSelectedSemester(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
@@ -434,10 +484,11 @@ const SearchPage = ({ location }) => {
                 
                 {/* 排序方式 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="sort-filter" className="block text-sm font-medium text-gray-700 mb-2">
                     排序方式
                   </label>
                   <select
+                    id="sort-filter"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
@@ -448,23 +499,41 @@ const SearchPage = ({ location }) => {
                     <option value="popular" disabled>熱門（即將推出）</option>
                   </select>
                 </div>
-                
-                {/* 清除按鈕 */}
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="w-full"
-                  >
-                    清除所有篩選
-                  </Button>
-                </div>
+              </div>
+              
+              {/* 作者篩選（新增） */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <UserIcon className="inline w-4 h-4 mr-1" />
+                  作者篩選（可多選）
+                </label>
+                {availableAuthors.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {availableAuthors.map(author => (
+                      <button
+                        key={author}
+                        onClick={() => toggleAuthor(author)}
+                        className={`
+                          px-3 py-1 rounded-full text-sm font-medium transition-colors
+                          ${selectedAuthors.includes(author)
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }
+                        `}
+                      >
+                        {author}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">載入作者中...</p>
+                )}
               </div>
               
               {/* Tag 選擇 */}
-              <div>
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <TagIcon className="inline w-4 h-4 mr-1" />
                   標籤篩選（可多選）
                 </label>
                 {availableTags.length > 0 ? (
@@ -476,7 +545,7 @@ const SearchPage = ({ location }) => {
                         className={`
                           px-3 py-1 rounded-full text-sm font-medium transition-colors
                           ${selectedTags.includes(tag)
-                            ? 'bg-orange-500 text-white'
+                            ? 'bg-green-500 text-white'
                             : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
                           }
                         `}
@@ -488,6 +557,17 @@ const SearchPage = ({ location }) => {
                 ) : (
                   <p className="text-gray-500 text-sm">載入標籤中...</p>
                 )}
+              </div>
+              
+              {/* 清除按鈕 */}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                >
+                  清除所有篩選
+                </Button>
               </div>
             </div>
           )}
@@ -513,25 +593,29 @@ const SearchPage = ({ location }) => {
             <>
               <CardGrid columns={3}>
                 {currentArtworks.map(artwork => {
-                  let tags = []
-                  if (artwork.tags) {
-                    if (typeof artwork.tags === 'string') {
-                      try {
-                        tags = JSON.parse(artwork.tags)
-                      } catch (e) {
-                        tags = []
-                      }
-                    } else if (Array.isArray(artwork.tags)) {
-                      tags = artwork.tags
-                    }
-                  }
+                  const tags = artwork.tags || []
+                  const authors = artwork.authors || []
                   
                   return (
                     <Card
                       key={artwork.id}
                       image={artwork.main_image_url}
                       title={artwork.title}
-                      subtitle={`${artwork.author} · ${artwork.year}`}
+                      subtitle={
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-sm">
+                            <UserIcon className="w-3 h-3" />
+                            <span>{authors.join(', ') || artwork.author}</span>
+                          </div>
+                          {artwork.category_name && (
+                            <div className="flex items-center gap-1 text-sm">
+                              <FolderIcon className="w-3 h-3" />
+                              <span>{artwork.category_name}</span>
+                            </div>
+                          )}
+                          <div className="text-sm">{artwork.year}</div>
+                        </div>
+                      }
                       description={truncateText(artwork.description, 50)}
                       tags={tags}
                       link={`/art/${artwork.id}`}

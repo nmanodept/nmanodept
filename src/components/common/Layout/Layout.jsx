@@ -6,11 +6,12 @@ const Layout = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
   const navLinks = [
-    { path: '/', label: '首頁' },
-    { path: '/about', label: '關於' },
-    { path: '/search', label: '搜尋' },
-    { path: '/submit', label: '投稿' },
-  ]
+      { path: '/', label: '首頁' },
+      { path: '/about', label: '關於' },
+      { path: '/search', label: '搜尋' },
+      { path: '/submit', label: '投稿' },
+      { path: '/author-profile', label: '補充資料' },
+    ]
   
   return (
     <div className="min-h-screen flex flex-col">
