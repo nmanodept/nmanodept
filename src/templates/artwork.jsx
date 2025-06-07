@@ -35,13 +35,6 @@ const ArtworkTemplate = ({ pageContext }) => {
     
   }, [id]);
 
-  useEffect(() => {
-  if (artwork && artwork.id) {
-    // 增加瀏覽次數
-    incrementViewCount();
-  }
-}, [artwork]);
-
 
   const fetchArtwork = async () => {
     try {
@@ -111,6 +104,14 @@ const ArtworkTemplate = ({ pageContext }) => {
       setLoading(false);
     }
   };
+
+
+    useEffect(() => {
+  if (artwork && artwork.id) {
+    // 增加瀏覽次數
+    incrementViewCount();
+  }
+}, [artwork]);
 
   const incrementViewCount = async () => {
   try {
