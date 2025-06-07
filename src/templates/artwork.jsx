@@ -29,9 +29,12 @@ const ArtworkTemplate = ({ pageContext }) => {
   const [mediaList, setMediaList] = useState([]);
 
   // 獲取作品資料
-  useEffect(() => {
-    fetchArtwork();
-  }, [id]);
+useEffect(() => {
+  if (artwork && artwork.id) {
+    // 增加瀏覽次數
+    incrementViewCount();
+  }
+}, [artwork]);
 
   const fetchArtwork = async () => {
     try {
@@ -147,6 +150,17 @@ const ArtworkTemplate = ({ pageContext }) => {
       );
     }
   };
+
+  const incrementViewCount = async () => {
+  try {
+    const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+    await fetch(`${apiUrl}/artwork/${id}/view`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Failed to increment view count:', error);
+  }
+};
 
   // 載入中
   if (loading) return (

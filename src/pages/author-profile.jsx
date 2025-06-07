@@ -11,7 +11,8 @@ import {
   PlusIcon, 
   TrashIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 const AuthorProfilePage = () => {
@@ -33,7 +34,8 @@ const AuthorProfilePage = () => {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch(`${process.env.GATSBY_API_URL}/authors`);
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/authors`);
       if (response.ok) {
         const data = await response.json();
         setAvailableAuthors(data);
@@ -104,7 +106,8 @@ const AuthorProfilePage = () => {
       }
 
       // 發送 API 請求
-      const response = await fetch(`${process.env.GATSBY_API_URL}/author-profile/submit`, {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/author-profile/submit`, {
         method: 'POST',
         body: formData
       });

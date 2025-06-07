@@ -8,7 +8,7 @@ import { navigate } from 'gatsby';
 const SubmitForm = () => {
   const { register, control, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     defaultValues: {
-      authors: [], // 改為多作者
+      authors: [], 
       tags: [],
       gallery_images: [],
       gallery_video_urls: [''],
@@ -19,26 +19,30 @@ const SubmitForm = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [galleryPreviews, setGalleryPreviews] = useState([]);
   const [tagInput, setTagInput] = useState('');
-  const [authorInput, setAuthorInput] = useState(''); // 新增作者輸入
+  const [authorInput, setAuthorInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   
-  // 新增狀態：可用的作者和類別
+  // 新增狀態：可用的作者、標籤和類別
   const [availableAuthors, setAvailableAuthors] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   const description = watch('description', '');
 
-  // 載入可用的作者和類別
+  // 載入可用的作者、標籤和類別
   useEffect(() => {
     fetchAuthors();
     fetchCategories();
+    fetchTags();
   }, []);
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch(`${process.env.GATSBY_API_URL}/authors`);
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/authors`);
       if (response.ok) {
         const data = await response.json();
         setAvailableAuthors(data);
@@ -50,13 +54,27 @@ const SubmitForm = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${process.env.GATSBY_API_URL}/categories`);
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/categories`);
       if (response.ok) {
         const data = await response.json();
         setAvailableCategories(data);
       }
     } catch (error) {
       console.error('Failed to fetch categories:', error);
+    }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/tags`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTags(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tags:', error);
     }
   };
 
@@ -109,7 +127,7 @@ const SubmitForm = () => {
     multiple: true
   });
 
-  // 作者管理（類似標籤）
+  // 作者管理
   const handleAddAuthor = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -134,7 +152,7 @@ const SubmitForm = () => {
     setValue('authors', watch('authors').filter(author => author !== authorToRemove));
   };
 
-  // 標籤管理
+  // 標籤管理（更新版 - 支援自動完成）
   const handleAddTag = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -142,8 +160,17 @@ const SubmitForm = () => {
       if (tag && !watch('tags').includes(tag)) {
         setValue('tags', [...watch('tags'), tag]);
         setTagInput('');
+        setShowTagSuggestions(false);
       }
     }
+  };
+
+  const addTagFromSuggestion = (tagName) => {
+    if (!watch('tags').includes(tagName)) {
+      setValue('tags', [...watch('tags'), tagName]);
+    }
+    setTagInput('');
+    setShowTagSuggestions(false);
   };
 
   const removeTag = (tagToRemove) => {
@@ -200,14 +227,14 @@ const SubmitForm = () => {
       
       // 添加基本欄位
       formData.append('title', data.title);
-      formData.append('authors', JSON.stringify(data.authors)); // 多作者
+      formData.append('authors', JSON.stringify(data.authors));
       formData.append('year', data.year.toString());
       formData.append('video_url', data.video_url);
       formData.append('tags', JSON.stringify(data.tags));
       formData.append('description', data.description);
       formData.append('project_year', data.project_year);
       formData.append('project_semester', data.project_semester);
-      formData.append('category_id', data.category_id || ''); // 類別
+      formData.append('category_id', data.category_id || '');
       
       // 處理社群連結
       const validSocialLinks = data.social_links.filter(link => link && link.trim() !== '');
@@ -234,7 +261,8 @@ const SubmitForm = () => {
       });
 
       // 發送 API 請求
-      const response = await fetch(`${process.env.GATSBY_API_URL}/submit`, {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/submit`, {
         method: 'POST',
         body: formData
       });
@@ -272,29 +300,21 @@ const SubmitForm = () => {
     !watch('authors').includes(author.name)
   );
 
+  // 過濾標籤建議
+  const filteredTags = availableTags.filter(tag => 
+    tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
+    !watch('tags').includes(tag.name)
+  );
+
+  // 滾動到底部以顯示提示訊息
+  useEffect(() => {
+    if (submitStatus) {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  }, [submitStatus]);
+
   return (
     <>
-      {/* 成功/錯誤訊息 */}
-      {submitStatus === 'success' && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
-          <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
-          <div>
-            <p className="text-green-800 font-medium">作品提交成功！</p>
-            <p className="text-green-600 text-sm">您的作品已送出審核，將在3秒後返回首頁...</p>
-          </div>
-        </div>
-      )}
-
-      {submitStatus === 'error' && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-          <ExclamationCircleIcon className="h-5 w-5 text-red-600 mr-2" />
-          <div>
-            <p className="text-red-800 font-medium">提交失敗</p>
-            <p className="text-red-600 text-sm">請檢查您的網路連線並重試</p>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl mx-auto space-y-8">
         {/* 作品預覽圖 */}
         <div>
@@ -489,7 +509,7 @@ const SubmitForm = () => {
           {errors.video_url && <p className="text-red-500 text-sm mt-1">{errors.video_url.message}</p>}
         </div>
 
-        {/* 作品 Tag */}
+        {/* 作品 Tag（更新版 - 支援自動完成） */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             作品標籤 <span className="text-red-500">*</span>
@@ -501,7 +521,7 @@ const SubmitForm = () => {
               validate: value => value.length > 0 || '請至少新增一個標籤'
             }}
             render={({ field }) => (
-              <div>
+              <div className="relative">
                 <div className="flex flex-wrap gap-2 mb-2">
                   {field.value.map((tag, index) => (
                     <span
@@ -522,12 +542,34 @@ const SubmitForm = () => {
                 <input
                   type="text"
                   value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
+                  onChange={(e) => {
+                    setTagInput(e.target.value);
+                    setShowTagSuggestions(e.target.value.length > 0);
+                  }}
                   onKeyDown={handleAddTag}
+                  onFocus={() => setShowTagSuggestions(tagInput.length > 0)}
+                  onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
                   className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500
                     ${errors.tags ? 'border-red-300' : 'border-gray-300'}`}
                   placeholder="輸入標籤後按 Enter 或逗號新增"
                 />
+                
+                {/* 標籤建議下拉選單 */}
+                {showTagSuggestions && filteredTags.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {filteredTags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addTagFromSuggestion(tag.name)}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100"
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           />
@@ -724,6 +766,31 @@ const SubmitForm = () => {
           </button>
         </div>
       </form>
+
+      {/* 成功/錯誤訊息（移到底部） */}
+      {submitStatus && (
+        <div className="mt-6">
+          {submitStatus === 'success' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+              <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
+              <div>
+                <p className="text-green-800 font-medium">作品提交成功！</p>
+                <p className="text-green-600 text-sm">您的作品已送出審核，將在3秒後返回首頁...</p>
+              </div>
+            </div>
+          )}
+
+          {submitStatus === 'error' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+              <ExclamationCircleIcon className="h-5 w-5 text-red-600 mr-2" />
+              <div>
+                <p className="text-red-800 font-medium">提交失敗</p>
+                <p className="text-red-600 text-sm">請檢查您的網路連線並重試</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 };

@@ -12,7 +12,6 @@ import {
   FunnelIcon, 
   ChevronLeftIcon, 
   ChevronRightIcon,
-  UserIcon,
   TagIcon,
   FolderIcon
 } from '@heroicons/react/24/outline'
@@ -20,8 +19,7 @@ import {
 const SearchPage = ({ location }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
-  const [selectedAuthors, setSelectedAuthors] = useState([]) // 新增作者篩選
-  const [selectedCategory, setSelectedCategory] = useState('') // 新增類別篩選
+  const [selectedCategory, setSelectedCategory] = useState('')
   const [selectedYear, setSelectedYear] = useState('')
   const [selectedSemester, setSelectedSemester] = useState('')
   const [sortBy, setSortBy] = useState('newest')
@@ -30,8 +28,7 @@ const SearchPage = ({ location }) => {
   const [filteredArtworks, setFilteredArtworks] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   const [availableTags, setAvailableTags] = useState([])
-  const [availableAuthors, setAvailableAuthors] = useState([]) // 新增
-  const [availableCategories, setAvailableCategories] = useState([]) // 新增
+  const [availableCategories, setAvailableCategories] = useState([])
   const [availableYears, setAvailableYears] = useState([])
   const [availableSemesters, setAvailableSemesters] = useState([])
   
@@ -44,7 +41,6 @@ const SearchPage = ({ location }) => {
     const params = new URLSearchParams(location.search)
     const q = params.get('q') || ''
     const tags = params.get('tags') ? params.get('tags').split(',') : []
-    const authors = params.get('authors') ? params.get('authors').split(',') : []
     const category = params.get('category') || ''
     const year = params.get('year') || ''
     const semester = params.get('semester') || ''
@@ -53,7 +49,6 @@ const SearchPage = ({ location }) => {
     
     setSearchTerm(q)
     setSelectedTags(tags)
-    setSelectedAuthors(authors)
     setSelectedCategory(category)
     setSelectedYear(year)
     setSelectedSemester(semester)
@@ -61,7 +56,7 @@ const SearchPage = ({ location }) => {
     setCurrentPage(page)
     
     // 如果有任何搜尋參數，展開篩選器
-    if (tags.length > 0 || authors.length > 0 || category || year || semester) {
+    if (tags.length > 0 || category || year || semester) {
       setShowFilters(true)
     }
   }, [location.search])
@@ -70,6 +65,58 @@ const SearchPage = ({ location }) => {
   useEffect(() => {
     fetchAllArtworks()
   }, [])
+
+  const fetchAllArtworks = async () => {
+    setIsLoading(true)
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const response = await fetch(`${apiUrl}/artworks`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Fetched artworks:', data)
+        
+        setAllArtworks(data)
+        
+        // 提取所有可用的篩選選項
+        const tags = new Set()
+        const categories = new Map()
+        const years = new Set()
+        const semesters = new Set()
+        
+        data.forEach(artwork => {
+          // 處理 tags
+          const artworkTags = artwork.tags || []
+          artworkTags.forEach(tag => {
+            if (tag) tags.add(tag)
+          })
+          
+          // 處理類別
+          if (artwork.category_id && artwork.category_name) {
+            categories.set(artwork.category_id, artwork.category_name)
+          }
+          
+          // 處理年度和學期
+          if (artwork.project_year) years.add(artwork.project_year)
+          if (artwork.project_semester) semesters.add(artwork.project_semester)
+        })
+        
+        setAvailableTags(Array.from(tags).sort())
+        setAvailableCategories(Array.from(categories, ([id, name]) => ({ id, name })))
+        setAvailableYears(Array.from(years).sort((a, b) => b - a))
+        setAvailableSemesters(Array.from(semesters))
+        
+        console.log('Available filters:', { 
+          tags: Array.from(tags), 
+          categories: Array.from(categories)
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch artworks:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // applyFilters 函數使用 useCallback
   const applyFilters = useCallback(() => {
@@ -91,22 +138,10 @@ const SearchPage = ({ location }) => {
       })
     }
     
-    // 作者篩選（新增）
-    if (selectedAuthors.length > 0) {
-      filtered = filtered.filter(artwork => {
-        const artworkAuthors = artwork.authors || []
-        return selectedAuthors.some(selectedAuthor => 
-          artworkAuthors.some(author => 
-            author.toLowerCase() === selectedAuthor.toLowerCase()
-          )
-        )
-      })
-    }
-    
-    // 類別篩選（新增）
+    // 類別篩選（修正比對邏輯）
     if (selectedCategory) {
       filtered = filtered.filter(artwork => 
-        artwork.category_id === selectedCategory
+        String(artwork.category_id) === String(selectedCategory)
       )
     }
     
@@ -138,6 +173,8 @@ const SearchPage = ({ location }) => {
           return new Date(b.created_at || 0) - new Date(a.created_at || 0)
         case 'oldest':
           return new Date(a.created_at || 0) - new Date(b.created_at || 0)
+        case 'popular':
+          return (b.view_count || 0) - (a.view_count || 0)
         case 'random':
           return Math.random() - 0.5
         default:
@@ -146,85 +183,19 @@ const SearchPage = ({ location }) => {
     })
     
     setFilteredArtworks(filtered)
-  }, [searchTerm, selectedTags, selectedAuthors, selectedCategory, selectedYear, selectedSemester, sortBy, allArtworks])
+  }, [searchTerm, selectedTags, selectedCategory, selectedYear, selectedSemester, sortBy, allArtworks])
 
   // 當篩選條件改變時，更新結果並重置頁數
   useEffect(() => {
     setCurrentPage(1)
     applyFilters()
-  }, [searchTerm, selectedTags, selectedAuthors, selectedCategory, selectedYear, selectedSemester, sortBy, applyFilters])
+  }, [searchTerm, selectedTags, selectedCategory, selectedYear, selectedSemester, sortBy, applyFilters])
 
-  // 當 currentPage 改變時更新 URL
-  useEffect(() => {
-    updateURL()
-  }, [currentPage])
-
-  const fetchAllArtworks = async () => {
-    setIsLoading(true)
-    try {
-      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const response = await fetch(`${apiUrl}/artworks`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Fetched artworks:', data)
-        
-        setAllArtworks(data)
-        
-        // 提取所有可用的篩選選項
-        const tags = new Set()
-        const authors = new Set()
-        const categories = new Map() // 使用 Map 來儲存 id 和 name
-        const years = new Set()
-        const semesters = new Set()
-        
-        data.forEach(artwork => {
-          // 處理 tags
-          const artworkTags = artwork.tags || []
-          artworkTags.forEach(tag => {
-            if (tag) tags.add(tag)
-          })
-          
-          // 處理作者
-          const artworkAuthors = artwork.authors || []
-          artworkAuthors.forEach(author => {
-            if (author) authors.add(author)
-          })
-          
-          // 處理類別
-          if (artwork.category_id && artwork.category_name) {
-            categories.set(artwork.category_id, artwork.category_name)
-          }
-          
-          // 處理年度和學期
-          if (artwork.project_year) years.add(artwork.project_year)
-          if (artwork.project_semester) semesters.add(artwork.project_semester)
-        })
-        
-        setAvailableTags(Array.from(tags).sort())
-        setAvailableAuthors(Array.from(authors).sort())
-        setAvailableCategories(Array.from(categories, ([id, name]) => ({ id, name })))
-        setAvailableYears(Array.from(years).sort((a, b) => b - a))
-        setAvailableSemesters(Array.from(semesters))
-        
-        console.log('Available filters:', { 
-          tags: Array.from(tags), 
-          authors: Array.from(authors),
-          categories: Array.from(categories)
-        })
-      }
-    } catch (error) {
-      console.error('Failed to fetch artworks:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateURL = () => {
+  // 更新 URL 函數
+  const updateURL = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('q', searchTerm)
     if (selectedTags.length > 0) params.set('tags', selectedTags.join(','))
-    if (selectedAuthors.length > 0) params.set('authors', selectedAuthors.join(','))
     if (selectedCategory) params.set('category', selectedCategory)
     if (selectedYear) params.set('year', selectedYear)
     if (selectedSemester) params.set('semester', selectedSemester)
@@ -232,8 +203,14 @@ const SearchPage = ({ location }) => {
     if (currentPage > 1) params.set('page', currentPage.toString())
     
     const newURL = params.toString() ? `/search?${params.toString()}` : '/search'
-    navigate(newURL, { replace: true })
-  }
+    // 使用 replace: false 以確保頁面狀態正確更新
+    navigate(newURL, { replace: false })
+  }, [searchTerm, selectedTags, selectedCategory, selectedYear, selectedSemester, sortBy, currentPage])
+
+  // 單獨處理頁碼變化
+  useEffect(() => {
+    updateURL()
+  }, [currentPage, updateURL])
 
   // 切換標籤
   const toggleTag = (tag) => {
@@ -244,20 +221,10 @@ const SearchPage = ({ location }) => {
     )
   }
 
-  // 切換作者
-  const toggleAuthor = (author) => {
-    setSelectedAuthors(prev => 
-      prev.includes(author) 
-        ? prev.filter(a => a !== author)
-        : [...prev, author]
-    )
-  }
-
   // 清除所有篩選
   const clearFilters = () => {
     setSearchTerm('')
     setSelectedTags([])
-    setSelectedAuthors([])
     setSelectedCategory('')
     setSelectedYear('')
     setSelectedSemester('')
@@ -416,9 +383,9 @@ const SearchPage = ({ location }) => {
               ) : (
                 <ChevronDownIcon className="w-4 h-4" />
               )}
-              {(selectedTags.length > 0 || selectedAuthors.length > 0 || selectedCategory || selectedYear || selectedSemester) && (
+              {(selectedTags.length > 0 || selectedCategory || selectedYear || selectedSemester) && (
                 <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
-                  {selectedTags.length + selectedAuthors.length + (selectedCategory ? 1 : 0) + (selectedYear ? 1 : 0) + (selectedSemester ? 1 : 0)}
+                  {selectedTags.length + (selectedCategory ? 1 : 0) + (selectedYear ? 1 : 0) + (selectedSemester ? 1 : 0)}
                 </span>
               )}
             </button>
@@ -495,39 +462,10 @@ const SearchPage = ({ location }) => {
                   >
                     <option value="newest">最新</option>
                     <option value="oldest">最舊</option>
+                    <option value="popular">熱門</option>
                     <option value="random">隨機</option>
-                    <option value="popular" disabled>熱門（即將推出）</option>
                   </select>
                 </div>
-              </div>
-              
-              {/* 作者篩選（新增） */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <UserIcon className="inline w-4 h-4 mr-1" />
-                  作者篩選（可多選）
-                </label>
-                {availableAuthors.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {availableAuthors.map(author => (
-                      <button
-                        key={author}
-                        onClick={() => toggleAuthor(author)}
-                        className={`
-                          px-3 py-1 rounded-full text-sm font-medium transition-colors
-                          ${selectedAuthors.includes(author)
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-                          }
-                        `}
-                      >
-                        {author}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">載入作者中...</p>
-                )}
               </div>
               
               {/* Tag 選擇 */}
@@ -603,9 +541,8 @@ const SearchPage = ({ location }) => {
                       title={artwork.title}
                       subtitle={
                         <div className="space-y-1">
-                          <div className="flex items-center gap-1 text-sm">
-                            <UserIcon className="w-3 h-3" />
-                            <span>{authors.join(', ') || artwork.author}</span>
+                          <div className="text-sm">
+                            {authors.join(', ') || artwork.author}
                           </div>
                           {artwork.category_name && (
                             <div className="flex items-center gap-1 text-sm">
@@ -614,6 +551,11 @@ const SearchPage = ({ location }) => {
                             </div>
                           )}
                           <div className="text-sm">{artwork.year}</div>
+                          {artwork.view_count > 0 && (
+                            <div className="text-xs text-gray-500">
+                              瀏覽次數：{artwork.view_count}
+                            </div>
+                          )}
                         </div>
                       }
                       description={truncateText(artwork.description, 50)}

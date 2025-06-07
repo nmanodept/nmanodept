@@ -8,6 +8,7 @@ const Layout = ({ children }) => {
   const navLinks = [
       { path: '/', label: '首頁' },
       { path: '/about', label: '關於' },
+      { path: '/authors', label: '作者' },
       { path: '/search', label: '搜尋' },
       { path: '/submit', label: '投稿' },
       { path: '/author-profile', label: '補充資料' },
