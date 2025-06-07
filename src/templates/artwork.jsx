@@ -39,19 +39,17 @@ useEffect(() => {
 
   const fetchArtwork = async () => {
     try {
+      // 使用正確的環境變數
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
-      const response = await fetch(`${apiUrl}/artwork/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(`${apiUrl}/artwork/${id}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Fetched artwork data:', data); // 除錯用
+      
       setArtwork(data);
       
       // 建立媒體列表（主圖 + 影片 + gallery）
@@ -165,6 +163,7 @@ const incrementViewCount = async () => {
     });
   } catch (error) {
     console.error('Error incrementing view count:', error);
+
   }
 };
 
