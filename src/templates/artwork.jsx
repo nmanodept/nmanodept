@@ -27,11 +27,21 @@ const ArtworkTemplate = ({ pageContext }) => {
   const [error, setError] = useState(null);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [mediaList, setMediaList] = useState([]);
+  const [views, setViews] = useState(null);
 
   // 獲取作品資料
   useEffect(() => {
     fetchArtwork();
+    
   }, [id]);
+
+  useEffect(() => {
+  if (artwork && artwork.id) {
+    // 增加瀏覽次數
+    incrementViewCount();
+  }
+}, [artwork]);
+
 
   const fetchArtwork = async () => {
     try {
@@ -101,6 +111,18 @@ const ArtworkTemplate = ({ pageContext }) => {
       setLoading(false);
     }
   };
+
+  const incrementViewCount = async () => {
+  try {
+    const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+    await fetch(`${apiUrl}/artwork/${id}/view`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Failed to increment view count:', error);
+  }
+};
+ 
 
   // 解析影片嵌入網址
   const getEmbedUrl = (url) => {
