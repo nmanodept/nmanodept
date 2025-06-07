@@ -1,4 +1,3 @@
-//templates/artwork.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'gatsby';
 import Layout from '../components/common/Layout';
@@ -30,12 +29,9 @@ const ArtworkTemplate = ({ pageContext }) => {
   const [mediaList, setMediaList] = useState([]);
 
   // 獲取作品資料
-useEffect(() => {
-  if (artwork && artwork.id) {
-    // 增加瀏覽次數
-    incrementViewCount();
-  }
-}, [artwork]);
+  useEffect(() => {
+    fetchArtwork();
+  }, [id]);
 
   const fetchArtwork = async () => {
     try {
@@ -151,21 +147,6 @@ useEffect(() => {
       );
     }
   };
-
-const incrementViewCount = async () => {
-  try {
-    const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
-    await fetch(`${apiUrl}/artwork/${id}/view`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (error) {
-    console.error('Error incrementing view count:', error);
-
-  }
-};
 
   // 載入中
   if (loading) return (
