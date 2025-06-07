@@ -1,3 +1,4 @@
+//templates/artwork.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'gatsby';
 import Layout from '../components/common/Layout';
@@ -38,17 +39,19 @@ useEffect(() => {
 
   const fetchArtwork = async () => {
     try {
-      // 使用正確的環境變數
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
-      const response = await fetch(`${apiUrl}/artwork/${id}`);
+      const response = await fetch(`${apiUrl}/artwork/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Fetched artwork data:', data); // 除錯用
-      
       setArtwork(data);
       
       // 建立媒體列表（主圖 + 影片 + gallery）
@@ -151,14 +154,17 @@ useEffect(() => {
     }
   };
 
-  const incrementViewCount = async () => {
+const incrementViewCount = async () => {
   try {
     const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
     await fetch(`${apiUrl}/artwork/${id}/view`, {
-      method: 'POST'
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   } catch (error) {
-    console.error('Failed to increment view count:', error);
+    console.error('Error incrementing view count:', error);
   }
 };
 
