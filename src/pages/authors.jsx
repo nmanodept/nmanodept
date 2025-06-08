@@ -1,15 +1,14 @@
-// src/pages/authors.jsx
 import React, { useState, useEffect } from 'react'
 import { Link } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
-import Loading from '../components/common/Loading'
-import { UserCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import './authors.css'
 
 const AuthorsPage = () => {
   const [authors, setAuthors] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [authorProfiles, setAuthorProfiles] = useState({})
 
   useEffect(() => {
     fetchAuthors()
@@ -23,6 +22,21 @@ const AuthorsPage = () => {
       if (response.ok) {
         const data = await response.json()
         setAuthors(data)
+        
+        // 獲取有個人資料的作者頭像
+        const profiles = {}
+        for (const author of data.filter(a => a.has_profile)) {
+          try {
+            const profileResponse = await fetch(`${apiUrl}/author/${encodeURIComponent(author.name)}`)
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json()
+              profiles[author.name] = profileData.avatar_url
+            }
+          } catch (err) {
+            console.error(`Failed to fetch profile for ${author.name}:`, err)
+          }
+        }
+        setAuthorProfiles(profiles)
       }
     } catch (error) {
       console.error('Failed to fetch authors:', error)
@@ -52,8 +66,8 @@ const AuthorsPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <Loading type="spinner" size="lg" text="載入作者資料中..." />
+        <div className="authors-loading">
+          <div className="loading-spinner"></div>
         </div>
       </Layout>
     )
@@ -62,101 +76,71 @@ const AuthorsPage = () => {
   return (
     <Layout>
       <Seo 
-        title="所有作者" 
-        description="瀏覽 nmanodept 平台上所有創作者"
+        title="作者" 
+        description="探索平台上的所有創作者"
       />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="authors-container">
         {/* 頁面標題 */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">創作者名錄</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            探索平台上的所有創作者，點擊作者名稱查看他們的作品集
+        <div className="authors-header">
+          <h1 className="authors-title">作者</h1>
+          <p className="authors-subtitle">
+            共 {authors.length} 位創作者，{authors.reduce((sum, author) => sum + author.artwork_count, 0)} 件作品
           </p>
         </div>
 
         {/* 搜尋框 */}
-        <div className="max-w-md mx-auto mb-12">
+        <div className="authors-search">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜尋作者..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="search-input"
           />
-        </div>
-
-        {/* 統計資訊 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-            <div className="text-3xl font-bold text-orange-500 mb-2">
-              {authors.length}
-            </div>
-            <p className="text-gray-600">位創作者</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-            <div className="text-3xl font-bold text-blue-500 mb-2">
-              {authors.reduce((sum, author) => sum + author.artwork_count, 0)}
-            </div>
-            <p className="text-gray-600">件作品</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-            <div className="text-3xl font-bold text-green-500 mb-2">
-              {groupedAuthors.featured.length}
-            </div>
-            <p className="text-gray-600">位活躍創作者</p>
-          </div>
+          <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M9 17A8 8 0 109 1a8 8 0 000 16z" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M15 15l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
         </div>
 
         {/* 作者列表 */}
         {filteredAuthors.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-lg">
-            <p className="text-gray-500 text-lg">
-              沒有找到符合條件的作者
-            </p>
+          <div className="empty-state">
+            <p>沒有找到符合條件的作者</p>
           </div>
         ) : (
-          <div className="space-y-12">
-            {/* 特色作者（5件作品以上） */}
+          <div className="authors-sections">
+            {/* 特色作者 */}
             {groupedAuthors.featured.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <span className="w-2 h-8 bg-orange-500 mr-3"></span>
+              <section className="author-section">
+                <h2 className="section-title">
+                  <span className="accent-bar"></span>
                   特色創作者
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="featured-grid">
                   {groupedAuthors.featured.map(author => (
                     <Link
                       key={author.id}
                       to={`/author/${encodeURIComponent(author.name)}`}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                      className="author-card featured"
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0">
-                          {author.has_profile ? (
-                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-                              <UserCircleIcon className="w-10 h-10 text-orange-600" />
-                            </div>
-                          ) : (
-                            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                              <UserCircleIcon className="w-10 h-10 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                            {author.name}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <DocumentTextIcon className="w-4 h-4" />
-                              {author.artwork_count} 件作品
-                            </span>
-                            {author.has_profile && (
-                              <span className="text-green-600">已完善資料</span>
-                            )}
+                      <div className="author-avatar">
+                        {authorProfiles[author.name] ? (
+                          <img 
+                            src={authorProfiles[author.name]} 
+                            alt={author.name}
+                            className="avatar-image"
+                          />
+                        ) : (
+                          <div className="avatar-circle has-profile">
+                            <span>{author.name.charAt(0).toUpperCase()}</span>
                           </div>
-                        </div>
+                        )}
+                      </div>
+                      <div className="author-info">
+                        <h3 className="author-name">{author.name}</h3>
+                        <p className="author-works">共 {author.artwork_count} 件作品</p>
                       </div>
                     </Link>
                   ))}
@@ -164,63 +148,74 @@ const AuthorsPage = () => {
               </section>
             )}
 
-            {/* 活躍作者（2-4件作品） */}
+            {/* 活躍作者 */}
             {groupedAuthors.active.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <span className="w-2 h-8 bg-blue-500 mr-3"></span>
-                  活躍創作者
+              <section className="author-section">
+                <h2 className="section-title">
+                  <span className="accent-bar"></span>
+                  創作者
                 </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="active-grid">
                   {groupedAuthors.active.map(author => (
                     <Link
                       key={author.id}
                       to={`/author/${encodeURIComponent(author.name)}`}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center hover:shadow-md transition-shadow"
+                      className="author-card active"
                     >
-                      <div className="mb-3">
-                        {author.has_profile ? (
-                          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                            <UserCircleIcon className="w-8 h-8 text-blue-600" />
-                          </div>
+                      <div className="author-avatar-small">
+                        {authorProfiles[author.name] ? (
+                          <img 
+                            src={authorProfiles[author.name]} 
+                            alt={author.name}
+                            className="avatar-image-small"
+                          />
                         ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                            <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                          <div className="avatar-circle-small">
+                            <span>{author.name.charAt(0).toUpperCase()}</span>
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-gray-900 text-sm mb-1">
-                        {author.name}
-                      </h3>
-                      <p className="text-xs text-gray-600">
-                        {author.artwork_count} 件作品
-                      </p>
+                      <div className="author-info-compact">
+                        <h3 className="author-name-small">{author.name}</h3>
+                        <p className="author-works-small">共 {author.artwork_count} 件作品</p>
+                      </div>
                     </Link>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* 新進作者（1件作品） */}
+            {/* 新進作者 */}
             {groupedAuthors.emerging.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <span className="w-2 h-8 bg-green-500 mr-3"></span>
+              <section className="author-section">
+                <h2 className="section-title">
+                  <span className="accent-bar"></span>
                   新進創作者
                 </h2>
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex flex-wrap gap-3">
-                    {groupedAuthors.emerging.map(author => (
-                      <Link
-                        key={author.id}
-                        to={`/author/${encodeURIComponent(author.name)}`}
-                        className="inline-flex items-center px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-full text-sm font-medium text-gray-700 transition-colors"
-                      >
-                        <UserCircleIcon className="w-4 h-4 mr-2 text-gray-400" />
-                        {author.name}
-                      </Link>
-                    ))}
-                  </div>
+                <div className="emerging-list">
+                  {groupedAuthors.emerging.map(author => (
+                    <Link
+                      key={author.id}
+                      to={`/author/${encodeURIComponent(author.name)}`}
+                      className="author-link"
+                    >
+                      <div className="author-link-content">
+                        {authorProfiles[author.name] ? (
+                          <img 
+                            src={authorProfiles[author.name]} 
+                            alt={author.name}
+                            className="avatar-image-tiny"
+                          />
+                        ) : (
+                          <div className="avatar-circle-tiny">
+                            <span>{author.name.charAt(0).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <span className="author-link-name">{author.name}</span>
+                        <span className="author-link-count">({author.artwork_count})</span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </section>
             )}

@@ -4,6 +4,7 @@ import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
 import Button from '../components/common/Button'
 import Loading from '../components/common/Loading'
+import './admin.css'
 import { 
   EyeIcon, 
   CheckCircleIcon, 

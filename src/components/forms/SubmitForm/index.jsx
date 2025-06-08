@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
 import { XMarkIcon, PhotoIcon, PlusIcon, TrashIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import { navigate } from 'gatsby';
+import './SubmitForm.css'
 
 const SubmitForm = () => {
   const { register, control, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({

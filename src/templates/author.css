@@ -1,0 +1,373 @@
+/* author.css - 極簡作者頁面樣式 */
+
+/* 載入狀態 */
+.author-loading {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-gray-700);
+  border-top-color: var(--color-gray-100);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.author-loading p {
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
+}
+
+/* 錯誤狀態 */
+.author-error {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+.author-error p {
+  color: rgba(239, 68, 68, 0.8);
+  font-size: var(--font-size-base);
+}
+
+.error-link {
+  color: var(--color-gray-300);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: var(--transition-fast);
+}
+
+.error-link:hover {
+  color: var(--color-gray-100);
+  text-decoration: underline;
+}
+
+/* 主容器 */
+.author-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+}
+
+/* 作者資訊卡片 */
+.author-info-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 16px;
+  padding: var(--spacing-2xl);
+  margin-bottom: var(--spacing-3xl);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.author-info-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.author-info-content {
+  display: flex;
+  gap: var(--spacing-2xl);
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+
+/* 頭像 - 更簡潔 */
+.author-avatar {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.avatar-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--color-gray-700);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-placeholder {
+  width: 180px;
+  height: 180px;
+  background: linear-gradient(135deg, var(--color-gray-800) 0%, var(--color-gray-700) 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-gray-700);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-placeholder span {
+  font-size: 3rem;
+  font-weight: 300;
+  color: var(--color-gray-400);
+  text-transform: uppercase;
+}
+
+/* 作者詳情 - 更精緻 */
+.author-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.author-name {
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--color-gray-100);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--spacing-xs);
+  line-height: 1.2;
+}
+
+.author-stats {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-500);
+  margin-bottom: var(--spacing-md);
+  font-weight: 400;
+}
+
+.author-bio {
+  color: var(--color-gray-300);
+  line-height: 1.7;
+  max-width: 600px;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 社交連結 - 更小巧 */
+.author-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+}
+
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: transparent;
+  border: 1px solid var(--color-gray-700);
+  border-radius: 6px;
+  color: var(--color-gray-400);
+  text-decoration: none;
+  font-size: var(--font-size-xs);
+  transition: var(--transition-fast);
+}
+
+.social-link:hover {
+  border-color: var(--color-gray-500);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-gray-200);
+  transform: translateY(-1px);
+}
+
+.social-icon {
+  font-size: var(--font-size-sm);
+}
+
+/* 作品區塊 */
+.artworks-section {
+  margin-bottom: var(--spacing-3xl);
+}
+
+.section-header {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--color-gray-100);
+  margin-bottom: var(--spacing-3xl);
+  letter-spacing: -0.01em;
+}
+
+/* 時間線 */
+.timeline {
+  position: relative;
+}
+
+.timeline-year {
+  position: relative;
+  margin-bottom: var(--spacing-3xl);
+}
+
+.timeline-year:last-child {
+  margin-bottom: 0;
+}
+
+/* 時間線連接線 */
+.timeline-connector {
+  position: absolute;
+  left: 32px;
+  width: 2px;
+  background-color: var(--color-gray-700);
+}
+
+.timeline-connector.top {
+  top: -var(--spacing-3xl);
+  height: var(--spacing-3xl);
+}
+
+.timeline-connector.bottom {
+  bottom: -var(--spacing-3xl);
+  height: calc(100% + var(--spacing-3xl));
+}
+
+/* 年份標記 */
+.year-marker {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.year-dot {
+  position: relative;
+  z-index: 10;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--color-gray-800) 0%, var(--color-gray-700) 100%);
+  border: 2px solid var(--color-gray-600);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.year-dot::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-gray-700) 0%, transparent 70%);
+  opacity: 0.3;
+}
+
+.year-dot span {
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  color: var(--color-gray-100);
+  position: relative;
+  z-index: 1;
+}
+
+.year-info h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+  color: var(--color-gray-100);
+  margin-bottom: 2px;
+}
+
+.year-info p {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+}
+
+/* 作品網格 */
+.year-artworks {
+  padding-left: 96px;
+}
+
+.artworks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+/* 空狀態 */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-3xl) 0;
+}
+
+.empty-state p {
+  color: var(--color-gray-400);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* 頁尾 */
+.page-footer {
+  text-align: center;
+  padding-top: var(--spacing-3xl);
+  border-top: 1px solid var(--color-gray-700);
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+  .author-container {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+  
+  .author-info-card {
+    padding: var(--spacing-xl);
+  }
+  
+  .author-info-content {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-xl);
+  }
+  
+  .author-avatar::after {
+    display: none;
+  }
+  
+  .avatar-image,
+  .avatar-placeholder {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .avatar-placeholder span {
+    font-size: 3rem;
+  }
+  
+  .author-name {
+    font-size: 2.5rem;
+  }
+  
+  .author-stats {
+    font-size: var(--font-size-lg);
+  }
+  
+  .author-social {
+    justify-content: center;
+  }
+  
+  .year-artworks {
+    padding-left: 0;
+  }
+  
+  .timeline-connector {
+    display: none;
+  }
+  
+  .artworks-grid {
+    grid-template-columns: 1fr;
+  }
+}

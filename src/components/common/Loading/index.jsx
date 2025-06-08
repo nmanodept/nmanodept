@@ -1,6 +1,6 @@
 import React from 'react'
 
-// 多種載入樣式的 Loading 元件
+// 黑色主題的 Loading 元件
 const Loading = ({
   type = 'spinner', // spinner, dots, pulse, skeleton
   size = 'md', // sm, md, lg
@@ -18,7 +18,7 @@ const Loading = ({
   // Spinner 載入器
   const Spinner = () => (
     <svg
-      className={`animate-spin ${sizes[size].spinner} ${className}`}
+      className={`animate-spin ${sizes[size].spinner} text-white ${className}`}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
@@ -45,7 +45,7 @@ const Loading = ({
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className={`${sizes[size].dots} bg-gray-700 rounded-full animate-pulse ${className}`}
+          className={`${sizes[size].dots} bg-gray-400 rounded-full animate-pulse ${className}`}
           style={{ animationDelay: `${i * 0.15}s` }}
         />
       ))}
@@ -55,24 +55,24 @@ const Loading = ({
   // Pulse 載入器（適合內容載入）
   const Pulse = () => (
     <div className={`space-y-4 ${className}`}>
-      <div className={`${sizes[size].pulse} bg-gray-200 rounded-lg animate-pulse`} />
+      <div className={`${sizes[size].pulse} bg-gray-800 rounded-lg animate-pulse`} />
       <div className="space-y-2">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2" />
+        <div className="h-4 bg-gray-800 rounded animate-pulse w-3/4" />
+        <div className="h-4 bg-gray-800 rounded animate-pulse w-1/2" />
       </div>
     </div>
   )
   
-  // Skeleton 載入器（適合卡片載入）
+  // Skeleton 載入器（適合卡片載入）- 黑色主題
   const Skeleton = () => (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-5 ${className}`}>
+    <div className={`bg-black rounded-lg shadow-sm border border-gray-800 p-5 ${className}`}>
       <div className="animate-pulse">
-        <div className="h-48 bg-gray-200 rounded-lg mb-4" />
-        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-        <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
+        <div className="h-48 bg-gray-900 rounded-lg mb-4" />
+        <div className="h-4 bg-gray-900 rounded w-3/4 mb-2" />
+        <div className="h-4 bg-gray-900 rounded w-1/2 mb-4" />
         <div className="flex gap-2">
-          <div className="h-6 w-16 bg-gray-200 rounded-full" />
-          <div className="h-6 w-16 bg-gray-200 rounded-full" />
+          <div className="h-6 w-16 bg-gray-900 rounded-full" />
+          <div className="h-6 w-16 bg-gray-900 rounded-full" />
         </div>
       </div>
     </div>
@@ -91,10 +91,10 @@ const Loading = ({
   // 全螢幕載入
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col items-center justify-center z-50">
         {loader}
         {text && (
-          <p className="mt-4 text-gray-700 text-sm font-medium animate-pulse">
+          <p className="mt-4 text-gray-300 text-sm font-medium animate-pulse">
             {text}
           </p>
         )}
@@ -107,7 +107,7 @@ const Loading = ({
     <div className="flex flex-col items-center justify-center p-8">
       {loader}
       {text && (
-        <p className="mt-4 text-gray-700 text-sm">
+        <p className="mt-4 text-gray-400 text-sm">
           {text}
         </p>
       )}
@@ -115,7 +115,7 @@ const Loading = ({
   )
 }
 
-// 匯出 Skeleton 預設集合（用於列表載入）
+// 匯出 Skeleton 預設集合（用於列表載入）- 黑色主題
 export const SkeletonGrid = ({ count = 6, columns = 3 }) => {
   const gridCols = {
     1: 'grid-cols-1',

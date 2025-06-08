@@ -1,163 +1,125 @@
-import React, { useState } from 'react'
+// /src/components/common/Layout/Layout.jsx
+import React, { useState, useEffect } from 'react'
 import { Link } from 'gatsby'
 import PropTypes from 'prop-types'
+import './Layout.css'
 
 const Layout = ({ children }) => {
+  const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
-  const navLinks = [
-      { path: '/', label: '首頁' },
-      { path: '/about', label: '關於' },
-      { path: '/authors', label: '作者' },
-      { path: '/search', label: '搜尋' },
-      { path: '/submit', label: '投稿' },
-      { path: '/author-profile', label: '補充資料' },
-    ]
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+    
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+  
+  const navItems = [
+    { path: '/', label: '首頁' },
+    { path: '/about', label: '關於' },
+    { path: '/authors', label: '作者' },
+    { path: '/search', label: '搜尋' },
+    { path: '/submit', label: '投稿' },
+    { path: '/author-profile', label: '資料' }
+  ]
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="layout-wrapper">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Link to="/" className="flex items-center">
-                <span className="text-2xl font-bold text-gray-900">
-                  nmanodept
-                </span>
-              </Link>
-            </div>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden sm:flex sm:items-center sm:space-x-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-                  activeClassName="text-gray-900 border-b-2 border-gray-900"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-            
-            {/* Mobile menu button */}
-            <div className="flex items-center sm:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-900"
-              >
-                <span className="sr-only">開啟選單</span>
-                {/* Hamburger icon */}
-                <svg
-                  className={`${mobileMenuOpen ? 'hidden' : 'block'} h-6 w-6`}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-                {/* Close icon */}
-                <svg
-                  className={`${mobileMenuOpen ? 'block' : 'hidden'} h-6 w-6`}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+      <header className={`layout-header ${scrolled ? 'scrolled' : ''}`}>
+        <div className="header-inner">
+          {/* Logo */}
+          <Link to="/" className="logo">
+            <img src="/logo.png" alt="Logo" className="logo-img" />
+          </Link>
           
-          {/* Mobile Navigation */}
-          <div className={`${mobileMenuOpen ? 'block' : 'hidden'} sm:hidden pb-3`}>
-            <div className="space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md"
-                  activeClassName="bg-gray-100 text-gray-900"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </nav>
+          {/* Desktop Navigation */}
+          <nav className="nav-desktop">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="nav-link"
+                activeClassName="nav-link-active"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          
+          {/* Mobile Menu Toggle */}
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span className={`menu-icon ${mobileMenuOpen ? 'open' : ''}`}>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        </div>
       </header>
       
+      {/* Mobile Navigation */}
+      <nav className={`nav-mobile ${mobileMenuOpen ? 'open' : ''}`}>
+        {navItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            className="mobile-nav-link"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      
       {/* Main Content */}
-      <main className="flex-grow bg-gray-50">
+      <main className="layout-main">
         {children}
       </main>
       
       {/* Footer */}
-      <footer className="bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* About */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">關於 nmanodept</h3>
-              <p className="text-gray-400 text-sm">
-                一個專注於當代藝術與建築視覺的創作平台，
-                致力於打造開放、多元的藝術展示空間。
-              </p>
+      <footer className="layout-footer">
+        <div className="footer-inner">
+          <div className="footer-content">
+            <div className="footer-section">
+              <h4>關於</h4>
+              <p>極簡主義藝術平台</p>
             </div>
             
-            {/* Quick Links */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">快速連結</h3>
-              <ul className="space-y-2 text-sm">
-                {navLinks.map((link) => (
-                  <li key={link.path}>
-                    <Link
-                      to={link.path}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+            <div className="footer-section">
+              <h4>連結</h4>
+              <div className="footer-links">
+                <Link to="/about">關於我們</Link>
+                <Link to="/submit">作品投稿</Link>
+                <Link to="/contact">聯絡我們</Link>
+              </div>
             </div>
             
-            {/* Contact */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">聯絡我們</h3>
-              <p className="text-gray-400 text-sm mb-2">
-                有任何問題或建議？
-              </p>
-              <a
-                href="mailto:contact@nmanodept.com"
-                className="text-blue-400 hover:text-blue-300 text-sm"
-              >
-                contact@nmanodept.com
-              </a>
+            <div className="footer-section">
+              <h4>社群</h4>
+              <div className="social-links">
+                <a href="#" aria-label="Instagram">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/>
+                  </svg>
+                </a>
+                <a href="#" aria-label="Twitter">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                  </svg>
+                </a>
+              </div>
             </div>
           </div>
           
-          {/* Copyright */}
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center">
-            <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} nmanodept. All rights reserved.
-            </p>
+          <div className="footer-bottom">
+            <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
           </div>
         </div>
       </footer>
