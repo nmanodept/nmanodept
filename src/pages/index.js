@@ -90,7 +90,7 @@ const ThreeScene = () => {
           textureSize: isMobile ? 128 : 256,  // 黑白版本的紋理大小
           imageTextureSize: isMobile ? 512 : 1024,  // 彩色版本的紋理大小
           scanGridDensity: isMobile ? 12 : 16,
-          imageDisplayRatio: 0.5  // 顯示彩色圖片的比例 (0-1)
+          imageDisplayRatio: .4  // 顯示彩色圖片的比例 (0-1)
         },
         performance:{
           maxFPS: isMobile ? 30 : 60,
