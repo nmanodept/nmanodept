@@ -33,7 +33,6 @@ const Layout = ({ children }) => {
         <div className="header-inner">
           {/* Logo */}
           <Link to="/" className="logo">
-            <img src="/logo.png" alt="Logo" className="logo-img" />
           </Link>
           
           {/* Desktop Navigation */}
@@ -88,8 +87,10 @@ const Layout = ({ children }) => {
         <div className="footer-inner">
           <div className="footer-content">
             <div className="footer-section">
-              <h4>關於</h4>
-              <p>極簡主義藝術平台</p>
+               <h4>主頁</h4>
+              <div className="footer-links">
+              <Link to="/">新沒系館</Link>
+              </div>
             </div>
             
             <div className="footer-section">

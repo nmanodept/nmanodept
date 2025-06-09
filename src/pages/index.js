@@ -7,7 +7,7 @@ import Seo from '../components/common/Seo'
 const ThreeScene = () => {
   const containerRef = useRef(null)
   const sceneRef = useRef(null)
-  const [availableArtworks, setAvailableArtworks] = useState([])
+  const [artworksData, setArtworksData] = useState([])
   
   // 獲取已審核的作品列表
   useEffect(() => {
@@ -16,16 +16,14 @@ const ThreeScene = () => {
         const response = await fetch('https://artwork-submit-api.nmanodept.workers.dev/artworks')
         if (response.ok) {
           const data = await response.json()
-          // 只獲取已審核的作品ID
-          const approvedIds = data
-            .filter(artwork => artwork.status === 'approved')
-            .map(artwork => artwork.id)
-          setAvailableArtworks(approvedIds)
+          // 過濾已審核的作品並保存完整資料
+          const approvedArtworks = data.filter(artwork => artwork.status === 'approved')
+          setArtworksData(approvedArtworks)
         }
       } catch (error) {
         console.error('Failed to fetch artworks:', error)
-        // 如果API失敗，使用預設ID避免錯誤
-        setAvailableArtworks([1, 2, 3, 4, 5])
+        // 如果API失敗，使用預設資料避免錯誤
+        setArtworksData([])
       }
     }
     
@@ -33,7 +31,7 @@ const ThreeScene = () => {
   }, [])
   
   useEffect(() => {
-    if (typeof window === 'undefined' || availableArtworks.length === 0) return
+    if (typeof window === 'undefined' || artworksData.length === 0) return
     
     // 動態載入 Three.js
     const loadThree = async () => {
@@ -48,31 +46,31 @@ const ThreeScene = () => {
       const CONFIG = {
         building:{
           mainWall:{
-            rows: isMobile ? 4 : 6,  // 恢復原本數量
-            cols: isMobile ? 5 : 8,   // 恢復原本數量
+            rows: isMobile ? 4 : 6,
+            cols: isMobile ? 5 : 8,
             spacing:9,sizeMin:6,sizeMax:8,skipChance:.01,depthVariation:10
           },
           sideWing:{
-            count: isMobile ? 20 : 40, // 恢復原本數量
+            count: isMobile ? 20 : 40,
             distance:35,spread:60,sizeMin:5,sizeMax:8
           },
           foundation:{
-            count: isMobile ? 8 : 15,  // 恢復原本數量
+            count: isMobile ? 8 : 15,
             radius:25,sizeMin:6,sizeMax:10
           }
         },
         animation:{
           driftIntensity:{
-            wall: isMobile ? 0.6 : 1.2,     // 恢復原本強度
-            wing: isMobile ? 0.9 : 1.8,      // 恢復原本強度
-            foundation: isMobile ? 0.4 : 0.8  // 恢復原本強度
+            wall: isMobile ? 0.6 : 1.2,
+            wing: isMobile ? 0.9 : 1.8,
+            foundation: isMobile ? 0.4 : 0.8
           },
-          speedMultiplier: isMobile ? 0.7 : 1,  // 恢復原本速度
+          speedMultiplier: isMobile ? 0.7 : 1,
           glitchChance: isMobile ? 0.0003 : 0.0005,
           glitchIntensity: 1.5,
           scanLineIntensity: 1.2,
           wanderStrength: 0,
-          entranceDelay: 3,
+          entranceDelay: 2.5,
           entranceDuration: isMobile ? 2.5 : 3.5,
           entranceStagger: 0.03
         },
@@ -84,11 +82,15 @@ const ThreeScene = () => {
         visual:{
           fogNear:20,
           fogFar: isMobile ? 200 : 250,
-          opacity:{min:.5,max:.85},
-          hoverScale: isMobile ? 1.3 : 1.5,
-          scanlineIntensity: isMobile ? 0.5 : 1,
-          textureSize: 256, // 提高紋理品質
-          scanGridDensity: 16
+          opacity:{min:.45,max:.75},  // 黑白版本的透明度
+          colorOpacity:{min:.6,max:.9},  // 彩色版本的透明度
+          hoverScale: isMobile ? 1.25 : 1.45,
+          hoverOpacity: 0.95,
+          scanlineIntensity: isMobile ? 0.3 : 0.6,
+          textureSize: isMobile ? 128 : 256,  // 黑白版本的紋理大小
+          imageTextureSize: isMobile ? 512 : 1024,  // 彩色版本的紋理大小
+          scanGridDensity: isMobile ? 12 : 16,
+          imageDisplayRatio: 0.5  // 顯示彩色圖片的比例 (0-1)
         },
         performance:{
           maxFPS: isMobile ? 30 : 60,
@@ -104,27 +106,69 @@ const ThreeScene = () => {
       
       // 記憶體管理
       const textureCache = new Map();
+      const loadingTextures = new Map();
       const geometryCache = new Map();
+      const imageDimensionsCache = new Map();
+      const MAX_TEXTURE_CACHE = 50;
+      
+      // 紋理載入器
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.crossOrigin = 'anonymous';
       
       // ID分配函數
-      const getRandomArtworkId = (() => {
-        let idPool = [];
+      const getRandomArtwork = (() => {
+        let artworkPool = [];
         let currentIndex = 0;
         
         return () => {
           // 如果池子空了，重新填充
-          if (currentIndex >= idPool.length) {
-            idPool = [...availableArtworks].sort(() => Math.random() - 0.5);
+          if (currentIndex >= artworkPool.length) {
+            artworkPool = [...artworksData].sort(() => Math.random() - 0.5);
             currentIndex = 0;
           }
-          return idPool[currentIndex++];
+          return artworkPool[currentIndex++];
         };
       })();
+
+      // 獲取圖片尺寸
+      async function getImageDimensions(url) {
+        if (imageDimensionsCache.has(url)) {
+          return imageDimensionsCache.get(url);
+        }
+        
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          
+          img.onload = function() {
+            const dimensions = {
+              width: this.width,
+              height: this.height,
+              aspect: this.width / this.height
+            };
+            imageDimensionsCache.set(url, dimensions);
+            resolve(dimensions);
+          };
+          
+          img.onerror = function() {
+            // 如果載入失敗，返回預設比例
+            const defaultDimensions = {
+              width: 1,
+              height: 1,
+              aspect: 1
+            };
+            imageDimensionsCache.set(url, defaultDimensions);
+            resolve(defaultDimensions);
+          };
+          
+          img.src = url;
+        });
+      }
 
       // THREE 基本設置
       const scene = new THREE.Scene();
       scene.fog = new THREE.Fog(0x000000, CONFIG.visual.fogNear, CONFIG.visual.fogFar);
-      scene.fog.color = new THREE.Color(0x050505);
+      scene.fog.color = new THREE.Color(0x030303);
 
       const camera = new THREE.PerspectiveCamera(
         isMobile ? 60 : 75, 
@@ -134,31 +178,42 @@ const ThreeScene = () => {
 
       const renderer = new THREE.WebGLRenderer({
         antialias: CONFIG.performance.antialias,
-        alpha:true,
+        alpha:false,
         powerPreference: "high-performance",
         stencil: false,
-        depth: false  // 關閉深度緩衝
+        depth: true,
+        preserveDrawingBuffer: false
       });
       renderer.setSize(window.innerWidth,window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.performance.pixelRatio));
       renderer.shadowMap.enabled = CONFIG.performance.shadowsEnabled;
+      renderer.outputEncoding = THREE.sRGBEncoding;
       containerRef.current.appendChild(renderer.domElement);
+      
+      // 設置初始游標
+      renderer.domElement.style.cursor = 'default';
 
-      // 燈光
-      scene.add(new THREE.AmbientLight(0xffffff,.25));
-      const light1 = new THREE.PointLight(0xffffff,.25,100);
-      light1.position.set(20,40,20);
+      // 燈光 - 優化設置
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.28);
+      scene.add(ambientLight);
+      
+      const light1 = new THREE.PointLight(0xffffff, 0.22, 90);
+      light1.position.set(20, 40, 20);
       scene.add(light1);
       
-      const light2 = new THREE.PointLight(0xffffff,.2,100);
-      light2.position.set(-30,-30,-20);
-      scene.add(light2);
+      let light2;
+      if (!isMobile) {
+        light2 = new THREE.PointLight(0xffffff, 0.18, 90);
+        light2.position.set(-30, -30, -20);
+        scene.add(light2);
+      }
 
       // 背景網格 - 恢復原版效果
       class FloatingGrid {
         constructor() {
           this.group = new THREE.Group();
           this.lines = [];
+          this.frameCount = 0;
           this.createGrid();
           scene.add(this.group);
         }
@@ -170,9 +225,9 @@ const ThreeScene = () => {
           const halfSize = gridSize / 2;
           
           const lineMaterial = new THREE.LineBasicMaterial({
-            color: 0xaaaaaa,
+            color: 0x999999,
             transparent: true,
-            opacity: 0.15,
+            opacity: 0.12,
             fog: true
           });
           
@@ -227,35 +282,44 @@ const ThreeScene = () => {
         }
         
         update(time) {
-          // 網格浮動動畫
-          this.lines.forEach((line, index) => {
-            const positions = line.geometry.attributes.position.array;
-            const userData = line.userData;
-            
-            if (userData.baseY !== undefined) {
-              for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 2] = Math.sin(time * userData.waveSpeed + i * 0.1 + userData.waveOffset) * 3;
+          this.frameCount++;
+          
+          // 網格浮動動畫 - 每4幀更新一次以優化性能
+          if (this.frameCount % 4 === 0) {
+            this.lines.forEach((line, index) => {
+              const positions = line.geometry.attributes.position.array;
+              const userData = line.userData;
+              
+              if (userData.baseY !== undefined) {
+                for (let i = 0; i < positions.length; i += 3) {
+                  positions[i + 2] = Math.sin(time * userData.waveSpeed + i * 0.1 + userData.waveOffset) * 3;
+                }
+              } else if (userData.baseX !== undefined) {
+                for (let i = 0; i < positions.length; i += 3) {
+                  positions[i + 2] = Math.cos(time * userData.waveSpeed + i * 0.1 + userData.waveOffset) * 3;
+                }
               }
-            } else if (userData.baseX !== undefined) {
-              for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 2] = Math.cos(time * userData.waveSpeed + i * 0.1 + userData.waveOffset) * 3;
-              }
-            }
-            
-            line.geometry.attributes.position.needsUpdate = true;
-            
-            // 故障效果
-            if (Math.random() < 0.0002) {
-              line.material.opacity = 0.3;
+              
+              line.geometry.attributes.position.needsUpdate = true;
+            });
+          }
+          
+          // 故障效果 - 降低頻率
+          if (this.frameCount % 40 === 0 && Math.random() < 0.015) {
+            const randomLine = this.lines[Math.floor(Math.random() * this.lines.length)];
+            if (randomLine && randomLine.material) {
+              randomLine.material.opacity = 0.25;
               setTimeout(() => {
-                line.material.opacity = 0.15;
+                if (randomLine && randomLine.material) {
+                  randomLine.material.opacity = 0.12;
+                }
               }, 50);
             }
-          });
+          }
           
           // 整體旋轉
-          this.group.rotation.y = Math.sin(time * 0.02) * 0.05;
-          this.group.rotation.z = Math.cos(time * 0.015) * 0.03;
+          this.group.rotation.y = Math.sin(time * 0.015) * 0.04;
+          this.group.rotation.z = Math.cos(time * 0.012) * 0.025;
         }
         
         dispose() {
@@ -285,9 +349,13 @@ const ThreeScene = () => {
           const worldPos = new THREE.Vector3();
           mesh.getWorldPosition(worldPos);
           
+          // 保持 hover 狀態的縮放
+          const currentScale = workPlane.hoverScale;
+          
           const flipGroup = new THREE.Group();
           flipGroup.position.copy(worldPos);
           flipGroup.rotation.copy(mesh.rotation);
+          flipGroup.scale.setScalar(currentScale); // 使用當前的 hover 縮放
           scene.add(flipGroup);
           
           const frontGeo = mesh.geometry.clone();
@@ -308,8 +376,22 @@ const ThreeScene = () => {
           
           mesh.visible = false;
           
-          const flipDuration = 800;    // 更慢的翻轉
-          const scaleDuration = 1200;  // 更慢的縮放
+          // 立即開始快速淡出文字
+          const uiElements = {
+            title: document.getElementById('ui-title'),
+            subtitle: document.getElementById('ui-subtitle'),
+            enter: document.getElementById('ui-enter')
+          };
+          
+          Object.values(uiElements).forEach(el => {
+            if (el) {
+              el.style.transition = 'opacity 0.2s ease-out';
+              el.style.opacity = '0';
+            }
+          });
+          
+          const flipDuration = 600;    // 翻轉時間
+          const scaleDuration = 1500;  // 更長的縮放時間
           const startTime = Date.now();
           
           const aspect = window.innerWidth / window.innerHeight;
@@ -332,7 +414,8 @@ const ThreeScene = () => {
                 
                 flipGroup.rotation.y = mesh.rotation.y + Math.PI * flipEased;
                 
-                const initialScale = 1 + flipEased * 0.2;
+                // 從當前縮放開始，而不是從 1 開始
+                const initialScale = currentScale + flipEased * 0.2;
                 flipGroup.scale.setScalar(initialScale);
                 
                 // 輕微故障效果
@@ -348,21 +431,22 @@ const ThreeScene = () => {
                 const scaleProgress = (elapsed - flipDuration) / scaleDuration;
                 const scaleEased = this.easeOutQuart(scaleProgress);
                 
-                const currentScale = 1.2 + (targetScale - 1.2) * scaleEased;
-                flipGroup.scale.setScalar(currentScale);
+                // 從當前縮放過渡到目標縮放
+                const currentAnimScale = (currentScale * 1.2) + (targetScale - currentScale * 1.2) * scaleEased;
+                flipGroup.scale.setScalar(currentAnimScale);
                 
                 const targetPos = new THREE.Vector3(0, 0, (worldPos.z + camera.position.z) / 2);
                 flipGroup.position.lerpVectors(worldPos, targetPos, scaleEased);
                 
                 // 背景淡入
-                if (scaleProgress > 0.3) {
-                  const bgOpacity = (scaleProgress - 0.3) / 0.7;
+                if (scaleProgress > 0.2) {
+                  const bgOpacity = (scaleProgress - 0.2) / 0.8;
                   backMat.opacity = 1 - bgOpacity * 0.5;
                 }
                 
-                // 淡出效果
-                if (scaleProgress > 0.6) {
-                  const fadeOpacity = 1 - (scaleProgress - 0.6) / 0.4;
+                // 淡出效果 - 更早開始
+                if (scaleProgress > 0.4) {
+                  const fadeOpacity = 1 - (scaleProgress - 0.4) / 0.6;
                   renderer.domElement.style.opacity = fadeOpacity;
                 }
                 
@@ -405,9 +489,9 @@ const ThreeScene = () => {
       
       const fullscreenAnimation = new FullscreenAnimation();
 
-      // 素材貼圖 - 優化版
-      function createPlaceholderTexture(artworkId){
-        const cacheKey = `placeholder_${artworkId}`;
+      // 黑白素材貼圖
+      function createPlaceholderTexture(artwork){
+        const cacheKey = `placeholder_${artwork.id}`;
         if (textureCache.has(cacheKey)) {
           return textureCache.get(cacheKey);
         }
@@ -415,52 +499,160 @@ const ThreeScene = () => {
         const size = CONFIG.visual.textureSize;
         const c=document.createElement('canvas');
         c.width=c.height=size;
-        const ctx=c.getContext('2d');
+        const ctx=c.getContext('2d', { alpha: false });
         
         const g=Math.floor(100+Math.random()*100);
         ctx.fillStyle=`rgb(${g},${g},${g})`;
         ctx.fillRect(0,0,size,size);
         
-        // 更多變化的雜訊
-        for(let i=0;i<300;i++){
+        // 減少雜訊數量以優化性能
+        for(let i=0;i<200;i++){
           const n=Math.random()>.5?255:0;
           const s = Math.random()*3;
-          ctx.fillStyle=`rgba(${n},${n},${n},${Math.random()*.1})`;
+          ctx.fillStyle=`rgba(${n},${n},${n},${Math.random()*.08})`;
           ctx.fillRect(Math.random()*size,Math.random()*size,s,s);
         }
         
         // 輕微的掃描線
-        ctx.strokeStyle='rgba(255,255,255,.05)';
-        for(let y=0;y<size;y+=8){
+        ctx.strokeStyle='rgba(255,255,255,.04)';
+        for(let y=0;y<size;y+=12){
           ctx.beginPath();
           ctx.moveTo(0,y);
           ctx.lineTo(size,y);
           ctx.stroke();
         }
         
-        ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=2;
+        ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=2;
         ctx.strokeRect(20,20,size-40,size-40);
-        ctx.fillStyle='rgba(0,0,0,.6)';ctx.font=`bold ${size/8}px monospace`;
-        ctx.fillText(`#${String(artworkId).padStart(3,'0')}`,size/10,size/5);
+        ctx.fillStyle='rgba(0,0,0,.5)';ctx.font=`bold ${size/8}px monospace`;
+        ctx.fillText(`#${String(artwork.id).padStart(3,'0')}`,size/10,size/5);
         
         const texture = new THREE.CanvasTexture(c);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        
+        // 限制紋理快取大小
+        if (textureCache.size >= MAX_TEXTURE_CACHE) {
+          const firstKey = textureCache.keys().next().value;
+          const firstTexture = textureCache.get(firstKey);
+          firstTexture.dispose();
+          textureCache.delete(firstKey);
+        }
+        
         textureCache.set(cacheKey, texture);
+        return texture;
+      }
+
+      // 載入作品圖片
+      function loadArtworkTexture(artwork){
+        const cacheKey = `artwork_${artwork.id}`;
+        
+        // 檢查快取
+        if (textureCache.has(cacheKey)) {
+          return textureCache.get(cacheKey);
+        }
+        
+        // 檢查是否正在載入
+        if (loadingTextures.has(cacheKey)) {
+          return loadingTextures.get(cacheKey);
+        }
+        
+        // 創建載入承諾
+        const loadPromise = new Promise((resolve) => {
+          const texture = textureLoader.load(
+            artwork.main_image_url,
+            // 載入成功
+            (loadedTexture) => {
+              loadedTexture.minFilter = THREE.LinearFilter;
+              loadedTexture.magFilter = THREE.LinearFilter;
+              loadedTexture.generateMipmaps = false;
+              loadedTexture.encoding = THREE.sRGBEncoding;
+              
+              // 限制快取大小
+              if (textureCache.size >= MAX_TEXTURE_CACHE) {
+                const firstKey = textureCache.keys().next().value;
+                const firstTexture = textureCache.get(firstKey);
+                firstTexture.dispose();
+                textureCache.delete(firstKey);
+              }
+              
+              textureCache.set(cacheKey, loadedTexture);
+              loadingTextures.delete(cacheKey);
+              resolve(loadedTexture);
+            },
+            // 載入進度
+            undefined,
+            // 載入錯誤
+            (error) => {
+              console.error('Error loading texture:', error);
+              loadingTextures.delete(cacheKey);
+              // 返回預設紋理
+              resolve(createFallbackTexture(artwork));
+            }
+          );
+        });
+        
+        loadingTextures.set(cacheKey, loadPromise);
+        return loadPromise;
+      }
+
+      // 創建備用紋理（載入失敗時使用）
+      function createFallbackTexture(artwork){
+        const size = CONFIG.visual.imageTextureSize;
+        const c=document.createElement('canvas');
+        c.width=c.height=size;
+        const ctx=c.getContext('2d', { alpha: false });
+        
+        // 深色背景
+        const g=Math.floor(30+Math.random()*50);
+        ctx.fillStyle=`rgb(${g},${g},${g})`;
+        ctx.fillRect(0,0,size,size);
+        
+        // 邊框
+        ctx.strokeStyle='rgba(255,255,255,.1)';
+        ctx.lineWidth=4;
+        ctx.strokeRect(20,20,size-40,size-40);
+        
+        // 標題文字
+        ctx.fillStyle='rgba(255,255,255,.7)';
+        ctx.font=`bold ${size/12}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(artwork.title || `#${artwork.id}`, size/2, size/2);
+        
+        // 作者文字
+        if (artwork.author) {
+          ctx.font=`${size/16}px monospace`;
+          ctx.fillStyle='rgba(255,255,255,.5)';
+          ctx.fillText(artwork.author, size/2, size/2 + size/10);
+        }
+        
+        const texture = new THREE.CanvasTexture(c);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
         return texture;
       }
 
       // WorkPlane 類別 - 優化版
       class WorkPlane{
         constructor(pos,size,drift,rot,group,index){
-          this.artworkId = getRandomArtworkId(); // 分配實際存在的作品ID
+          this.artwork = getRandomArtwork();
+          this.artworkId = this.artwork.id;
           this.basePos=pos.clone();
           this.rot=rot;
           this.drift=drift;
           this.group = group;
           this.index = index;
+          this.baseSize = size;
           
-          const aspect=.7+Math.random()*.6;
+          // 決定是否顯示彩色圖片
+          this.showColorImage = Math.random() < CONFIG.visual.imageDisplayRatio;
+          
+          // 預設長寬比
+          let aspect = .7+Math.random()*.6;
+          
+          // 創建初始幾何體
           const geoKey = `plane_${Math.round(size*10)}_${Math.round(aspect*10)}`;
           let geo;
           if (geometryCache.has(geoKey)) {
@@ -470,17 +662,33 @@ const ThreeScene = () => {
             geometryCache.set(geoKey, geo);
           }
           
-          const tex=createPlaceholderTexture(this.artworkId);
-          const mat=new THREE.MeshPhongMaterial({
-            map:tex,transparent:true,opacity:0,
-            side:THREE.DoubleSide,
-            shininess: isMobile ? 5 : 10,
-            emissive:new THREE.Color(.05,.05,.05),
-            emissiveMap: isMobile ? null : tex
-          });
-          const gray = 0.3 + Math.random() * 0.5;
-          mat.color.setRGB(gray, gray, gray);
-          mat.userData = { originalGray: gray };
+          // 創建材質
+          const mat = isMobile ? 
+            new THREE.MeshLambertMaterial({
+              transparent:true,
+              opacity:0,
+              side:THREE.DoubleSide,
+              emissive: new THREE.Color(0x050505),
+              emissiveIntensity: this.showColorImage ? 0.2 : 0.3
+            }) :
+            new THREE.MeshPhongMaterial({
+              transparent:true,
+              opacity:0,
+              side:THREE.DoubleSide,
+              shininess: this.showColorImage ? 2 : 3,
+              specular: new THREE.Color(this.showColorImage ? 0x202020 : 0x101010),
+              emissive: new THREE.Color(0x050505),
+              emissiveIntensity: this.showColorImage ? 0.3 : 0.4
+            });
+          
+          // 如果是黑白版本，設置灰色
+          if (!this.showColorImage) {
+            const gray = 0.4 + Math.random() * 0.4;
+            mat.color.setRGB(gray, gray, gray);
+            mat.userData = { originalGray: gray };
+          }
+          
+          mat.needsUpdate = false;
           
           this.mesh=new THREE.Mesh(geo,mat);
           this.mesh.position.set(0,0,0);
@@ -490,16 +698,17 @@ const ThreeScene = () => {
 
           // 邊框線條
           if (!isMobile || group === 'wall') {
+            const edgeOpacity = this.showColorImage ? .08 : .06;
             const edges=new THREE.LineSegments(
               new THREE.EdgesGeometry(geo),
-              new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.06})
+              new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:edgeOpacity})
             );
             this.mesh.add(edges);
             this.edges = edges;
           }
 
-          // 掃描框架（hover用）
-          if (!isMobile) {
+          // 掃描框架（hover用）- 只在主牆創建
+          if (!isMobile && group === 'wall') {
             const scanGeo = new THREE.PlaneGeometry(size*aspect*1.1,size*1.1);
             const scanMat = new THREE.LineBasicMaterial({
               color:0xffffff,
@@ -516,7 +725,11 @@ const ThreeScene = () => {
 
           this.time=Math.random()*Math.PI*2;
           this.hoverScale=this.targetScale=1;
-          this.baseOpacity=THREE.MathUtils.lerp(CONFIG.visual.opacity.min,CONFIG.visual.opacity.max,Math.random());
+          
+          // 根據是否顯示彩色圖片設置不同的透明度
+          const opacityConfig = this.showColorImage ? CONFIG.visual.colorOpacity : CONFIG.visual.opacity;
+          this.baseOpacity=THREE.MathUtils.lerp(opacityConfig.min,opacityConfig.max,Math.random());
+          
           this.glitchUntil=0;
           
           this.wanderOffset = new THREE.Vector3(
@@ -537,12 +750,78 @@ const ThreeScene = () => {
           
           this.entranceComplete = false;
           this.scanIntensity = 0;
+          this.textureLoaded = false;
+          this.geometryUpdated = false;
+          
+          // 載入紋理
+          this.loadTexture();
+        }
+        
+        async loadTexture() {
+          if (this.showColorImage) {
+            // 載入彩色圖片
+            try {
+              // 先獲取圖片尺寸
+              const dimensions = await getImageDimensions(this.artwork.main_image_url);
+              
+              // 根據圖片比例更新幾何體
+              if (!this.geometryUpdated && dimensions.aspect !== 1) {
+                this.updateGeometry(dimensions.aspect);
+              }
+              
+              // 載入紋理
+              const texture = await loadArtworkTexture(this.artwork);
+              if (this.mesh && this.mesh.material) {
+                this.mesh.material.map = texture;
+                this.mesh.material.needsUpdate = true;
+                this.textureLoaded = true;
+              }
+            } catch (error) {
+              console.error('Failed to load texture:', error);
+            }
+          } else {
+            // 載入黑白紋理
+            const texture = createPlaceholderTexture(this.artwork);
+            if (this.mesh && this.mesh.material) {
+              this.mesh.material.map = texture;
+              this.mesh.material.needsUpdate = true;
+              this.textureLoaded = true;
+            }
+          }
+        }
+        
+        updateGeometry(imageAspect) {
+          if (this.geometryUpdated) return;
+          this.geometryUpdated = true;
+          
+          // 根據圖片比例創建新的幾何體
+          const newGeo = new THREE.PlaneGeometry(this.baseSize * imageAspect, this.baseSize);
+          
+          // 更新網格的幾何體
+          this.mesh.geometry.dispose();
+          this.mesh.geometry = newGeo;
+          
+          // 更新邊框
+          if (this.edges) {
+            const edgeGeo = new THREE.EdgesGeometry(newGeo);
+            this.edges.geometry.dispose();
+            this.edges.geometry = edgeGeo;
+          }
+          
+          // 更新掃描框架
+          if (this.scanFrame) {
+            const scanGeo = new THREE.PlaneGeometry(this.baseSize * imageAspect * 1.1, this.baseSize * 1.1);
+            const scanEdgeGeo = new THREE.EdgesGeometry(scanGeo);
+            this.scanFrame.geometry.dispose();
+            this.scanFrame.geometry = scanEdgeGeo;
+            scanGeo.dispose();
+          }
         }
         
         animateEntrance() {
           const delay = this.index * CONFIG.animation.entranceStagger + 
                        (this.group === 'wall' ? 0 : 
-                        this.group === 'wing' ? 0.5 : 1);
+                        this.group === 'wing' ? 0.4 : 0.8);
           
           // 初始位置偏移
           const offsetDirection = new THREE.Vector3(
@@ -616,7 +895,7 @@ const ThreeScene = () => {
         update(dt,camPos,globalTime){
           if (!this.entranceComplete) return;
           
-          this.time+=dt*.15*CONFIG.animation.speedMultiplier;
+          this.time+=dt*.12*CONFIG.animation.speedMultiplier;
           
           // 基礎漂浮
           const ox=Math.sin(this.time*this.drift.s1+this.drift.p1)*this.drift.i1;
@@ -640,20 +919,27 @@ const ThreeScene = () => {
               this.basePos.y+oy+wanderY+(Math.random()-.5)*CONFIG.animation.glitchIntensity,
               this.basePos.z+oz+wanderZ+(Math.random()-.5)
             );
-            this.mesh.material.opacity=this.baseOpacity*(0.7+Math.random()*0.6);
+            this.mesh.material.opacity=this.baseOpacity*(0.7+Math.random()*0.4);
             
-            // 故障時的顏色變化
-            if (Math.random() < 0.3) {
-              const hue = Math.random() * 0.1;
-              this.mesh.material.color.setHSL(hue, 0.1, 0.5);
-            }
-            
-            if (!isMobile) {
-              this.mesh.material.emissive.setRGB(
-                0.05+Math.random()*0.05,
-                0.05+Math.random()*0.05,
-                0.05+Math.random()*0.05
-              );
+            // 故障時的顏色變化 - 簡化
+            if (!isMobile && Math.random() < 0.2) {
+              if (this.showColorImage && this.textureLoaded) {
+                const hue = Math.random() * 0.05;
+                this.mesh.material.color.setHSL(hue, 0.05, 0.5);
+              } else if (!this.showColorImage) {
+                const g = this.mesh.material.userData?.originalGray || 0.6;
+                const variation = 0.1;
+                const newG = g + (Math.random() - 0.5) * variation;
+                this.mesh.material.color.setRGB(newG, newG, newG);
+              }
+              
+              if (this.mesh.material.emissive) {
+                this.mesh.material.emissive.setRGB(
+                  0.05+Math.random()*0.02,
+                  0.05+Math.random()*0.02,
+                  0.05+Math.random()*0.02
+                );
+              }
             }
           }else{
             p.set(
@@ -662,12 +948,18 @@ const ThreeScene = () => {
               this.basePos.z+oz+wanderZ
             );
             this.mesh.material.opacity+=
-              ((this.hoverScale>1?1:this.baseOpacity)
-              -this.mesh.material.opacity)*.05;
+              ((this.hoverScale>1?CONFIG.visual.hoverOpacity:this.baseOpacity)
+              -this.mesh.material.opacity)*.1;
+            
             // 恢復原色
-            const g = this.mesh.material.userData?.originalGray || 0.5;
-            this.mesh.material.color.setRGB(g,g,g);
-            if (!isMobile) {
+            if (this.showColorImage) {
+              this.mesh.material.color.setRGB(1,1,1);
+            } else {
+              const g = this.mesh.material.userData?.originalGray || 0.6;
+              this.mesh.material.color.setRGB(g,g,g);
+            }
+            
+            if (!isMobile && this.mesh.material.emissive) {
               this.mesh.material.emissive.setRGB(0.05,0.05,0.05);
             }
           }
@@ -684,7 +976,8 @@ const ThreeScene = () => {
             this.scanIntensity -= dt * 3;
             this.scanFrame.material.opacity = this.scanIntensity * CONFIG.visual.scanlineIntensity;
             if (this.edges) {
-              this.edges.material.opacity = 0.06 + this.scanIntensity * 0.3;
+              const baseEdgeOpacity = this.showColorImage ? 0.08 : 0.06;
+              this.edges.material.opacity = baseEdgeOpacity + this.scanIntensity * 0.3;
             }
             
             if (!isMobile) {
@@ -693,21 +986,42 @@ const ThreeScene = () => {
             }
           }
           
-          // scale 動畫
-          this.hoverScale+=(this.targetScale-this.hoverScale)*.08;
-          this.mesh.scale.setScalar(this.hoverScale);
+          // scale 動畫 - 更平滑
+          const scaleDiff = this.targetScale - this.hoverScale;
+          if (Math.abs(scaleDiff) > 0.001) {
+            this.hoverScale += scaleDiff * 0.15;
+            this.mesh.scale.setScalar(this.hoverScale);
+          }
         }
         
         onHover(yes){
+          // 立即設置目標縮放
           this.targetScale=yes?CONFIG.visual.hoverScale:1;
-          if(yes && this.entranceComplete && this.scanFrame) {
-            this.scanIntensity = 1;
+          
+          // 掃描效果
+          if(yes && this.entranceComplete) {
+            if(this.scanFrame) {
+              this.scanIntensity = 1;
+              this.scanFrame.material.opacity = CONFIG.visual.scanlineIntensity;
+            }
+            // 立即增加透明度以獲得即時反饋
+            if (this.mesh.material) {
+              this.mesh.material.opacity = Math.min(CONFIG.visual.hoverOpacity, this.baseOpacity * 1.15);
+            }
+          } else {
+            // 恢復狀態
+            if(this.scanFrame) {
+              this.scanIntensity = 0;
+              this.scanFrame.material.opacity = 0;
+            }
           }
         }
         
         onClick() {
           // 確保作品ID存在
-          if (this.artworkId && availableArtworks.includes(this.artworkId)) {
+          if (this.artworkId && artworksData.find(a => a.id === this.artworkId)) {
+            // 保持當前的 hover 狀態
+            this.targetScale = this.hoverScale;
             fullscreenAnimation.animateToFullscreen(this).then(() => {
               navigate(`/art/${this.artworkId}`);
             });
@@ -715,10 +1029,11 @@ const ThreeScene = () => {
         }
         
         dispose(){
-          if(this.mesh.material.map && !textureCache.has(`placeholder_${this.artworkId}`)){
+          if(this.mesh.material.map && !textureCache.has(`placeholder_${this.artworkId}`) && !textureCache.has(`artwork_${this.artworkId}`)){
             this.mesh.material.map.dispose();
           }
           this.mesh.material.dispose();
+          this.mesh.geometry.dispose();
         }
       }
 
@@ -738,40 +1053,43 @@ const ThreeScene = () => {
           this.group.position.y=-10;
           
           setTimeout(() => {
-            this.planes.forEach(plane => plane.animateEntrance());
+            // 分組進場以優化性能
+            this.planes.forEach((plane, idx) => {
+              plane.animateEntrance();
+            });
             this.animateCameraEntrance();
             
             setTimeout(() => {
               this.startWandering();
             }, CONFIG.animation.entranceDelay * 1000);
-          }, 100);
+          }, 300);
         }
         
         animateCameraEntrance() {
-          const duration = 4;
+          const duration = 3.5;  // 稍微快一點
           const startZ = camera.position.z;
           const targetZ = CONFIG.camera.targetZ;
           const startTime = Date.now();
           
           // 初始輕微的側移
-          camera.position.x = 5;
-          camera.position.y = -3;
+          camera.position.x = 3;
+          camera.position.y = -2;
           
           const animate = () => {
             const elapsed = (Date.now() - startTime) / 1000;
             const progress = Math.min(elapsed / duration, 1);
             
             // 使用更平滑的緩動
-            const eased = 1 - Math.pow(1 - progress, 4);
+            const eased = 1 - Math.pow(1 - progress, 3);
             
             camera.position.z = startZ + (targetZ - startZ) * eased;
             
             // 相機側移歸位
-            camera.position.x = 5 * (1 - eased);
-            camera.position.y = -3 * (1 - eased);
+            camera.position.x = 3 * (1 - eased);
+            camera.position.y = -2 * (1 - eased);
             
             // 輕微的視角變化
-            camera.lookAt(0, -10 * (1 - eased), -20);
+            camera.lookAt(0, -5 * (1 - eased), -20);
             
             if (progress < 1) {
               requestAnimationFrame(animate);
@@ -781,15 +1099,15 @@ const ThreeScene = () => {
         }
         
         startWandering() {
-          const duration = 3;
+          const duration = 2.5;
           const startTime = Date.now();
           
           const animate = () => {
             const elapsed = (Date.now() - startTime) / 1000;
             const progress = Math.min(elapsed / duration, 1);
             
-            CONFIG.animation.wanderStrength = progress * (isMobile ? 0.8 : 1.2);
-            CONFIG.camera.breathIntensity = progress * (isMobile ? 0.8 : 1.2);
+            CONFIG.animation.wanderStrength = progress * (isMobile ? 0.7 : 1);
+            CONFIG.camera.breathIntensity = progress * (isMobile ? 0.7 : 1);
             
             if (progress < 1) {
               requestAnimationFrame(animate);
@@ -869,10 +1187,10 @@ const ThreeScene = () => {
           const i=CONFIG.animation.driftIntensity[type]||1;
           return {
             p1:Math.random()*Math.PI*2,p2:Math.random()*Math.PI*2,p3:Math.random()*Math.PI*2,
-            s1:.08+Math.random()*.15,s2:.12+Math.random()*.12,s3:.15+Math.random()*.1,
-            i1:i*(.8+Math.random()*.4),
-            i2:i*(.6+Math.random()*.4),
-            i3:i*(.4+Math.random()*.3)
+            s1:.06+Math.random()*.12,s2:.1+Math.random()*.1,s3:.12+Math.random()*.08,
+            i1:i*(.7+Math.random()*.3),
+            i2:i*(.5+Math.random()*.3),
+            i3:i*(.3+Math.random()*.2)
           };
         }
         
@@ -893,8 +1211,11 @@ const ThreeScene = () => {
       const building=new Building();
       building.generate();
 
-      // 互動 - 簡化版
+      // 互動 - 優化版
       const raycaster=new THREE.Raycaster();
+      raycaster.layers.set(0);  // 只檢測默認層
+      raycaster.near = 0.1;
+      raycaster.far = 200;  // 限制檢測距離
       const mouse=new THREE.Vector2();
       let hovered=null;
       
@@ -913,8 +1234,21 @@ const ThreeScene = () => {
         updatePointer(e.clientX, e.clientY);
       };
       
-      window.addEventListener('mousemove', handleMouseMove);
+      const handleTouchMove = (e) => {
+        if (e.touches.length > 0) {
+          updatePointer(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      };
+      
+      const handleTouchStart = handleTouchMove;  // 同樣處理
+      
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
       window.addEventListener('click', handleClick);
+      
+      if (isMobile) {
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+      }
 
       // Resize
       const handleResize = () => {
@@ -953,56 +1287,61 @@ const ThreeScene = () => {
         building.update(dt,camera.position,t);
         floatingGrid.update(t);
 
-        // 光源緩慢移動
-        light1.position.x=Math.sin(t*.08)*30;
-        light1.position.z=Math.cos(t*.08)*30;
-        light1.position.y=40+Math.sin(t*.1)*10;
+        // 光源緩慢移動 - 優化
+        light1.position.x=Math.sin(t*.06)*30;
+        light1.position.z=Math.cos(t*.06)*30;
+        light1.position.y=40+Math.sin(t*.08)*10;
         
-        if (!isMobile) {
-          light2.position.x=Math.cos(t*.06)*40;
-          light2.position.y=-30+Math.sin(t*.08)*15;
+        if (light2) {
+          light2.position.x=Math.cos(t*.05)*40;
+          light2.position.y=-30+Math.sin(t*.06)*15;
         }
         
         // 相機呼吸與搖擺
-        const bx=Math.sin(t*.02)*3*CONFIG.camera.breathIntensity;
-        const by=Math.cos(t*.025)*2*CONFIG.camera.breathIntensity;
+        const bx=Math.sin(t*.018)*3*CONFIG.camera.breathIntensity;
+        const by=Math.cos(t*.022)*2*CONFIG.camera.breathIntensity;
         camera.position.x=bx;
         camera.position.y=by;
         
         // 全域故障效果
-        if (Math.random() < 0.0005) {
-          glitchTime = t + 0.08;
+        if (Math.random() < 0.0004) {
+          glitchTime = t + 0.06;
         }
         
         if (t < glitchTime) {
-          // 相機震動
-          camera.position.x += (Math.random() - 0.5) * 0.3;
-          camera.position.y += (Math.random() - 0.5) * 0.3;
+          // 相機震動 - 減少幅度
+          camera.position.x += (Math.random() - 0.5) * 0.2;
+          camera.position.y += (Math.random() - 0.5) * 0.2;
           camera.lookAt(
-            (Math.random() - 0.5) * 0.5,
+            (Math.random() - 0.5) * 0.3,
             by * 0.2,
             -20
           );
           
           // 顏色偏移
-          renderer.domElement.style.filter = `hue-rotate(${Math.random() * 60}deg) saturate(1.2)`;
+          renderer.domElement.style.filter = `hue-rotate(${Math.random() * 40}deg) saturate(1.1)`;
         } else {
           camera.lookAt(0,by*0.2,-20);
           renderer.domElement.style.filter = 'none';
         }
 
-        // Hover 檢測 - 每3幀一次
-        const checkInterval = isMobile ? 4 : 3;
-        if(!(frame++%checkInterval)){
+        // Hover 檢測 - 優化版本
+        if(!(frame++%2)){  // 每2幀檢測一次，更流暢
           raycaster.setFromCamera(mouse,camera);
-          const hits=raycaster.intersectObjects(building.group.children);
-          const hit=hits[0]?.object.userData.workPlane||null;
+          const hits=raycaster.intersectObjects(building.group.children, false);  // 不遞歸檢測子物體
+          const hit=hits.length > 0 && hits[0].object.userData.workPlane ? hits[0].object.userData.workPlane : null;
+          
           if(hit!==hovered){
-            hovered?.onHover(false);
+            if(hovered) {
+              hovered.onHover(false);
+            }
             hovered=hit;
-            hovered?.onHover(true);
+            if(hovered) {
+              hovered.onHover(true);
+            }
+            
             if (!isMobile) {
-              renderer.domElement.style.cursor=hovered?'pointer':'crosshair';
+              renderer.domElement.style.cursor=hovered?'crosshair':'default';
             }
           }
         }
@@ -1017,13 +1356,19 @@ const ThreeScene = () => {
           window.removeEventListener('resize', handleResize);
           window.removeEventListener('mousemove', handleMouseMove);
           window.removeEventListener('click', handleClick);
+          if (isMobile) {
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchstart', handleTouchStart);
+          }
           floatingGrid.dispose();
           building.dispose();
           textureCache.forEach(texture => texture.dispose());
           textureCache.clear();
+          loadingTextures.clear();
           geometryCache.clear();
+          imageDimensionsCache.clear();
           renderer.dispose();
-          if (containerRef.current) {
+          if (containerRef.current && renderer.domElement) {
             containerRef.current.removeChild(renderer.domElement);
           }
         }
@@ -1038,7 +1383,7 @@ const ThreeScene = () => {
         sceneRef.current.dispose();
       }
     };
-  }, [availableArtworks]);
+  }, [artworksData]);
   
   return <div ref={containerRef} className="absolute inset-0" />;
 };
@@ -1071,27 +1416,33 @@ const IndexPage = () => {
           />
           
           {/* Three.js 渲染區域 */}
-          <ThreeScene />
+          <div className="relative z-0">
+            <ThreeScene />
+          </div>
           
-          {/* UI 層 - 調整位置到更上方 */}
-          <div className="absolute inset-0 flex flex-col items-center" style={{ top: '12vh' }}>
+          {/* UI 層 - 調整位置到最上方 */}
+          <div className="absolute inset-0 flex flex-col items-center pointer-events-none z-50" style={{ top: '2vh' }}>
             <h1 
-              className="text-white font-thin tracking-[1rem] sm:tracking-[1.2rem] md:tracking-[1.5rem] opacity-0 animate-titleFadeIn"
+              id="ui-title"
+              className="text-white font-thin tracking-[1rem] sm:tracking-[1.2rem] md:tracking-[1.5rem] opacity-0 pointer-events-auto cursor-default select-none"
               style={{
                 fontSize: 'clamp(3rem, 12vw, 6rem)',
                 textShadow: '0 0 60px rgba(255,255,255,.15)',
                 mixBlendMode: 'difference',
-                animation: 'titleFadeIn 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                animation: 'titleFadeIn 2s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                willChange: 'transform, opacity'
               }}
             >
               NMANODEPT
             </h1>
             
             <p 
-              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-12 sm:mt-16 md:mt-20 opacity-0"
+              id="ui-subtitle"
+              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-6 sm:mt-8 md:mt-10 opacity-0 pointer-events-auto cursor-default select-none"
               style={{
                 fontSize: 'clamp(0.7rem, 1.8vw, 0.9rem)',
-                animation: 'subtitleFadeIn 2.5s 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                animation: 'subtitleFadeIn 2s 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                willChange: 'transform, opacity'
               }}
             >
               新沒系館是一個虛擬的「系館」<br/>
@@ -1099,14 +1450,15 @@ const IndexPage = () => {
             </p>
             
             <button 
+              id="ui-enter"
               onClick={handleEnter}
-              className="mt-12 sm:mt-16 md:mt-20 text-white/70 font-light tracking-[0.5rem] transition-all duration-[600ms] opacity-0 hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group"
+              className="mt-6 sm:mt-8 md:mt-10 text-white/70 font-light tracking-[0.5rem] transition-all duration-[600ms] opacity-0 hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group pointer-events-auto cursor-pointer"
               style={{
                 fontSize: 'clamp(0.8rem, 1.6vw, 1rem)',
-                animation: 'enterFadeIn 2.5s 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                animation: 'enterFadeIn 2s 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
                 background: 'none',
                 border: 'none',
-                cursor: 'pointer'
+                willChange: 'transform, opacity'
               }}
             >
               ENTER
@@ -1126,11 +1478,11 @@ const IndexPage = () => {
               background: `repeating-linear-gradient(
                 0deg,
                 rgba(0,0,0,0) 0,
-                rgba(255,255,255,0.005) 1px,
+                rgba(255,255,255,0.003) 1px,
                 rgba(0,0,0,0) 2px,
                 rgba(0,0,0,0) 3px
               )`,
-              opacity: 0.5,
+              opacity: 0.4,
               animation: 'scanlines 12s linear infinite'
             }}
           />

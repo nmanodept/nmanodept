@@ -214,7 +214,7 @@
 .info-section {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 
 .artwork-header {
@@ -272,24 +272,26 @@
 /* 標籤列表 - 獨立一行 */
 .tags-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: flex-start;
+  align-items: flex-start;
   gap: 6px;
-  margin-top: var(--spacing-sm);
+  margin-top: var(--spacing-x1);
+  
 }
 
 .tag {
-  padding: 3px 14px;
+  padding: 6px 10px;
   background-color: transparent;
   border: 1px solid var(--color-gray-700);
   border-radius: 3px;
   color: var(--color-gray-400);
   text-decoration: none;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.1em;
   transition: var(--transition-fast);
   display: inline-block;
-  line-height: 1.4;
+  line-height: 1;
 }
 
 .tag:hover {
@@ -301,7 +303,7 @@
 
 /* 描述 */
 .artwork-description p {
-  color: var(--color-gray-300);
+  color: var(--color-gray-400);
   line-height: 1.7;
   white-space: pre-wrap;
 }

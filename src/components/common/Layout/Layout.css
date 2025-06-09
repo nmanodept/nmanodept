@@ -100,7 +100,6 @@ body {
 .logo-img {
   height: 32px;
   width: auto;
-  filter: invert(1);
 }
 
 /* Desktop Navigation */

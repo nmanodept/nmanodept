@@ -19,7 +19,7 @@ const SubmitPage = () => {
         </div>
 
         {/* 表單區域 */}
-        <div className="submit-form-wrapper">
+        <div className="submit-form-wrapper form-wrapper">
           <SubmitForm />
         </div>
 

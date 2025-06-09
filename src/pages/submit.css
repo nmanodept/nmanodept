@@ -1,148 +1,8 @@
 /* /src/pages/submit.css */
 /* 極簡投稿頁面樣式 */
 
-/* 確保表單元素使用正確的黑色主題樣式 */
-.submit-form-wrapper input[type="text"],
-.submit-form-wrapper input[type="url"],
-.submit-form-wrapper input[type="number"],
-.submit-form-wrapper input[type="email"],
-.submit-form-wrapper input,
-.submit-form-wrapper select,
-.submit-form-wrapper textarea {
-  width: 100%;
-  padding: 6px 12px;
-  background-color: transparent !important;
-  border: 1px solid var(--color-gray-700);
-  border-radius: 4px;
-  color: var(--color-gray-100);
-  font-size: var(--font-size-sm);
-  font-family: inherit;
-  transition: var(--transition-fast);
-}
-
-.submit-form-wrapper input[type="text"]:focus,
-.submit-form-wrapper input[type="url"]:focus,
-.submit-form-wrapper input[type="number"]:focus,
-.submit-form-wrapper input[type="email"]:focus,
-.submit-form-wrapper input:focus,
-.submit-form-wrapper select:focus,
-.submit-form-wrapper textarea:focus {
-  outline: none;
-  border-color: var(--color-gray-500);
-  background-color: rgba(255, 255, 255, 0.02) !important;
-}
-
-.submit-form-wrapper input::placeholder,
-.submit-form-wrapper textarea::placeholder {
-  color: var(--color-gray-600);
-}
-
-.submit-form-wrapper select {
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='rgba(255,255,255,0.35)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 32px;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
-
-.submit-form-wrapper select option {
-  background-color: var(--color-black);
-  color: var(--color-gray-100);
-}
-
-/* 拖放區域 */
-.submit-form-wrapper .dropzone {
-  border: 1px dashed var(--color-gray-700);
-  border-radius: 8px;
-  padding: var(--spacing-xl);
-  text-align: center;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  background-color: transparent;
-}
-
-.submit-form-wrapper .dropzone:hover,
-.submit-form-wrapper .dropzone.active {
-  border-color: var(--color-gray-500);
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.submit-form-wrapper .dropzone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.submit-form-wrapper .dropzone-icon,
-.submit-form-wrapper .upload-icon {
-  color: var(--color-gray-600);
-}
-
-.submit-form-wrapper .dropzone-text,
-.submit-form-wrapper .upload-text {
-  color: var(--color-gray-400);
-  font-size: var(--font-size-sm);
-}
-
-.submit-form-wrapper .dropzone-hint,
-.submit-form-wrapper .upload-hint {
-  color: var(--color-gray-600);
-  font-size: var(--font-size-xs);
-}
-
-/* 預覽圖片 */
-.submit-form-wrapper .preview-wrapper {
-  position: relative;
-  display: inline-block;
-}
-
-.submit-form-wrapper .preview-image {
-  max-width: 200px;
-  max-height: 150px;
-  border-radius: 4px;
-  object-fit: cover;
-}
-
-.submit-form-wrapper .preview-remove {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 24px;
-  height: 24px;
-  background-color: rgba(239, 68, 68, 0.9);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition-fast);
-}
-
-.submit-form-wrapper .preview-remove:hover {
-  background-color: rgb(239, 68, 68);
-  transform: scale(1.1);
-}
-
-.submit-form-wrapper label {
-  display: block;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-gray-300);
-  margin-bottom: var(--spacing-xs);
-  letter-spacing: 0.01em;
-}
-
-.submit-form-wrapper .required {
-  color: rgba(239, 68, 68, 0.9);
-  margin-left: 2px;
-}
+/* 引入共用表單樣式 */
+@import '../styles/form-styles.css';
 
 .submit-container {
   max-width: 1000px;
@@ -169,107 +29,9 @@
   color: var(--color-gray-400);
 }
 
-/* 表單容器 */
+/* 使用共用的 form-wrapper */
 .submit-form-wrapper {
-  background-color: transparent;
-  border: 1px solid var(--color-gray-700);
-  border-radius: 12px;
-  padding: var(--spacing-2xl);
-  margin-bottom: var(--spacing-2xl);
-}
-
-/* 統一按鈕樣式 */
-.submit-form-wrapper button,
-.submit-form-wrapper button[type="button"],
-.submit-form-wrapper button[type="submit"] {
-  background-color: var(--color-white);
-  color: var(--color-black);
-  border: none;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  font-family: inherit;
-}
-
-.submit-form-wrapper button:hover:not(:disabled),
-.submit-form-wrapper button[type="button"]:hover:not(:disabled),
-.submit-form-wrapper button[type="submit"]:hover:not(:disabled) {
-  background-color: var(--color-gray-200);
-  transform: translateY(-1px);
-}
-
-.submit-form-wrapper button:disabled,
-.submit-form-wrapper button[type="submit"]:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 次要按鈕 */
-.submit-form-wrapper .btn-secondary,
-.submit-form-wrapper button.secondary,
-.submit-form-wrapper .btn-add {
-  background-color: transparent;
-  color: var(--color-gray-400);
-  border: 1px solid var(--color-gray-700);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.submit-form-wrapper .btn-secondary:hover:not(:disabled),
-.submit-form-wrapper button.secondary:hover:not(:disabled),
-.submit-form-wrapper .btn-add:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.02);
-  border-color: var(--color-gray-500);
-  color: var(--color-gray-200);
-  transform: none;
-}
-
-.submit-form-wrapper .btn-remove {
-  background-color: transparent;
-  color: var(--color-gray-500);
-  border: 1px solid var(--color-gray-700);
-  padding: 4px 8px;
-  font-size: var(--font-size-xs);
-}
-
-.submit-form-wrapper .btn-remove:hover:not(:disabled) {
-  border-color: rgba(239, 68, 68, 0.5);
-  color: rgba(239, 68, 68, 0.8);
-  background-color: rgba(239, 68, 68, 0.1);
-  transform: none;
-}
-
-/* 表單欄位間距 */
-.submit-form-wrapper .form-group {
-  margin-bottom: var(--spacing-lg);
-}
-
-/* 動態欄位列表 */
-.submit-form-wrapper .dynamic-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.submit-form-wrapper .dynamic-item {
-  display: flex;
-  gap: var(--spacing-xs);
-  align-items: center;
-}
-
-.submit-form-wrapper .dynamic-item input {
-  flex: 1;
-}
-
-/* 提交按鈕 */
-.submit-form-wrapper button[type="submit"] {
-  margin-top: var(--spacing-xl);
-  padding: var(--spacing-sm) var(--spacing-xl);
-  font-size: var(--font-size-base);
+  /* 繼承自 form-wrapper */
 }
 
 /* 注意事項 */
@@ -313,6 +75,35 @@
   line-height: 1;
 }
 
+/* 圖片上傳網格 */
+.image-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* Gallery 預覽 */
+.gallery-previews {
+  margin-top: var(--spacing-md);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+}
+
+.gallery-preview-item {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--color-gray-800);
+}
+
+.gallery-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* 動畫效果 */
 @keyframes fadeIn {
   from {
@@ -347,15 +138,15 @@
     font-size: 2rem;
   }
   
-  .submit-form-wrapper {
-    padding: var(--spacing-lg);
-  }
-  
   .submit-notes {
     padding: var(--spacing-lg);
   }
   
-  .submit-form-wrapper button[type="submit"] {
-    width: 100%;
+  .image-upload-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .gallery-previews {
+    grid-template-columns: 1fr;
   }
 }

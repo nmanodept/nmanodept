@@ -29,7 +29,7 @@ const AdminPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  const [activeTab, setActiveTab] = useState('pending') // 'pending', 'approved', 'profiles', 'categories'
+  const [activeTab, setActiveTab] = useState('pending')
   const [pendingArtworks, setPendingArtworks] = useState([])
   const [approvedArtworks, setApprovedArtworks] = useState([])
   const [pendingProfiles, setPendingProfiles] = useState([])
@@ -434,66 +434,61 @@ const AdminPage = () => {
 
   // 渲染作品卡片
   const renderArtworkCard = (artwork, isPending = true) => (
-    <div key={artwork.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="flex-shrink-0">
+    <div key={artwork.id} className="artwork-card">
+      <div className="artwork-card-body">
+        <div className="artwork-card-content">
+          <div className="artwork-image-wrapper">
             {artwork.main_image_url ? (
               <img 
                 src={artwork.main_image_url} 
                 alt={artwork.title}
-                className="w-32 h-32 object-cover rounded-lg"
+                className="artwork-image"
               />
             ) : (
-              <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
-                <PhotoIcon className="w-12 h-12 text-gray-400" />
+              <div className="artwork-image-placeholder">
+                <PhotoIcon className="w-12 h-12" />
               </div>
             )}
           </div>
           
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="artwork-info">
+            <h3 className="artwork-title">
               {artwork.title}
             </h3>
             
-            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
-              <div className="flex items-center gap-2">
-                <UserIcon className="w-4 h-4" />
+            <div className="artwork-meta">
+              <div className="meta-item">
+                <UserIcon className="meta-icon" />
                 <span>作者：{artwork.authors?.join(', ') || artwork.author}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
+              <div className="meta-item">
+                <CalendarIcon className="meta-icon" />
                 <span>創作年份：{artwork.year}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <FolderIcon className="w-4 h-4" />
+              <div className="meta-item">
+                <FolderIcon className="meta-icon" />
                 <span>類別：{artwork.category_name || '未分類'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
+              <div className="meta-item">
+                <CalendarIcon className="meta-icon" />
                 <span>{isPending ? '提交' : '審核'}時間：{formatDate(isPending ? artwork.created_at : artwork.updated_at)}</span>
               </div>
             </div>
             
-            {/* 標籤 */}
             {artwork.tags && artwork.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="artwork-tags">
                 {artwork.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                  >
+                  <span key={index} className="tag">
                     {tag}
                   </span>
                 ))}
               </div>
             )}
             
-            {/* 操作按鈕 */}
-            <div className="flex gap-3">
+            <div className="artwork-actions">
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 onClick={() => toggleExpand(artwork.id)}
               >
                 <EyeIcon className="w-4 h-4 mr-1" />
@@ -509,6 +504,7 @@ const AdminPage = () => {
                 <>
                   <Button
                     size="sm"
+                    variant="primary"
                     onClick={() => handleApprove(artwork.id)}
                     disabled={actionLoading[artwork.id] !== undefined}
                     loading={actionLoading[artwork.id] === 'approve'}
@@ -532,7 +528,7 @@ const AdminPage = () => {
                 <>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => handleRevert(artwork.id)}
                     disabled={actionLoading[artwork.id] !== undefined}
                     loading={actionLoading[artwork.id] === 'revert'}
@@ -558,102 +554,106 @@ const AdminPage = () => {
         </div>
       </div>
       
-      {/* 展開的詳細內容 */}
       {expandedItem === artwork.id && (
-        <div className="border-t border-gray-200 bg-gray-50 p-6">
-          <div className="space-y-6">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">作品簡介</h4>
-              <p className="text-gray-700 whitespace-pre-wrap">{artwork.description}</p>
+        <div className="artwork-expanded">
+          <div className="expanded-section">
+            <div className="section-label">
+              <TagIcon className="w-4 h-4" />
+              作品簡介
             </div>
-            
-            {artwork.video_url && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <PlayIcon className="w-5 h-5" />
-                  作品紀錄影片
-                </h4>
-                <a 
-                  href={artwork.video_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {artwork.video_url}
-                </a>
+            <p className="section-content">{artwork.description}</p>
+          </div>
+          
+          {artwork.video_url && (
+            <div className="expanded-section">
+              <div className="section-label">
+                <PlayIcon className="w-4 h-4" />
+                作品紀錄影片
               </div>
-            )}
-            
-            {(artwork.social_links && artwork.social_links.length > 0) || artwork.social_link ? (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <LinkIcon className="w-5 h-5" />
-                  社群連結
-                </h4>
-                {artwork.social_links && artwork.social_links.length > 0 ? (
-                  <ul className="space-y-1">
-                    {artwork.social_links.map((link, index) => (
-                      <li key={index}>
-                        <a 
-                          href={link.includes('http') ? link : `https://${link}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {link}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : artwork.social_link ? (
-                  <a 
-                    href={artwork.social_link.includes('http') ? artwork.social_link : `https://${artwork.social_link}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {artwork.social_link}
-                  </a>
-                ) : null}
+              <a 
+                href={artwork.video_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="section-content link"
+              >
+                {artwork.video_url}
+              </a>
+            </div>
+          )}
+          
+          {(artwork.social_links && artwork.social_links.length > 0) || artwork.social_link ? (
+            <div className="expanded-section">
+              <div className="section-label">
+                <LinkIcon className="w-4 h-4" />
+                社群連結
               </div>
-            ) : null}
-            
-            {artwork.gallery_images && artwork.gallery_images.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">其他展示圖片</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  {artwork.gallery_images.map((image, index) => (
-                    <img
+              {artwork.social_links && artwork.social_links.length > 0 ? (
+                <div className="section-content">
+                  {artwork.social_links.map((link, index) => (
+                    <a 
                       key={index}
-                      src={image}
-                      alt={`Gallery ${index + 1}`}
-                      className="w-full h-24 object-cover rounded"
-                    />
+                      href={link.includes('http') ? link : `https://${link}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="link block"
+                    >
+                      {link}
+                    </a>
                   ))}
                 </div>
+              ) : artwork.social_link ? (
+                <a 
+                  href={artwork.social_link.includes('http') ? artwork.social_link : `https://${artwork.social_link}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="section-content link"
+                >
+                  {artwork.social_link}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+          
+          {artwork.gallery_images && artwork.gallery_images.length > 0 && (
+            <div className="expanded-section">
+              <div className="section-label">
+                <PhotoIcon className="w-4 h-4" />
+                其他展示圖片
               </div>
-            )}
-            
-            {artwork.gallery_videos && artwork.gallery_videos.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">其他影片連結</h4>
-                <ul className="space-y-1">
-                  {artwork.gallery_videos.map((video, index) => (
-                    <li key={index}>
-                      <a 
-                        href={video} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        影片 {index + 1}: {video}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+              <div className="gallery-grid">
+                {artwork.gallery_images.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    alt={`Gallery ${index + 1}`}
+                    className="gallery-thumbnail"
+                  />
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          
+          {artwork.gallery_videos && artwork.gallery_videos.length > 0 && (
+            <div className="expanded-section">
+              <div className="section-label">
+                <PlayIcon className="w-4 h-4" />
+                其他影片連結
+              </div>
+              <div className="section-content">
+                {artwork.gallery_videos.map((video, index) => (
+                  <a 
+                    key={index}
+                    href={video} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="link block"
+                  >
+                    影片 {index + 1}: {video}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -661,83 +661,74 @@ const AdminPage = () => {
 
   // 渲染作者資料卡片
   const renderProfileCard = (profile) => (
-    <div key={profile.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="flex-shrink-0">
-            {profile.avatar_url ? (
-              <img 
-                src={profile.avatar_url} 
-                alt={profile.author_name}
-                className="w-24 h-24 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                <UserCircleIcon className="w-12 h-12 text-gray-400" />
-              </div>
-            )}
+    <div key={profile.id} className="profile-card">
+      <div className="profile-content">
+        <div className="profile-avatar">
+          {profile.avatar_url ? (
+            <img 
+              src={profile.avatar_url} 
+              alt={profile.author_name}
+              className="avatar-image"
+            />
+          ) : (
+            <div className="avatar-placeholder">
+              <UserCircleIcon className="w-12 h-12" />
+            </div>
+          )}
+        </div>
+        
+        <div className="profile-info">
+          <h3 className="profile-name">
+            {profile.author_name}
+          </h3>
+          
+          <div className="meta-item">
+            <CalendarIcon className="meta-icon" />
+            <span>提交時間：{formatDate(profile.created_at)}</span>
           </div>
           
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {profile.author_name}
-            </h3>
-            
-            <div className="text-sm text-gray-600 mb-4">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
-                <span>提交時間：{formatDate(profile.created_at)}</span>
-              </div>
+          <p className="profile-bio">
+            {profile.bio}
+          </p>
+          
+          {profile.social_links && profile.social_links.length > 0 && (
+            <div className="profile-links">
+              {profile.social_links.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.includes('http') ? link : `https://${link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="profile-link"
+                >
+                  <LinkIcon className="w-4 h-4 mr-1 inline-block" />
+                  連結 {index + 1}
+                </a>
+              ))}
             </div>
+          )}
+          
+          <div className="artwork-actions">
+            <Button
+              size="sm"
+              onClick={() => handleApproveProfile(profile.id)}
+              disabled={actionLoading[`profile-${profile.id}`] !== undefined}
+              loading={actionLoading[`profile-${profile.id}`] === 'approve'}
+            >
+              <CheckCircleIcon className="w-4 h-4 mr-1" />
+              通過
+            </Button>
             
-            <div className="mb-4">
-              <h4 className="font-medium text-gray-900 mb-1">簡介：</h4>
-              <p className="text-gray-700 text-sm line-clamp-3">
-                {profile.bio}
-              </p>
-            </div>
-            
-            {profile.social_links && profile.social_links.length > 0 && (
-              <div className="mb-4">
-                <h4 className="font-medium text-gray-900 mb-1">社交連結：</h4>
-                <div className="flex flex-wrap gap-2">
-                  {profile.social_links.map((link, index) => (
-                    <a
-                      key={index}
-                      href={link.includes('http') ? link : `https://${link}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      連結 {index + 1}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                onClick={() => handleApproveProfile(profile.id)}
-                disabled={actionLoading[`profile-${profile.id}`] !== undefined}
-                loading={actionLoading[`profile-${profile.id}`] === 'approve'}
-              >
-                <CheckCircleIcon className="w-4 h-4 mr-1" />
-                通過
-              </Button>
-              
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleRejectProfile(profile.id)}
-                disabled={actionLoading[`profile-${profile.id}`] !== undefined}
-                loading={actionLoading[`profile-${profile.id}`] === 'reject'}
-              >
-                <XCircleIcon className="w-4 h-4 mr-1" />
-                駁回
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleRejectProfile(profile.id)}
+              disabled={actionLoading[`profile-${profile.id}`] !== undefined}
+              loading={actionLoading[`profile-${profile.id}`] === 'reject'}
+            >
+              <XCircleIcon className="w-4 h-4 mr-1" />
+              駁回
+            </Button>
           </div>
         </div>
       </div>
@@ -750,45 +741,41 @@ const AdminPage = () => {
       <Layout>
         <Seo title="管理員登入" />
         
-        <div className="min-h-[70vh] flex items-center justify-center px-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white rounded-lg shadow-lg p-8">
-              <div className="text-center mb-8">
-                <div className="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                  <LockClosedIcon className="w-8 h-8 text-orange-600" />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">管理員登入</h1>
-                <p className="text-gray-600 mt-2">請輸入管理員密碼</p>
+        <div className="admin-login-container">
+          <div className="login-card">
+            <div className="login-header">
+              <div className="login-icon-wrapper">
+                <LockClosedIcon className="login-icon" />
+              </div>
+              <h1 className="login-title">管理員登入</h1>
+              <p className="login-subtitle">請輸入管理員密碼</p>
+            </div>
+            
+            <form onSubmit={handleLogin} className="login-form">
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">
+                  密碼
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setPasswordError('')
+                  }}
+                  className={`login-input ${passwordError ? 'error' : ''}`}
+                  placeholder="輸入管理員密碼"
+                />
+                {passwordError && (
+                  <p className="login-error">{passwordError}</p>
+                )}
               </div>
               
-              <form onSubmit={handleLogin}>
-                <div className="mb-6">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    密碼
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value)
-                      setPasswordError('')
-                    }}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      passwordError ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="輸入管理員密碼"
-                  />
-                  {passwordError && (
-                    <p className="mt-2 text-sm text-red-600">{passwordError}</p>
-                  )}
-                </div>
-                
-                <Button type="submit" fullWidth size="lg">
-                  登入
-                </Button>
-              </form>
-            </div>
+              <Button type="submit" fullWidth size="lg">
+                登入
+              </Button>
+            </form>
           </div>
         </div>
       </Layout>
@@ -800,82 +787,69 @@ const AdminPage = () => {
     <Layout>
       <Seo title="管理員後台" />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="admin-container">
+        <div className="admin-header">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">管理員後台</h1>
-            <p className="text-gray-600 mt-1">管理所有內容</p>
+            <h1 className="admin-title">管理員後台</h1>
+            <p className="admin-subtitle">管理所有內容</p>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button variant="ghost" onClick={handleLogout}>
             登出
           </Button>
         </div>
         
-        {/* 標籤切換 */}
-        <div className="flex space-x-4 mb-6 border-b border-gray-200">
+        <div className="admin-tabs">
           <button
             onClick={() => setActiveTab('pending')}
-            className={`pb-4 px-2 font-medium text-sm transition-colors ${
-              activeTab === 'pending'
-                ? 'text-orange-600 border-b-2 border-orange-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`tab-button ${activeTab === 'pending' ? 'active' : ''}`}
           >
-            待審核作品 ({pendingArtworks.length})
+            待審核作品
+            <span className="tab-count">({pendingArtworks.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('approved')}
-            className={`pb-4 px-2 font-medium text-sm transition-colors ${
-              activeTab === 'approved'
-                ? 'text-orange-600 border-b-2 border-orange-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`tab-button ${activeTab === 'approved' ? 'active' : ''}`}
           >
-            已審核作品 ({approvedArtworks.length})
+            已審核作品
+            <span className="tab-count">({approvedArtworks.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('profiles')}
-            className={`pb-4 px-2 font-medium text-sm transition-colors ${
-              activeTab === 'profiles'
-                ? 'text-orange-600 border-b-2 border-orange-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`tab-button ${activeTab === 'profiles' ? 'active' : ''}`}
           >
-            待審核作者資料 ({pendingProfiles.length})
+            待審核作者資料
+            <span className="tab-count">({pendingProfiles.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('categories')}
-            className={`pb-4 px-2 font-medium text-sm transition-colors ${
-              activeTab === 'categories'
-                ? 'text-orange-600 border-b-2 border-orange-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`tab-button ${activeTab === 'categories' ? 'active' : ''}`}
           >
-            類別管理 ({categories.length})
+            類別管理
+            <span className="tab-count">({categories.length})</span>
           </button>
         </div>
         
-        {/* 內容區域 */}
         {loading ? (
-          <Loading type="spinner" size="lg" text="載入中..." />
+          <div className="loading-container">
+            <Loading type="spinner" size="lg" text="載入中..." />
+          </div>
         ) : (
           <div>
-            {/* 作品列表 */}
             {(activeTab === 'pending' || activeTab === 'approved') && (
-              <div className="space-y-6">
+              <div className="artworks-list">
                 {activeTab === 'pending' ? (
                   pendingArtworks.length === 0 ? (
-                    <div className="text-center py-16 bg-gray-50 rounded-lg">
-                      <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                      <p className="text-gray-600 text-lg">太好了！目前沒有待審核的作品</p>
+                    <div className="empty-state">
+                      <CheckCircleIcon className="empty-icon" />
+                      <p className="empty-text">太好了！目前沒有待審核的作品</p>
                     </div>
                   ) : (
                     pendingArtworks.map(artwork => renderArtworkCard(artwork, true))
                   )
                 ) : (
                   approvedArtworks.length === 0 ? (
-                    <div className="text-center py-16 bg-gray-50 rounded-lg">
-                      <p className="text-gray-600 text-lg">目前沒有已審核的作品</p>
+                    <div className="empty-state">
+                      <p className="empty-text">目前沒有已審核的作品</p>
                     </div>
                   ) : (
                     approvedArtworks.map(artwork => renderArtworkCard(artwork, false))
@@ -884,13 +858,12 @@ const AdminPage = () => {
               </div>
             )}
             
-            {/* 作者資料列表 */}
             {activeTab === 'profiles' && (
-              <div className="space-y-6">
+              <div className="profiles-list">
                 {pendingProfiles.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-lg">
-                    <UserCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 text-lg">目前沒有待審核的作者資料</p>
+                  <div className="empty-state">
+                    <UserCircleIcon className="empty-icon" />
+                    <p className="empty-text">目前沒有待審核的作者資料</p>
                   </div>
                 ) : (
                   pendingProfiles.map(profile => renderProfileCard(profile))
@@ -898,10 +871,9 @@ const AdminPage = () => {
               </div>
             )}
             
-            {/* 類別管理 */}
             {activeTab === 'categories' && (
-              <div>
-                <div className="mb-6">
+              <div className="categories-section">
+                <div className="category-actions">
                   <Button
                     onClick={() => setShowAddCategory(!showAddCategory)}
                     size="sm"
@@ -912,41 +884,41 @@ const AdminPage = () => {
                 </div>
                 
                 {showAddCategory && (
-                  <form onSubmit={handleCreateCategory} className="bg-gray-50 rounded-lg p-6 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          類別名稱 <span className="text-red-500">*</span>
+                  <form onSubmit={handleCreateCategory} className="category-add-form">
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label className="form-label">
+                          類別名稱 <span className="required">*</span>
                         </label>
                         <input
                           type="text"
                           value={newCategoryName}
                           onChange={(e) => setNewCategoryName(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="form-input"
                           placeholder="例如：數位藝術"
                           required
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="form-group">
+                        <label className="form-label">
                           類別說明
                         </label>
                         <input
                           type="text"
                           value={newCategoryDescription}
                           onChange={(e) => setNewCategoryDescription(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="form-input"
                           placeholder="選填"
                         />
                       </div>
                     </div>
-                    <div className="mt-4 flex gap-2">
+                    <div className="form-actions">
                       <Button type="submit" size="sm">
                         創建
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => {
                           setShowAddCategory(false)
@@ -960,19 +932,19 @@ const AdminPage = () => {
                   </form>
                 )}
                 
-                <div className="space-y-4">
+                <div className="categories-list">
                   {categories.length === 0 ? (
-                    <div className="text-center py-16 bg-gray-50 rounded-lg">
-                      <FolderIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 text-lg">尚未建立任何類別</p>
+                    <div className="empty-state">
+                      <FolderIcon className="empty-icon" />
+                      <p className="empty-text">尚未建立任何類別</p>
                     </div>
                   ) : (
                     categories.map(category => (
-                      <div key={category.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                      <div key={category.id} className="category-item">
+                        <div className="category-info">
+                          <h4>{category.name}</h4>
                           {category.description && (
-                            <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                            <p>{category.description}</p>
                           )}
                         </div>
                         <Button
@@ -995,4 +967,4 @@ const AdminPage = () => {
   )
 }
 
-export default AdminPage;
+export default AdminPage

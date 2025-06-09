@@ -1,63 +1,49 @@
-/* /src/components/common/Button/Button.css */
-/* 極簡按鈕樣式 */
+/* src/components/common/Button/Button.css */
+/* 極簡按鈕樣式 - 黑色主題 */
 
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: 8px;
   font-family: inherit;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  border: none;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  position: relative;
-  overflow: hidden;
-}
-
-.btn:focus {
+  transition: all 0.2s ease;
+  border: none;
   outline: none;
-}
-
-.btn:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-black), 0 0 0 4px var(--color-gray-500);
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* 尺寸變體 */
 .btn-sm {
-  padding: 4px 12px;
-  font-size: var(--font-size-xs);
-  border-radius: 4px;
+  font-size: 0.875rem;
+  padding: 6px 16px;
+  min-height: 32px;
 }
 
 .btn-md {
-  padding: 6px 16px;
-  font-size: var(--font-size-sm);
-  border-radius: 4px;
+  font-size: 1rem;
+  padding: 10px 24px;
+  min-height: 40px;
 }
 
 .btn-lg {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-base);
-  border-radius: 6px;
+  font-size: 1rem;
+  padding: 14px 32px;
+  min-height: 48px;
 }
 
 /* 樣式變體 */
 .btn-primary {
-  background-color: var(--color-white);
-  color: var(--color-black);
+  background-color: #ffffff;
+  color: #000000;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-gray-200);
+  background-color: rgba(255, 255, 255, 0.9);
   transform: translateY(-1px);
 }
 
@@ -67,38 +53,22 @@
 
 .btn-secondary {
   background-color: transparent;
-  color: var(--color-gray-400);
-  border: 1px solid var(--color-gray-700);
+  color: rgba(255, 255, 255, 0.87);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.02);
-  border-color: var(--color-gray-500);
-  color: var(--color-gray-200);
-  transform: none;
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .btn-ghost {
   background-color: transparent;
-  color: var(--color-gray-400);
-  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.02);
-  color: var(--color-gray-200);
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: var(--color-gray-400);
-  border: 1px solid var(--color-gray-700);
-}
-
-.btn-outline:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.02);
-  border-color: var(--color-gray-500);
-  color: var(--color-gray-200);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* 全寬按鈕 */
@@ -106,114 +76,46 @@
   width: 100%;
 }
 
-/* 僅圖標按鈕 */
-.btn-icon-only {
-  padding: var(--spacing-sm);
-}
-
-.btn-icon-only.btn-sm {
-  padding: var(--spacing-xs);
-}
-
-.btn-icon-only.btn-lg {
-  padding: var(--spacing-md);
-}
-
-/* 圖標 */
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-icon svg {
-  width: 1em;
-  height: 1em;
-}
-
-.btn-text {
-  display: inline-flex;
-  align-items: center;
+/* 禁用狀態 */
+.btn:disabled,
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 載入狀態 */
 .btn-loading {
   color: transparent;
-  pointer-events: none;
 }
 
 .btn-spinner {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
 }
 
-.spinner {
-  width: 20px;
-  height: 20px;
-  animation: spin 0.8s linear infinite;
+.btn-primary .btn-spinner {
+  border-top-color: #000000;
 }
 
-.spinner-circle {
-  stroke: currentColor;
-  stroke-dasharray: 62.83;
-  stroke-dashoffset: 47.12;
-  transform-origin: center;
+.btn-secondary .btn-spinner,
+.btn-ghost .btn-spinner {
+  border-top-color: rgba(255, 255, 255, 0.87);
 }
 
-.btn-primary .spinner-circle {
-  stroke: var(--color-black);
-}
-
-.btn-secondary .spinner-circle,
-.btn-ghost .spinner-circle,
-.btn-outline .spinner-circle {
-  stroke: var(--color-gray-100);
-}
-
-@keyframes spin {
+@keyframes btn-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* 按鈕組 */
-.btn-group {
-  display: inline-flex;
-  gap: var(--spacing-sm);
-}
-
-.btn-group .btn {
-  flex-shrink: 0;
-}
-
-/* 波紋效果 */
-.btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, var(--color-gray-500) 0%, transparent 70%);
-  transform: scale(0);
-  opacity: 0;
-  transition: transform 0.5s, opacity 0.5s;
-}
-
-.btn:active::before {
-  transform: scale(2);
-  opacity: 0.2;
-  transition: transform 0s, opacity 0s;
-}
-
 /* 響應式 */
 @media (max-width: 768px) {
-  .btn-group {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .btn-group .btn {
-    width: 100%;
+  .btn-lg {
+    padding: 12px 24px;
   }
 }

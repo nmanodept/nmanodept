@@ -1,6 +1,4 @@
-/* admin.css - 極簡管理員頁面樣式 */
-
-/* 確保在 admin.jsx 頂部引入此樣式文件：import './admin.css' */
+/* admin.css - 黑色主題管理員頁面樣式 */
 
 /* 登入頁面 */
 .admin-login-container {
@@ -18,6 +16,8 @@
   border: 1px solid var(--color-gray-700);
   border-radius: 12px;
   padding: var(--spacing-2xl);
+  backdrop-filter: blur(10px);
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .login-header {
@@ -29,7 +29,8 @@
   width: 64px;
   height: 64px;
   margin: 0 auto var(--spacing-lg);
-  background-color: var(--color-gray-800);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-gray-700);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -44,25 +45,38 @@
 
 .login-title {
   font-size: var(--font-size-xl);
-  font-weight: 400;
+  font-weight: 300;
   color: var(--color-gray-100);
   margin-bottom: var(--spacing-xs);
+  letter-spacing: -0.01em;
 }
 
 .login-subtitle {
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   font-size: var(--font-size-sm);
 }
 
 /* 登入表單 */
 .login-form {
-  space-y: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-300);
+  margin-bottom: var(--spacing-sm);
 }
 
 .login-input {
   width: 100%;
   padding: var(--spacing-md);
-  background-color: var(--color-black);
+  background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--color-gray-700);
   border-radius: 8px;
   color: var(--color-gray-100);
@@ -73,7 +87,7 @@
 .login-input:focus {
   outline: none;
   border-color: var(--color-gray-500);
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .login-input::placeholder {
@@ -82,6 +96,7 @@
 
 .login-input.error {
   border-color: rgba(239, 68, 68, 0.5);
+  background-color: rgba(239, 68, 68, 0.02);
 }
 
 .login-error {
@@ -102,44 +117,63 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-2xl);
+  padding-bottom: var(--spacing-2xl);
+  border-bottom: 1px solid var(--color-gray-800);
 }
 
 .admin-title {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 300;
   color: var(--color-gray-100);
   letter-spacing: -0.02em;
 }
 
 .admin-subtitle {
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
 }
 
 /* 標籤切換 */
 .admin-tabs {
   display: flex;
   gap: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-gray-700);
-  margin-bottom: var(--spacing-xl);
+  border-bottom: 1px solid var(--color-gray-800);
+  margin-bottom: var(--spacing-2xl);
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-700) transparent;
+}
+
+.admin-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.admin-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-tabs::-webkit-scrollbar-thumb {
+  background: var(--color-gray-700);
+  border-radius: 2px;
 }
 
 .tab-button {
   padding: var(--spacing-md) 0;
   background: none;
   border: none;
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   position: relative;
   white-space: nowrap;
   transition: var(--transition-fast);
+  font-family: inherit;
 }
 
 .tab-button:hover {
-  color: var(--color-gray-200);
+  color: var(--color-gray-300);
 }
 
 .tab-button.active {
@@ -158,16 +192,26 @@
 
 .tab-count {
   margin-left: var(--spacing-xs);
-  color: var(--color-gray-500);
+  color: var(--color-gray-600);
 }
 
 /* 作品卡片 */
+.artworks-list,
+.profiles-list {
+  space-y: var(--spacing-lg);
+}
+
 .artwork-card {
   background-color: transparent;
-  border: 1px solid var(--color-gray-700);
+  border: 1px solid var(--color-gray-800);
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: var(--spacing-lg);
+  transition: var(--transition-fast);
+}
+
+.artwork-card:hover {
+  border-color: var(--color-gray-700);
 }
 
 .artwork-card-body {
@@ -188,17 +232,19 @@
   height: 120px;
   object-fit: cover;
   border-radius: 8px;
+  background-color: var(--color-gray-900);
 }
 
 .artwork-image-placeholder {
   width: 120px;
   height: 120px;
-  background-color: var(--color-gray-800);
+  background-color: var(--color-gray-900);
+  border: 1px solid var(--color-gray-800);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-gray-600);
+  color: var(--color-gray-700);
 }
 
 .artwork-info {
@@ -210,7 +256,7 @@
   font-size: var(--font-size-lg);
   font-weight: 400;
   color: var(--color-gray-100);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
 .artwork-meta {
@@ -231,7 +277,7 @@
 .meta-icon {
   width: 16px;
   height: 16px;
-  color: var(--color-gray-500);
+  color: var(--color-gray-600);
 }
 
 .artwork-tags {
@@ -243,10 +289,11 @@
 
 .tag {
   padding: 4px 12px;
-  background-color: var(--color-gray-800);
-  color: var(--color-gray-300);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--color-gray-400);
   font-size: var(--font-size-xs);
   border-radius: 16px;
+  border: 1px solid var(--color-gray-800);
 }
 
 .artwork-actions {
@@ -257,8 +304,8 @@
 
 /* 展開內容 */
 .artwork-expanded {
-  border-top: 1px solid var(--color-gray-700);
-  background-color: var(--color-gray-800);
+  border-top: 1px solid var(--color-gray-800);
+  background-color: rgba(0, 0, 0, 0.3);
   padding: var(--spacing-xl);
 }
 
@@ -273,16 +320,38 @@
 .section-label {
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-gray-300);
+  color: var(--color-gray-400);
   margin-bottom: var(--spacing-sm);
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
 }
 
+.section-label svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-gray-600);
+}
+
 .section-content {
-  color: var(--color-gray-400);
+  color: var(--color-gray-300);
   line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.section-content.link,
+.link {
+  color: var(--color-gray-300);
+  text-decoration: none;
+  transition: var(--transition-fast);
+  display: inline-block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.section-content.link:hover,
+.link:hover {
+  color: var(--color-gray-100);
+  text-decoration: underline;
 }
 
 .gallery-grid {
@@ -296,15 +365,21 @@
   height: 80px;
   object-fit: cover;
   border-radius: 6px;
+  background-color: var(--color-gray-900);
 }
 
 /* 作者資料卡片 */
 .profile-card {
   background-color: transparent;
-  border: 1px solid var(--color-gray-700);
+  border: 1px solid var(--color-gray-800);
   border-radius: 12px;
   padding: var(--spacing-xl);
   margin-bottom: var(--spacing-lg);
+  transition: var(--transition-fast);
+}
+
+.profile-card:hover {
+  border-color: var(--color-gray-700);
 }
 
 .profile-content {
@@ -321,17 +396,19 @@
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
+  background-color: var(--color-gray-900);
 }
 
 .avatar-placeholder {
   width: 80px;
   height: 80px;
-  background-color: var(--color-gray-800);
+  background-color: var(--color-gray-900);
+  border: 1px solid var(--color-gray-800);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-gray-600);
+  color: var(--color-gray-700);
 }
 
 .profile-info {
@@ -346,7 +423,7 @@
 }
 
 .profile-bio {
-  color: var(--color-gray-400);
+  color: var(--color-gray-300);
   font-size: var(--font-size-sm);
   line-height: 1.6;
   margin-bottom: var(--spacing-md);
@@ -364,23 +441,37 @@
 }
 
 .profile-link {
-  color: var(--color-gray-300);
+  color: var(--color-gray-400);
   text-decoration: none;
   font-size: var(--font-size-sm);
   padding: 4px 12px;
-  background-color: var(--color-gray-800);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-gray-800);
   border-radius: 16px;
   transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .profile-link:hover {
-  background-color: var(--color-gray-700);
-  color: var(--color-gray-100);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-gray-200);
+  border-color: var(--color-gray-700);
 }
 
 /* 類別管理 */
+.categories-section {
+  margin-top: var(--spacing-xl);
+}
+
+.category-actions {
+  margin-bottom: var(--spacing-xl);
+}
+
 .category-add-form {
-  background-color: var(--color-gray-800);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-gray-800);
   border-radius: 12px;
   padding: var(--spacing-xl);
   margin-bottom: var(--spacing-xl);
@@ -392,14 +483,58 @@
   gap: var(--spacing-lg);
 }
 
+.form-input,
+.form-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 8px;
+  color: var(--color-gray-100);
+  font-size: var(--font-size-base);
+  transition: var(--transition-fast);
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-gray-500);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.form-input::placeholder {
+  color: var(--color-gray-600);
+}
+
+.required {
+  color: var(--color-gray-500);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.categories-list {
+  space-y: var(--spacing-md);
+}
+
 .category-item {
   background-color: transparent;
-  border: 1px solid var(--color-gray-700);
+  border: 1px solid var(--color-gray-800);
   border-radius: 8px;
   padding: var(--spacing-lg);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: var(--transition-fast);
+}
+
+.category-item:hover {
+  border-color: var(--color-gray-700);
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .category-info h4 {
@@ -410,7 +545,7 @@
 
 .category-info p {
   font-size: var(--font-size-sm);
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
 }
 
 /* 空狀態 */
@@ -423,11 +558,11 @@
   width: 64px;
   height: 64px;
   margin: 0 auto var(--spacing-lg);
-  color: var(--color-gray-600);
+  color: var(--color-gray-700);
 }
 
 .empty-text {
-  color: var(--color-gray-400);
+  color: var(--color-gray-500);
   font-size: var(--font-size-lg);
 }
 
@@ -437,68 +572,6 @@
   justify-content: center;
   align-items: center;
   min-height: 400px;
-}
-
-/* 表單元素 */
-.form-label {
-  display: block;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-gray-200);
-  margin-bottom: var(--spacing-sm);
-}
-
-.form-input,
-.form-select {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-black);
-  border: 1px solid var(--color-gray-700);
-  border-radius: 8px;
-  color: var(--color-gray-100);
-  font-size: var(--font-size-base);
-  transition: var(--transition-fast);
-}
-
-.form-input:focus,
-.form-select:focus {
-  outline: none;
-  border-color: var(--color-gray-500);
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.form-select {
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 40px;
-}
-
-.form-select option {
-  background-color: var(--color-black);
-  color: var(--color-gray-100);
-}
-
-.form-input::placeholder {
-  color: var(--color-gray-600);
-}
-
-.form-input.error,
-.form-select.error {
-  border-color: rgba(239, 68, 68, 0.5);
-}
-
-.form-error {
-  color: rgba(239, 68, 68, 0.8);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
-}
-
-.form-actions {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-lg);
 }
 
 /* 響應式 */
@@ -511,6 +584,10 @@
     flex-direction: column;
     gap: var(--spacing-md);
     align-items: flex-start;
+  }
+  
+  .admin-title {
+    font-size: 2rem;
   }
   
   .admin-tabs {
@@ -542,5 +619,9 @@
   
   .profile-avatar {
     margin: 0 auto;
+  }
+  
+  .profile-links {
+    justify-content: center;
   }
 }

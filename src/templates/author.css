@@ -97,8 +97,8 @@
 }
 
 .avatar-image {
-  width: 180px;
-  height: 180px;
+  width: 400px;
+  height: 400px;
   border-radius: 12px;
   object-fit: cover;
   border: 1px solid var(--color-gray-700);
@@ -106,8 +106,8 @@
 }
 
 .avatar-placeholder {
-  width: 180px;
-  height: 180px;
+  width: 400px;
+  height: 400px;
   background: linear-gradient(135deg, var(--color-gray-800) 0%, var(--color-gray-700) 100%);
   border-radius: 12px;
   display: flex;
@@ -339,8 +339,8 @@
   
   .avatar-image,
   .avatar-placeholder {
-    width: 160px;
-    height: 160px;
+    width: 400px;
+    height: 400px;
   }
   
   .avatar-placeholder span {

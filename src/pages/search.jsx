@@ -134,13 +134,17 @@ const SearchPage = ({ location }) => {
     setFilteredArtworks(filtered)
   }, [searchTerm, selectedTags, selectedCategory, sortBy, allArtworks])
 
-  // 篩選條件改變時更新
+  // 篩選條件改變時重置頁碼
   useEffect(() => {
     setCurrentPage(1)
+  }, [searchTerm, selectedTags, selectedCategory, sortBy])
+  
+  // 應用篩選
+  useEffect(() => {
     applyFilters()
-  }, [searchTerm, selectedTags, selectedCategory, sortBy, applyFilters])
+  }, [applyFilters])
 
-  // 更新 URL - 分離 currentPage 的處理
+  // 更新 URL
   useEffect(() => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('q', searchTerm)
@@ -151,9 +155,10 @@ const SearchPage = ({ location }) => {
     
     const newURL = params.toString() ? `/search?${params.toString()}` : '/search'
     
-    // 使用 replace: false 來保持歷史記錄
-    if (window.location.pathname + window.location.search !== newURL) {
-      navigate(newURL, { replace: false })
+    // 只在 URL 真的需要改變時才更新
+    const currentURL = window.location.pathname + window.location.search
+    if (currentURL !== newURL) {
+      window.history.pushState({}, '', newURL)
     }
   }, [searchTerm, selectedTags, selectedCategory, sortBy, currentPage])
 
