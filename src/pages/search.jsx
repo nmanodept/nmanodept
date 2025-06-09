@@ -10,14 +10,20 @@ import './search.css'
 const SearchPage = ({ location }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState([])
+  const [selectedProjectYears, setSelectedProjectYears] = useState([])
+  const [selectedProjectSemesters, setSelectedProjectSemesters] = useState([])
   const [sortBy, setSortBy] = useState('newest')
   const [isLoading, setIsLoading] = useState(false)
   const [allArtworks, setAllArtworks] = useState([])
   const [filteredArtworks, setFilteredArtworks] = useState([])
   const [availableTags, setAvailableTags] = useState([])
   const [availableCategories, setAvailableCategories] = useState([])
+  const [availableProjectYears, setAvailableProjectYears] = useState([])
+  const [availableProjectSemesters, setAvailableProjectSemesters] = useState([])
   const [showFilters, setShowFilters] = useState(false)
+  const [showCategoryFilters, setShowCategoryFilters] = useState(false)
+  const [showProjectFilters, setShowProjectFilters] = useState(false)
   
   // 分頁
   const [currentPage, setCurrentPage] = useState(1)
@@ -28,13 +34,17 @@ const SearchPage = ({ location }) => {
     const params = new URLSearchParams(location.search)
     const q = params.get('q') || ''
     const tags = params.get('tags') ? params.get('tags').split(',') : []
-    const category = params.get('category') || ''
+    const categories = params.get('categories') ? params.get('categories').split(',') : []
+    const years = params.get('years') ? params.get('years').split(',') : []
+    const semesters = params.get('semesters') ? params.get('semesters').split(',') : []
     const sort = params.get('sort') || 'newest'
     const page = parseInt(params.get('page') || '1')
     
     setSearchTerm(q)
     setSelectedTags(tags)
-    setSelectedCategory(category)
+    setSelectedCategories(categories)
+    setSelectedProjectYears(years)
+    setSelectedProjectSemesters(semesters)
     setSortBy(sort)
     setCurrentPage(page)
   }, [location.search])
@@ -57,20 +67,50 @@ const SearchPage = ({ location }) => {
         // 提取篩選選項
         const tags = new Set()
         const categories = new Map()
+        const projectYears = new Set()
+        const projectSemesters = new Set()
         
         data.forEach(artwork => {
+          // 標籤
           const artworkTags = artwork.tags || []
           artworkTags.forEach(tag => {
             if (tag) tags.add(tag)
           })
           
-          if (artwork.category_id && artwork.category_name) {
+          // 類別 - 現在可能是多個
+          if (artwork.categories && Array.isArray(artwork.categories)) {
+            artwork.categories.forEach(cat => {
+              if (cat.id && cat.name) {
+                categories.set(cat.id, cat.name)
+              }
+            })
+          } else if (artwork.category_id && artwork.category_name) {
             categories.set(artwork.category_id, artwork.category_name)
+          }
+          
+          // 學年度
+          if (artwork.project_years && Array.isArray(artwork.project_years)) {
+            artwork.project_years.forEach(year => {
+              if (year) projectYears.add(year)
+            })
+          } else if (artwork.project_year) {
+            projectYears.add(artwork.project_year)
+          }
+          
+          // 年級學期
+          if (artwork.project_semesters && Array.isArray(artwork.project_semesters)) {
+            artwork.project_semesters.forEach(semester => {
+              if (semester) projectSemesters.add(semester)
+            })
+          } else if (artwork.project_semester) {
+            projectSemesters.add(artwork.project_semester)
           }
         })
         
         setAvailableTags(Array.from(tags).sort())
         setAvailableCategories(Array.from(categories, ([id, name]) => ({ id, name })))
+        setAvailableProjectYears(Array.from(projectYears).sort())
+        setAvailableProjectSemesters(Array.from(projectSemesters).sort())
       }
     } catch (error) {
       console.error('Failed to fetch artworks:', error)
@@ -98,11 +138,18 @@ const SearchPage = ({ location }) => {
       })
     }
     
-    // 類別篩選
-    if (selectedCategory) {
-      filtered = filtered.filter(artwork => 
-        String(artwork.category_id) === String(selectedCategory)
-      )
+    // 類別篩選 - 現在支援多類別
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(artwork => {
+        if (artwork.categories && Array.isArray(artwork.categories)) {
+          return selectedCategories.some(selectedCatId => 
+            artwork.categories.some(cat => String(cat.id) === String(selectedCatId))
+          )
+        } else if (artwork.category_id) {
+          return selectedCategories.includes(String(artwork.category_id))
+        }
+        return false
+      })
     }
     
     // 標籤篩選
@@ -112,6 +159,34 @@ const SearchPage = ({ location }) => {
         return selectedTags.some(tag => 
           artworkTags.some(t => t?.toLowerCase() === tag.toLowerCase())
         )
+      })
+    }
+    
+    // 學年度篩選
+    if (selectedProjectYears.length > 0) {
+      filtered = filtered.filter(artwork => {
+        if (artwork.project_years && Array.isArray(artwork.project_years)) {
+          return selectedProjectYears.some(year => 
+            artwork.project_years.includes(year)
+          )
+        } else if (artwork.project_year) {
+          return selectedProjectYears.includes(artwork.project_year)
+        }
+        return false
+      })
+    }
+    
+    // 年級學期篩選
+    if (selectedProjectSemesters.length > 0) {
+      filtered = filtered.filter(artwork => {
+        if (artwork.project_semesters && Array.isArray(artwork.project_semesters)) {
+          return selectedProjectSemesters.some(semester => 
+            artwork.project_semesters.includes(semester)
+          )
+        } else if (artwork.project_semester) {
+          return selectedProjectSemesters.includes(artwork.project_semester)
+        }
+        return false
       })
     }
     
@@ -132,12 +207,12 @@ const SearchPage = ({ location }) => {
     })
     
     setFilteredArtworks(filtered)
-  }, [searchTerm, selectedTags, selectedCategory, sortBy, allArtworks])
+  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy, allArtworks])
 
   // 篩選條件改變時重置頁碼
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedTags, selectedCategory, sortBy])
+  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy])
   
   // 應用篩選
   useEffect(() => {
@@ -149,7 +224,9 @@ const SearchPage = ({ location }) => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('q', searchTerm)
     if (selectedTags.length > 0) params.set('tags', selectedTags.join(','))
-    if (selectedCategory) params.set('category', selectedCategory)
+    if (selectedCategories.length > 0) params.set('categories', selectedCategories.join(','))
+    if (selectedProjectYears.length > 0) params.set('years', selectedProjectYears.join(','))
+    if (selectedProjectSemesters.length > 0) params.set('semesters', selectedProjectSemesters.join(','))
     if (sortBy !== 'newest') params.set('sort', sortBy)
     if (currentPage > 1) params.set('page', currentPage.toString())
     
@@ -160,7 +237,7 @@ const SearchPage = ({ location }) => {
     if (currentURL !== newURL) {
       window.history.pushState({}, '', newURL)
     }
-  }, [searchTerm, selectedTags, selectedCategory, sortBy, currentPage])
+  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy, currentPage])
 
   // 切換標籤
   const toggleTag = (tag) => {
@@ -169,7 +246,36 @@ const SearchPage = ({ location }) => {
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     )
-    // 防止頁面跳轉到頂部
+    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
+  }
+
+  // 切換類別
+  const toggleCategory = (categoryId) => {
+    setSelectedCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    )
+    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
+  }
+
+  // 切換學年度
+  const toggleProjectYear = (year) => {
+    setSelectedProjectYears(prev => 
+      prev.includes(year) 
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    )
+    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
+  }
+
+  // 切換年級學期
+  const toggleProjectSemester = (semester) => {
+    setSelectedProjectSemesters(prev => 
+      prev.includes(semester) 
+        ? prev.filter(s => s !== semester)
+        : [...prev, semester]
+    )
     window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
@@ -177,7 +283,9 @@ const SearchPage = ({ location }) => {
   const clearFilters = () => {
     setSearchTerm('')
     setSelectedTags([])
-    setSelectedCategory('')
+    setSelectedCategories([])
+    setSelectedProjectYears([])
+    setSelectedProjectSemesters([])
     setSortBy('newest')
     setCurrentPage(1)
     navigate('/search')
@@ -235,18 +343,6 @@ const SearchPage = ({ location }) => {
 
         {/* 篩選器 */}
         <div className="search-filters">
-          {/* 類別選擇 */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">所有類別</option>
-            {availableCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-
           {/* 排序 */}
           <select
             value={sortBy}
@@ -259,7 +355,18 @@ const SearchPage = ({ location }) => {
             <option value="popular">熱門</option>
           </select>
 
-          {/* 標籤顯示 */}
+          {/* 類別篩選 */}
+          <button
+            onClick={() => setShowCategoryFilters(!showCategoryFilters)}
+            className="filter-toggle"
+          >
+            類別篩選
+            {selectedCategories.length > 0 && (
+              <span className="filter-count">{selectedCategories.length}</span>
+            )}
+          </button>
+
+          {/* 標籤篩選 */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="filter-toggle"
@@ -270,26 +377,94 @@ const SearchPage = ({ location }) => {
             )}
           </button>
 
+          {/* 專題區篩選 */}
+          <button
+            onClick={() => setShowProjectFilters(!showProjectFilters)}
+            className="filter-toggle"
+          >
+            專題篩選
+            {(selectedProjectYears.length + selectedProjectSemesters.length) > 0 && (
+              <span className="filter-count">{selectedProjectYears.length + selectedProjectSemesters.length}</span>
+            )}
+          </button>
+
           {/* 清除篩選 */}
-          {(searchTerm || selectedTags.length > 0 || selectedCategory) && (
+          {(searchTerm || selectedTags.length > 0 || selectedCategories.length > 0 || 
+            selectedProjectYears.length > 0 || selectedProjectSemesters.length > 0) && (
             <button onClick={clearFilters} className="filter-clear">
               清除
             </button>
           )}
         </div>
 
+        {/* 類別選擇器 */}
+        {showCategoryFilters && (
+          <div className="filter-selector categories-selector">
+            <h3 className="filter-selector-title">選擇類別</h3>
+            <div className="filter-buttons">
+              {availableCategories.map(category => (
+                <button
+                  key={category.id}
+                  onClick={() => toggleCategory(String(category.id))}
+                  className={`filter-button ${selectedCategories.includes(String(category.id)) ? 'active' : ''}`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 標籤選擇器 */}
         {showFilters && (
-          <div className="tags-selector">
-            {availableTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`tag-button ${selectedTags.includes(tag) ? 'active' : ''}`}
-              >
-                {tag}
-              </button>
-            ))}
+          <div className="filter-selector tags-selector">
+            <h3 className="filter-selector-title">選擇標籤</h3>
+            <div className="filter-buttons">
+              {availableTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`filter-button ${selectedTags.includes(tag) ? 'active' : ''}`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 專題區選擇器 */}
+        {showProjectFilters && (
+          <div className="filter-selector project-selector">
+            <div className="project-filter-group">
+              <h4 className="filter-group-title">學年度</h4>
+              <div className="filter-buttons">
+                {availableProjectYears.map(year => (
+                  <button
+                    key={year}
+                    onClick={() => toggleProjectYear(year)}
+                    className={`filter-button ${selectedProjectYears.includes(year) ? 'active' : ''}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="project-filter-group">
+              <h4 className="filter-group-title">年級學期</h4>
+              <div className="filter-buttons">
+                {availableProjectSemesters.map(semester => (
+                  <button
+                    key={semester}
+                    onClick={() => toggleProjectSemester(semester)}
+                    className={`filter-button ${selectedProjectSemesters.includes(semester) ? 'active' : ''}`}
+                  >
+                    {semester}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

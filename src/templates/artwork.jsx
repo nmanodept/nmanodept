@@ -1,4 +1,4 @@
-// /src/pages/artwork.jsx
+// /src/templates/artwork.jsx
 import React, { useState, useEffect } from 'react'
 import { Link } from 'gatsby'
 import Layout from '../components/common/Layout'
@@ -206,6 +206,10 @@ const ArtworkTemplate = ({ pageContext }) => {
 
   const currentMedia = mediaList[currentMediaIndex] || {}
 
+  // 處理專題資訊顯示
+  const projectYears = artwork.project_years || (artwork.project_year ? [artwork.project_year] : [])
+  const projectSemesters = artwork.project_semesters || (artwork.project_semester ? [artwork.project_semester] : [])
+
   return (
     <Layout>
       <Seo 
@@ -219,7 +223,20 @@ const ArtworkTemplate = ({ pageContext }) => {
         <div className="artwork-topbar">
           <div className="topbar-content">
             <span className="topbar-text">
-              {artwork.project_year} 級 — {artwork.project_semester} 專題
+              {projectYears.map((year, index) => (
+                <span key={index}>
+                  {year} 級
+                  {index < projectYears.length - 1 && '、'}
+                </span>
+              ))}
+              {' — '}
+              {projectSemesters.map((semester, index) => (
+                <span key={index}>
+                  {semester}
+                  {index < projectSemesters.length - 1 && '、'}
+                </span>
+              ))}
+              {' 專題'}
             </span>
           </div>
         </div>
@@ -353,10 +370,32 @@ const ArtworkTemplate = ({ pageContext }) => {
                   </span>
                 </div>
                 
-                {artwork.category_name && (
+                {/* 類別 - 支援多類別 */}
+                {((artwork.categories && artwork.categories.length > 0) || artwork.category_name) && (
                   <div className="meta-item">
                     <span className="meta-label">類別</span>
-                    <span className="meta-value">{artwork.category_name}</span>
+                    <span className="meta-value">
+                      {artwork.categories && artwork.categories.length > 0 ? (
+                        artwork.categories.map((category, index) => (
+                          <span key={index}>
+                            <Link 
+                              to={`/search?categories=${category.id}`} 
+                              className="category-link"
+                            >
+                              {category.name}
+                            </Link>
+                            {index < artwork.categories.length - 1 && '、'}
+                          </span>
+                        ))
+                      ) : (
+                        <Link 
+                          to={`/search?categories=${artwork.category_id}`} 
+                          className="category-link"
+                        >
+                          {artwork.category_name}
+                        </Link>
+                      )}
+                    </span>
                   </div>
                 )}
                 

@@ -231,11 +231,15 @@
   font-weight: 300;
 }
 
-/* 社交連結 */
+/* 社交連結 - 修正版 */
 .social-links {
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
+  flex-wrap: wrap;
 }
 
 .social-link {
@@ -249,6 +253,7 @@
   border-radius: 50%;
   color: var(--color-gray-400);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .social-link:hover {
@@ -259,8 +264,13 @@
 }
 
 .social-link svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* 作品區塊 */
@@ -381,8 +391,12 @@
   }
   
   .social-links {
-    flex-wrap: wrap;
     justify-content: center;
+  }
+  
+  .social-link svg {
+    width: 20px;
+    height: 20px;
   }
   
   .year-artworks {

@@ -49,6 +49,51 @@
   gap: var(--spacing-lg);
 }
 
+/* 類別標籤樣式 */
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-gray-600);
+  border-radius: 24px;
+  color: var(--color-gray-200);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.category-tag .tag-remove {
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  font-size: 18px;
+  line-height: 1;
+  transition: var(--transition-fast);
+}
+
+.category-tag .tag-remove:hover {
+  color: rgba(239, 68, 68, 0.8);
+}
+
+/* 建議項目的描述文字 */
+.suggestion-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  font-weight: 400;
+}
+
 /* Gallery 預覽 */
 .gallery-previews {
   margin-top: var(--spacing-md);

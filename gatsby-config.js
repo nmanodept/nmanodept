@@ -3,8 +3,8 @@
  */
 module.exports = {
   siteMetadata: {
-    title: `Gallery NmanoDept`,
-    description: `藝術作品展示平台`,
+    title: `NMAnodept`,
+    description: `NMAnodept`,
     author: `@nmanodept`,
     siteUrl: `https://gallery.nmanodept.com`,
   },  flags: {
@@ -32,7 +32,7 @@ module.exports = {
     {
       resolve: `gatsby-plugin-manifest`,
       options: {
-        name: `Gallery NmanoDept`,
+        name: `NMAnodept`,
         short_name: `Gallery`,
         start_url: `/`,
         background_color: `#000000`,

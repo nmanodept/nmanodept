@@ -11,9 +11,12 @@ const SubmitForm = () => {
     defaultValues: {
       authors: [], 
       tags: [],
+      categories: [], // 改為多選
       gallery_images: [],
       gallery_video_urls: [''],
-      social_links: ['']
+      social_links: [''],
+      project_years: [], // 新增學年度多選
+      project_semesters: [] // 新增年級學期多選
     }
   });
 
@@ -21,14 +24,22 @@ const SubmitForm = () => {
   const [galleryPreviews, setGalleryPreviews] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [authorInput, setAuthorInput] = useState('');
+  const [categoryInput, setCategoryInput] = useState('');
+  const [projectYearInput, setProjectYearInput] = useState('');
+  const [projectSemesterInput, setProjectSemesterInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   
   const [availableAuthors, setAvailableAuthors] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
+  const [availableProjectYears, setAvailableProjectYears] = useState([]);
+  const [availableProjectSemesters, setAvailableProjectSemesters] = useState([]);
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const [showProjectYearSuggestions, setShowProjectYearSuggestions] = useState(false);
+  const [showProjectSemesterSuggestions, setShowProjectSemesterSuggestions] = useState(false);
 
   const description = watch('description', '');
 
@@ -36,6 +47,7 @@ const SubmitForm = () => {
     fetchAuthors();
     fetchCategories();
     fetchTags();
+    fetchProjectInfo();
   }, []);
 
   const fetchAuthors = async () => {
@@ -74,6 +86,20 @@ const SubmitForm = () => {
       }
     } catch (error) {
       console.error('Failed to fetch tags:', error);
+    }
+  };
+
+  const fetchProjectInfo = async () => {
+    try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+      const response = await fetch(`${apiUrl}/project-info`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableProjectYears(data.years || []);
+        setAvailableProjectSemesters(data.semesters || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch project info:', error);
     }
   };
 
@@ -175,6 +201,84 @@ const SubmitForm = () => {
     setValue('tags', watch('tags').filter(tag => tag !== tagToRemove));
   };
 
+  // 類別管理 - 新增多選功能
+  const handleAddCategory = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const category = categoryInput.trim();
+      if (category) {
+        const existingCategory = availableCategories.find(c => c.name === category);
+        if (existingCategory && !watch('categories').some(c => c.id === existingCategory.id)) {
+          setValue('categories', [...watch('categories'), existingCategory]);
+          setCategoryInput('');
+          setShowCategorySuggestions(false);
+        }
+      }
+    }
+  };
+
+  const addCategoryFromSuggestion = (category) => {
+    if (!watch('categories').some(c => c.id === category.id)) {
+      setValue('categories', [...watch('categories'), category]);
+    }
+    setCategoryInput('');
+    setShowCategorySuggestions(false);
+  };
+
+  const removeCategory = (categoryToRemove) => {
+    setValue('categories', watch('categories').filter(cat => cat.id !== categoryToRemove.id));
+  };
+
+  // 學年度管理
+  const handleAddProjectYear = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const year = projectYearInput.trim();
+      if (year && !watch('project_years').includes(year)) {
+        setValue('project_years', [...watch('project_years'), year]);
+        setProjectYearInput('');
+        setShowProjectYearSuggestions(false);
+      }
+    }
+  };
+
+  const addProjectYearFromSuggestion = (year) => {
+    if (!watch('project_years').includes(year)) {
+      setValue('project_years', [...watch('project_years'), year]);
+    }
+    setProjectYearInput('');
+    setShowProjectYearSuggestions(false);
+  };
+
+  const removeProjectYear = (yearToRemove) => {
+    setValue('project_years', watch('project_years').filter(year => year !== yearToRemove));
+  };
+
+  // 年級學期管理
+  const handleAddProjectSemester = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const semester = projectSemesterInput.trim();
+      if (semester && !watch('project_semesters').includes(semester)) {
+        setValue('project_semesters', [...watch('project_semesters'), semester]);
+        setProjectSemesterInput('');
+        setShowProjectSemesterSuggestions(false);
+      }
+    }
+  };
+
+  const addProjectSemesterFromSuggestion = (semester) => {
+    if (!watch('project_semesters').includes(semester)) {
+      setValue('project_semesters', [...watch('project_semesters'), semester]);
+    }
+    setProjectSemesterInput('');
+    setShowProjectSemesterSuggestions(false);
+  };
+
+  const removeProjectSemester = (semesterToRemove) => {
+    setValue('project_semesters', watch('project_semesters').filter(semester => semester !== semesterToRemove));
+  };
+
   // Gallery 影片連結管理
   const addVideoUrl = () => {
     const urls = watch('gallery_video_urls');
@@ -227,10 +331,10 @@ const SubmitForm = () => {
       formData.append('year', data.year.toString());
       formData.append('video_url', data.video_url);
       formData.append('tags', JSON.stringify(data.tags));
+      formData.append('categories', JSON.stringify(data.categories.map(c => c.id))); // 多類別
       formData.append('description', data.description);
-      formData.append('project_year', data.project_year);
-      formData.append('project_semester', data.project_semester);
-      formData.append('category_id', data.category_id || '');
+      formData.append('project_years', JSON.stringify(data.project_years));
+      formData.append('project_semesters', JSON.stringify(data.project_semesters));
       
       const validSocialLinks = data.social_links.filter(link => link && link.trim() !== '');
       if (validSocialLinks.length > 0) {
@@ -267,6 +371,9 @@ const SubmitForm = () => {
         setGalleryPreviews([]);
         setTagInput('');
         setAuthorInput('');
+        setCategoryInput('');
+        setProjectYearInput('');
+        setProjectSemesterInput('');
         setValue('social_links', ['']);
         
         setTimeout(() => {
@@ -283,16 +390,30 @@ const SubmitForm = () => {
     }
   };
 
-  // 過濾作者建議
+  // 過濾建議
   const filteredAuthors = availableAuthors.filter(author => 
     author.name.toLowerCase().includes(authorInput.toLowerCase()) &&
     !watch('authors').includes(author.name)
   );
 
-  // 過濾標籤建議
   const filteredTags = availableTags.filter(tag => 
     tag.name.toLowerCase().includes(tagInput.toLowerCase()) &&
     !watch('tags').includes(tag.name)
+  );
+
+  const filteredCategories = availableCategories.filter(category => 
+    category.name.toLowerCase().includes(categoryInput.toLowerCase()) &&
+    !watch('categories').some(c => c.id === category.id)
+  );
+
+  const filteredProjectYears = availableProjectYears.filter(year => 
+    year.toLowerCase().includes(projectYearInput.toLowerCase()) &&
+    !watch('project_years').includes(year)
+  );
+
+  const filteredProjectSemesters = availableProjectSemesters.filter(semester => 
+    semester.toLowerCase().includes(projectSemesterInput.toLowerCase()) &&
+    !watch('project_semesters').includes(semester)
   );
 
   // 滾動到底部以顯示提示訊息
@@ -452,24 +573,70 @@ const SubmitForm = () => {
           {errors.authors && <p className="form-error">{errors.authors.message}</p>}
         </div>
 
-        {/* 作品類別 */}
+        {/* 作品類別 - 改為多選 */}
         <div className="form-group">
-          <label htmlFor="category" className="form-label">
+          <label className="form-label">
             作品類別 <span className="required">*</span>
           </label>
-          <select
-            id="category"
-            {...register('category_id', { required: '請選擇作品類別' })}
-            className={`form-select ${errors.category_id ? 'error' : ''}`}
-          >
-            <option value="">請選擇類別</option>
-            {availableCategories.map(category => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          {errors.category_id && <p className="form-error">{errors.category_id.message}</p>}
+          <Controller
+            name="categories"
+            control={control}
+            rules={{ 
+              validate: value => value.length > 0 || '請至少選擇一個類別'
+            }}
+            render={({ field }) => (
+              <div className="relative">
+                <div className="category-tags">
+                  {field.value.map((category) => (
+                    <span key={category.id} className="category-tag">
+                      {category.name}
+                      <button
+                        type="button"
+                        onClick={() => removeCategory(category)}
+                        className="tag-remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={categoryInput}
+                  onChange={(e) => {
+                    setCategoryInput(e.target.value);
+                    setShowCategorySuggestions(e.target.value.length > 0);
+                  }}
+                  onKeyDown={handleAddCategory}
+                  onFocus={() => setShowCategorySuggestions(categoryInput.length > 0)}
+                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                  className={`form-input ${errors.categories ? 'error' : ''}`}
+                  placeholder="選擇類別（可多選）"
+                />
+                
+                {/* 類別建議下拉選單 */}
+                {showCategorySuggestions && filteredCategories.length > 0 && (
+                  <div className="suggestions-dropdown">
+                    {filteredCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addCategoryFromSuggestion(category)}
+                        className="suggestion-item"
+                      >
+                        {category.name}
+                        {category.description && (
+                          <span className="suggestion-desc"> - {category.description}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          />
+          {errors.categories && <p className="form-error">{errors.categories.message}</p>}
         </div>
 
         {/* 創作年份 */}
@@ -720,32 +887,130 @@ const SubmitForm = () => {
           </div>
         </div>
 
-        {/* 專題區收錄 */}
+        {/* 專題區收錄 - 改為多選輸入 */}
         <div className="form-section">
           <h3 className="section-title">專題區收錄 <span className="required">*</span></h3>
-          <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="project-year" className="form-label">學年度</label>
-              <input
-                type="text"
-                id="project-year"
-                {...register('project_year', { required: '請輸入學年度' })}
-                className={`form-input ${errors.project_year ? 'error' : ''}`}
-                placeholder="例如：112"
-              />
-              {errors.project_year && <p className="form-error">{errors.project_year.message}</p>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="project-semester" className="form-label">年級學期</label>
-              <input
-                type="text"
-                id="project-semester"
-                {...register('project_semester', { required: '請輸入年級學期' })}
-                className={`form-input ${errors.project_semester ? 'error' : ''}`}
-                placeholder="例如：大二下"
-              />
-              {errors.project_semester && <p className="form-error">{errors.project_semester.message}</p>}
-            </div>
+          
+          {/* 學年度 - 多選 */}
+          <div className="form-group">
+            <label className="form-label">學年度</label>
+            <Controller
+              name="project_years"
+              control={control}
+              rules={{ 
+                validate: value => value.length > 0 || '請至少新增一個學年度'
+              }}
+              render={({ field }) => (
+                <div className="relative">
+                  <div className="tag-list">
+                    {field.value.map((year, index) => (
+                      <span key={index} className="tag-item">
+                        {year}
+                        <button
+                          type="button"
+                          onClick={() => removeProjectYear(year)}
+                          className="tag-remove"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={projectYearInput}
+                    onChange={(e) => {
+                      setProjectYearInput(e.target.value);
+                      setShowProjectYearSuggestions(e.target.value.length > 0);
+                    }}
+                    onKeyDown={handleAddProjectYear}
+                    onFocus={() => setShowProjectYearSuggestions(projectYearInput.length > 0)}
+                    onBlur={() => setTimeout(() => setShowProjectYearSuggestions(false), 200)}
+                    className={`form-input ${errors.project_years ? 'error' : ''}`}
+                    placeholder="例如：112，按 Enter 新增"
+                  />
+                  
+                  {/* 學年度建議下拉選單 */}
+                  {showProjectYearSuggestions && filteredProjectYears.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {filteredProjectYears.map((year, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addProjectYearFromSuggestion(year)}
+                          className="suggestion-item"
+                        >
+                          {year}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+            {errors.project_years && <p className="form-error">{errors.project_years.message}</p>}
+          </div>
+
+          {/* 年級學期 - 多選 */}
+          <div className="form-group">
+            <label className="form-label">年級學期</label>
+            <Controller
+              name="project_semesters"
+              control={control}
+              rules={{ 
+                validate: value => value.length > 0 || '請至少新增一個年級學期'
+              }}
+              render={({ field }) => (
+                <div className="relative">
+                  <div className="tag-list">
+                    {field.value.map((semester, index) => (
+                      <span key={index} className="tag-item">
+                        {semester}
+                        <button
+                          type="button"
+                          onClick={() => removeProjectSemester(semester)}
+                          className="tag-remove"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={projectSemesterInput}
+                    onChange={(e) => {
+                      setProjectSemesterInput(e.target.value);
+                      setShowProjectSemesterSuggestions(e.target.value.length > 0);
+                    }}
+                    onKeyDown={handleAddProjectSemester}
+                    onFocus={() => setShowProjectSemesterSuggestions(projectSemesterInput.length > 0)}
+                    onBlur={() => setTimeout(() => setShowProjectSemesterSuggestions(false), 200)}
+                    className={`form-input ${errors.project_semesters ? 'error' : ''}`}
+                    placeholder="例如：大二下，按 Enter 新增"
+                  />
+                  
+                  {/* 年級學期建議下拉選單 */}
+                  {showProjectSemesterSuggestions && filteredProjectSemesters.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {filteredProjectSemesters.map((semester, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addProjectSemesterFromSuggestion(semester)}
+                          className="suggestion-item"
+                        >
+                          {semester}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+            {errors.project_semesters && <p className="form-error">{errors.project_semesters.message}</p>}
           </div>
         </div>
 

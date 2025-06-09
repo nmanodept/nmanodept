@@ -1,4 +1,4 @@
-/* /src/pages/artwork.css - 現代化作品頁面樣式 */
+/* /src/templates/artwork.css - 現代化作品頁面樣式 */
 
 /* 載入狀態 */
 .artwork-loading {
@@ -289,21 +289,21 @@
 }
 
 .tag-link {
-  padding: 6px 16px;
+  padding: 8px 20px;
   background: transparent;
-  border: 1px solid var(--color-gray-700);
+  border: 2px solid var(--color-gray-700);
   border-radius: 100px;
-  color: var(--color-gray-400);
+  color: var(--color-gray-300);
   text-decoration: none;
   font-size: var(--font-size-sm);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
   display: inline-block;
 }
 
 .tag-link:hover {
-  border-color: var(--color-gray-600);
+  border-color: var(--color-gray-500);
   color: var(--color-gray-100);
   background: rgba(255, 255, 255, 0.03);
   transform: translateY(-1px);
@@ -333,16 +333,21 @@
   flex: 1;
 }
 
-.author-link {
+.author-link,
+.category-link {
   color: var(--color-gray-200);
   text-decoration: none;
   transition: all 0.3s ease;
-  border-bottom: 1px solid transparent;
+  padding: 4px 12px;
+  margin: -4px -12px;
+  border-radius: 20px;
+  display: inline-block;
 }
 
-.author-link:hover {
+.author-link:hover,
+.category-link:hover {
   color: var(--color-gray-100);
-  border-bottom-color: var(--color-gray-100);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* 區塊標題 */
@@ -374,22 +379,23 @@
 
 .links-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--spacing-sm);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .link-item {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   background: transparent;
-  border: 1px solid var(--color-gray-800);
-  border-radius: 8px;
+  border: 2px solid var(--color-gray-800);
+  border-radius: 12px;
   color: var(--color-gray-400);
   text-decoration: none;
   font-size: var(--font-size-sm);
   transition: all 0.3s ease;
+  font-weight: 500;
 }
 
 .link-item:hover {
@@ -404,7 +410,7 @@
 }
 
 .link-text {
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 
@@ -455,5 +461,15 @@
   
   .links-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .tag-link {
+    padding: 6px 16px;
+    border-width: 1px;
+  }
+  
+  .link-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-width: 1px;
   }
 }
