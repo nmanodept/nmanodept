@@ -29,7 +29,12 @@ const AuthorTemplate = ({ pageContext }) => {
         }))
       )
       
-      artworksWithDetails.sort((a, b) => b.year - a.year) // 改為新到舊排序
+      // 按照學年度（現在是創作年份）排序
+      artworksWithDetails.sort((a, b) => {
+        const yearA = a.project_years?.[0] || a.project_year || 0
+        const yearB = b.project_years?.[0] || b.project_year || 0
+        return yearB - yearA // 新到舊
+      })
       setArtworks(artworksWithDetails)
     } catch (err) {
       setError(err.message)
@@ -104,7 +109,8 @@ const AuthorTemplate = ({ pageContext }) => {
   const groupByYear = (artworks) => {
     const grouped = {}
     artworks.forEach(artwork => {
-      const year = artwork.year
+      // 使用學年度作為分組依據
+      const year = artwork.project_years?.[0] || artwork.project_year || '未知'
       if (!grouped[year]) {
         grouped[year] = []
       }
@@ -136,7 +142,7 @@ const AuthorTemplate = ({ pageContext }) => {
   }
 
   const groupedArtworks = groupByYear(artworks)
-  const years = Object.keys(groupedArtworks).sort((a, b) => b - a) // 改為新到舊
+  const years = Object.keys(groupedArtworks).sort((a, b) => b - a) // 新到舊
 
   return (
     <Layout>
@@ -147,32 +153,33 @@ const AuthorTemplate = ({ pageContext }) => {
       />
       
       <div className="author-container">
-        {/* Hero Section */}
+        {/* Hero Section - 新佈局 */}
         <section className="author-hero">
           <div className="hero-background">
             <div className="hero-gradient" />
             <div className="hero-pattern" />
           </div>
           
-          <div className="author-profile">
-            {/* 大頭像 */}
-            <div className="profile-avatar">
+          {/* 新的橫向佈局 */}
+          <div className="author-profile-horizontal">
+            {/* 左側：大頭像 */}
+            <div className="profile-avatar-large">
               {authorInfo.avatar_url ? (
                 <img 
                   src={authorInfo.avatar_url} 
                   alt={decodeURIComponent(author)}
-                  className="avatar-image"
+                  className="avatar-image-large"
                 />
               ) : (
-                <div className="avatar-placeholder">
+                <div className="avatar-placeholder-large">
                   <span>{decodeURIComponent(author).charAt(0).toUpperCase()}</span>
                 </div>
               )}
               <div className="avatar-decoration" />
             </div>
             
-            {/* 作者資訊 */}
-            <div className="profile-info">
+            {/* 右側：作者資訊 */}
+            <div className="profile-info-horizontal">
               <h1 className="author-name">{decodeURIComponent(author)}</h1>
               
               <div className="author-stats">
@@ -191,9 +198,9 @@ const AuthorTemplate = ({ pageContext }) => {
                 <p className="author-bio">{authorInfo.bio}</p>
               )}
               
-              {/* 社交連結 */}
+              {/* 社交連結 - 單行顯示 */}
               {authorInfo.social_links && authorInfo.social_links.length > 0 && (
-                <div className="social-links">
+                <div className="social-links-horizontal">
                   {authorInfo.social_links.map((link, index) => (
                     <a
                       key={index}

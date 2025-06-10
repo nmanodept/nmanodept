@@ -11,7 +11,7 @@ const SearchPage = ({ location }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [selectedCategories, setSelectedCategories] = useState([])
-  const [selectedProjectYears, setSelectedProjectYears] = useState([])
+  const [selectedProjectYears, setSelectedProjectYears] = useState([]) // 創作年份
   const [selectedProjectSemesters, setSelectedProjectSemesters] = useState([])
   const [sortBy, setSortBy] = useState('newest')
   const [isLoading, setIsLoading] = useState(false)
@@ -88,7 +88,7 @@ const SearchPage = ({ location }) => {
             categories.set(artwork.category_id, artwork.category_name)
           }
           
-          // 學年度
+          // 創作年份（原學年度）
           if (artwork.project_years && Array.isArray(artwork.project_years)) {
             artwork.project_years.forEach(year => {
               if (year) projectYears.add(year)
@@ -162,7 +162,7 @@ const SearchPage = ({ location }) => {
       })
     }
     
-    // 學年度篩選
+    // 創作年份篩選
     if (selectedProjectYears.length > 0) {
       filtered = filtered.filter(artwork => {
         if (artwork.project_years && Array.isArray(artwork.project_years)) {
@@ -259,7 +259,7 @@ const SearchPage = ({ location }) => {
     window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
-  // 切換學年度
+  // 切換創作年份
   const toggleProjectYear = (year) => {
     setSelectedProjectYears(prev => 
       prev.includes(year) 
@@ -377,7 +377,7 @@ const SearchPage = ({ location }) => {
             )}
           </button>
 
-          {/* 專題區篩選 */}
+          {/* 專題篩選 */}
           <button
             onClick={() => setShowProjectFilters(!showProjectFilters)}
             className="filter-toggle"
@@ -437,7 +437,7 @@ const SearchPage = ({ location }) => {
         {showProjectFilters && (
           <div className="filter-selector project-selector">
             <div className="project-filter-group">
-              <h4 className="filter-group-title">學年度</h4>
+              <h4 className="filter-group-title">創作年份</h4>
               <div className="filter-buttons">
                 {availableProjectYears.map(year => (
                   <button

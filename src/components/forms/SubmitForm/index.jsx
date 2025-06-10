@@ -11,12 +11,12 @@ const SubmitForm = () => {
     defaultValues: {
       authors: [], 
       tags: [],
-      categories: [], // 改為多選
+      categories: [], // 多選
       gallery_images: [],
       gallery_video_urls: [''],
       social_links: [''],
-      project_years: [], // 新增學年度多選
-      project_semesters: [] // 新增年級學期多選
+      project_years: [], // 學年度改為創作年份
+      project_semesters: [] // 年級學期
     }
   });
 
@@ -201,7 +201,7 @@ const SubmitForm = () => {
     setValue('tags', watch('tags').filter(tag => tag !== tagToRemove));
   };
 
-  // 類別管理 - 新增多選功能
+  // 類別管理 - 多選功能
   const handleAddCategory = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -229,7 +229,7 @@ const SubmitForm = () => {
     setValue('categories', watch('categories').filter(cat => cat.id !== categoryToRemove.id));
   };
 
-  // 學年度管理
+  // 創作年份管理（原學年度）
   const handleAddProjectYear = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -328,12 +328,12 @@ const SubmitForm = () => {
       
       formData.append('title', data.title);
       formData.append('authors', JSON.stringify(data.authors));
-      formData.append('year', data.year.toString());
+      // 不再發送 year 欄位
       formData.append('video_url', data.video_url);
       formData.append('tags', JSON.stringify(data.tags));
       formData.append('categories', JSON.stringify(data.categories.map(c => c.id))); // 多類別
       formData.append('description', data.description);
-      formData.append('project_years', JSON.stringify(data.project_years));
+      formData.append('project_years', JSON.stringify(data.project_years)); // 現在是創作年份
       formData.append('project_semesters', JSON.stringify(data.project_semesters));
       
       const validSocialLinks = data.social_links.filter(link => link && link.trim() !== '');
@@ -573,7 +573,7 @@ const SubmitForm = () => {
           {errors.authors && <p className="form-error">{errors.authors.message}</p>}
         </div>
 
-        {/* 作品類別 - 改為多選 */}
+        {/* 作品類別 - 多選 */}
         <div className="form-group">
           <label className="form-label">
             作品類別 <span className="required">*</span>
@@ -637,25 +637,6 @@ const SubmitForm = () => {
             )}
           />
           {errors.categories && <p className="form-error">{errors.categories.message}</p>}
-        </div>
-
-        {/* 創作年份 */}
-        <div className="form-group">
-          <label htmlFor="year" className="form-label">
-            創作年份 <span className="required">*</span>
-          </label>
-          <input
-            type="number"
-            id="year"
-            {...register('year', {
-              required: '請輸入創作年份',
-              min: { value: 1900, message: '年份不能小於 1900' },
-              max: { value: new Date().getFullYear() + 1, message: '年份不能大於明年' }
-            })}
-            className={`form-input ${errors.year ? 'error' : ''}`}
-            placeholder="例如：2025"
-          />
-          {errors.year && <p className="form-error">{errors.year.message}</p>}
         </div>
 
         {/* 作品紀錄連結 */}
@@ -887,18 +868,18 @@ const SubmitForm = () => {
           </div>
         </div>
 
-        {/* 專題區收錄 - 改為多選輸入 */}
+        {/* 專題區收錄 */}
         <div className="form-section">
           <h3 className="section-title">專題區收錄 <span className="required">*</span></h3>
           
-          {/* 學年度 - 多選 */}
+          {/* 創作年份（原學年度） */}
           <div className="form-group">
-            <label className="form-label">學年度</label>
+            <label className="form-label">創作年份</label>
             <Controller
               name="project_years"
               control={control}
               rules={{ 
-                validate: value => value.length > 0 || '請至少新增一個學年度'
+                validate: value => value.length > 0 || '請至少新增一個創作年份'
               }}
               render={({ field }) => (
                 <div className="relative">
@@ -930,7 +911,7 @@ const SubmitForm = () => {
                     placeholder="例如：112，按 Enter 新增"
                   />
                   
-                  {/* 學年度建議下拉選單 */}
+                  {/* 創作年份建議下拉選單 */}
                   {showProjectYearSuggestions && filteredProjectYears.length > 0 && (
                     <div className="suggestions-dropdown">
                       {filteredProjectYears.map((year, index) => (
