@@ -153,7 +153,7 @@ const AuthorsPage = () => {
               <section className="author-section">
                 <h2 className="section-title">
                   <span className="accent-bar"></span>
-                  創作者
+                  活躍創作者
                 </h2>
                 <div className="active-grid">
                   {groupedAuthors.active.map(author => (

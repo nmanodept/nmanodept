@@ -3,9 +3,9 @@ import React from 'react'
 import { Helmet } from 'react-helmet'
 
 const Seo = ({ title, description, image, pathname }) => {
-  const siteUrl = process.env.GATSBY_SITE_URL || 'https://your-site.com'
-  const defaultTitle = '藝術作品平台'
-  const defaultDescription = '探索並分享精彩的藝術創作'
+  const siteUrl = process.env.GATSBY_SITE_URL || 'https://www.nmanodept.com'
+  const defaultTitle = 'NMAnodept'
+  const defaultDescription = '新沒系館是一個一個虛擬的「系館」——因為我們沒有真正的系館。'
   const defaultImage = '/default-og-image.jpg'
   
   const seo = {

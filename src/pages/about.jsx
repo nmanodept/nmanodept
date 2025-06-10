@@ -65,13 +65,14 @@ const AboutPage = () => {
               一個虛擬的「系館」——<br />
               因為我們沒有真正的系館。
             </p>
+
             <div className="hero-meta">
               <span>由學生發起</span>
               <span className="separator">·</span>
               <span>為新媒系學生的創作而生</span>
             </div>
           </div>
-          
+          <br /><br /><br />
           <div className="scroll-indicator">
             <svg width="24" height="40" viewBox="0 0 24 40" fill="none">
               <rect x="1" y="1" width="22" height="38" rx="11" stroke="currentColor" strokeWidth="2" opacity="0.3"/>
@@ -89,12 +90,7 @@ const AboutPage = () => {
           
           <div className="vision-grid">
             <div className="vision-card">
-              <div className="card-icon">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <circle cx="24" cy="24" r="23" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
-                  <path d="M24 16V32M16 24H32" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </div>
+
               <h3>社交短效</h3>
               <p>
                 現在的社交短效沒辦法直接用「創作」認識別人，
@@ -104,13 +100,8 @@ const AboutPage = () => {
             </div>
             
             <div className="vision-card">
-              <div className="card-icon">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <rect x="8" y="8" width="32" height="32" rx="4" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
-                  <circle cx="24" cy="24" r="8" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-              </div>
-              <h3>交流機制太短效</h3>
+
+              <h3>交流短效</h3>
               <p>
                 系上有直屬活動、迎新派對，但偏重社交。
                 沒有長期的、可累積的空間去了解彼此的作品與脈絡。
@@ -118,12 +109,7 @@ const AboutPage = () => {
             </div>
             
             <div className="vision-card">
-              <div className="card-icon">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <path d="M12 36L24 12L36 36H12Z" stroke="currentColor" strokeWidth="2" opacity="0.2"/>
-                  <circle cx="24" cy="28" r="4" fill="currentColor"/>
-                </svg>
-              </div>
+
               <h3>保存形式難維持</h3>
               <p>
                 系刊難度高、需長期編輯人力；
@@ -279,8 +265,9 @@ const AboutPage = () => {
         
         {/* Footer */}
         <footer className="about-footer" ref={addToRefs}>
-          <div className="footer-content">
+          <div className="footer-emailcontent">
             <div className="footer-info">
+              <br />
               <p>如有任何問題或建議，歡迎聯繫我們</p>
               <a href="mailto:contact@nmanodept.com" className="footer-email">
                 contact@nmanodept.com

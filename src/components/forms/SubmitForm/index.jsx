@@ -671,7 +671,7 @@ const SubmitForm = () => {
                       value={link}
                       onChange={(e) => updateSocialLink(index, e.target.value)}
                       className="form-input"
-                      placeholder="Instagram、GitHub、個人網站、Email 等"
+                      placeholder="下載鏈接、相關資料、Instagram、GitHub、個人網站、Email等"
                     />
                     {field.value.length > 1 && (
                       <button
