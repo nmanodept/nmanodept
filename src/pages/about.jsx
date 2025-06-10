@@ -63,7 +63,7 @@ const AboutPage = () => {
             </h1>
             <p className="hero-description">
               一個虛擬的「系館」——<br />
-              作品在這裡遊蕩，交疊，留下痕跡
+              因為我們沒有真正的系館。
             </p>
             <div className="hero-meta">
               <span>由學生發起</span>
@@ -83,7 +83,7 @@ const AboutPage = () => {
         {/* Vision Section */}
         <section className="vision-section" ref={addToRefs}>
           <div className="section-header">
-            <span className="section-number">願景</span>
+            <span className="section-number"></span>
             <h2 className="section-title">為什麼想做這個？</h2>
           </div>
           
@@ -95,10 +95,11 @@ const AboutPage = () => {
                   <path d="M24 16V32M16 24H32" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </div>
-              <h3>錯過彼此的創作</h3>
+              <h3>社交短效</h3>
               <p>
-                同年級的會場地分散、時間錯開。跨年級的評圖，
-                如果不認識學長姐，難以知道時間地點。
+                現在的社交短效沒辦法直接用「創作」認識別人，
+                有了這個網站，就算錯過評圖也可以先看作品、
+                再決定要不要認識。(?)
               </p>
             </div>
             
@@ -136,13 +137,13 @@ const AboutPage = () => {
         <section className="purpose-section" ref={addToRefs}>
           <div className="purpose-content">
             <div className="section-header">
-              <span className="section-number">目的</span>
+              <span className="section-number"></span>
               <h2 className="section-title">這個網站的目的是？</h2>
             </div>
             
             <div className="purpose-statement">
               <p className="lead">
-                讓作品被看到、被記錄，也被分享與對話。
+                讓作品、作者被看到、被記錄，分享與對話。
               </p>
             </div>
             
@@ -189,7 +190,7 @@ const AboutPage = () => {
         {/* Guidelines Section */}
         <section className="guidelines-section" ref={addToRefs}>
           <div className="section-header center">
-            <span className="section-number">投稿</span>
+            <span className="section-number"></span>
             <h2 className="section-title">投稿指南</h2>
           </div>
           
@@ -233,7 +234,19 @@ const AboutPage = () => {
               </div>
               <p>提交後將進入審核，通常 2-3 工作日內完成</p>
             </div>
+
+                        <div className="guideline-card">
+              <div className="guideline-header">
+                <span className="guideline-number">6</span>
+                <h3>我想不到了</h3>
+              </div>
+              <p>快來加入新沒系館，有你、新媒將更壯大（搞不好就真的有系館了）</p>
+            </div>
+
           </div>
+
+
+
         </section>
         
         {/* CTA Section */}
@@ -243,8 +256,8 @@ const AboutPage = () => {
           </div>
           
           <div className="cta-content">
-            <h2>準備好分享你的創作了嗎？</h2>
-            <p>加入我們的創作者社群，讓更多人欣賞你的作品</p>
+            <h2>我們都期待你的創作被分享</h2>
+            <p>加入我們 ~ 讓更多人欣賞你的作品</p>
             
             <div className="cta-buttons">
               <Link to="/submit">

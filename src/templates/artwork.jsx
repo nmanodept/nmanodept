@@ -401,7 +401,7 @@ const ArtworkTemplate = ({ pageContext }) => {
                 
                 <div className="meta-item">
                   <span className="meta-label">年份</span>
-                  <span className="meta-value">{artwork.year}</span>
+                  <span className="meta-value">{artwork.project_year}</span>
                 </div>
               </div>
             </div>

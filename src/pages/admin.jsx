@@ -463,7 +463,7 @@ const AdminPage = () => {
               </div>
               <div className="meta-item">
                 <CalendarIcon className="meta-icon" />
-                <span>創作年份：{artwork.year}</span>
+                <span>創作年份：{artwork.project_year}</span>
               </div>
               <div className="meta-item">
                 <FolderIcon className="meta-icon" />

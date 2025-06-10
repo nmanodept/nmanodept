@@ -32,7 +32,7 @@ const Card = ({ artwork, link }) => {
         <div className="card-meta">
           <span className="card-author">{authorDisplay}</span>
           <span>·</span>
-          <span className="card-year">{artwork.year}</span>
+          <span className="card-year">{artwork.project_year}</span>
         </div>
         
         {displayTags.length > 0 && (

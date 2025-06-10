@@ -15,8 +15,8 @@ const SubmitForm = () => {
       gallery_images: [],
       gallery_video_urls: [''],
       social_links: [''],
-      project_years: [], // 學年度改為創作年份
-      project_semesters: [] // 年級學期
+      project_year: '', // 單一創作年份
+      project_semester: '' // 單一年級學期
     }
   });
 
@@ -25,8 +25,6 @@ const SubmitForm = () => {
   const [tagInput, setTagInput] = useState('');
   const [authorInput, setAuthorInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
-  const [projectYearInput, setProjectYearInput] = useState('');
-  const [projectSemesterInput, setProjectSemesterInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   
@@ -38,8 +36,6 @@ const SubmitForm = () => {
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
-  const [showProjectYearSuggestions, setShowProjectYearSuggestions] = useState(false);
-  const [showProjectSemesterSuggestions, setShowProjectSemesterSuggestions] = useState(false);
 
   const description = watch('description', '');
 
@@ -229,56 +225,6 @@ const SubmitForm = () => {
     setValue('categories', watch('categories').filter(cat => cat.id !== categoryToRemove.id));
   };
 
-  // 創作年份管理（原學年度）
-  const handleAddProjectYear = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const year = projectYearInput.trim();
-      if (year && !watch('project_years').includes(year)) {
-        setValue('project_years', [...watch('project_years'), year]);
-        setProjectYearInput('');
-        setShowProjectYearSuggestions(false);
-      }
-    }
-  };
-
-  const addProjectYearFromSuggestion = (year) => {
-    if (!watch('project_years').includes(year)) {
-      setValue('project_years', [...watch('project_years'), year]);
-    }
-    setProjectYearInput('');
-    setShowProjectYearSuggestions(false);
-  };
-
-  const removeProjectYear = (yearToRemove) => {
-    setValue('project_years', watch('project_years').filter(year => year !== yearToRemove));
-  };
-
-  // 年級學期管理
-  const handleAddProjectSemester = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const semester = projectSemesterInput.trim();
-      if (semester && !watch('project_semesters').includes(semester)) {
-        setValue('project_semesters', [...watch('project_semesters'), semester]);
-        setProjectSemesterInput('');
-        setShowProjectSemesterSuggestions(false);
-      }
-    }
-  };
-
-  const addProjectSemesterFromSuggestion = (semester) => {
-    if (!watch('project_semesters').includes(semester)) {
-      setValue('project_semesters', [...watch('project_semesters'), semester]);
-    }
-    setProjectSemesterInput('');
-    setShowProjectSemesterSuggestions(false);
-  };
-
-  const removeProjectSemester = (semesterToRemove) => {
-    setValue('project_semesters', watch('project_semesters').filter(semester => semester !== semesterToRemove));
-  };
-
   // Gallery 影片連結管理
   const addVideoUrl = () => {
     const urls = watch('gallery_video_urls');
@@ -328,13 +274,12 @@ const SubmitForm = () => {
       
       formData.append('title', data.title);
       formData.append('authors', JSON.stringify(data.authors));
-      // 不再發送 year 欄位
       formData.append('video_url', data.video_url);
       formData.append('tags', JSON.stringify(data.tags));
       formData.append('categories', JSON.stringify(data.categories.map(c => c.id))); // 多類別
       formData.append('description', data.description);
-      formData.append('project_years', JSON.stringify(data.project_years)); // 現在是創作年份
-      formData.append('project_semesters', JSON.stringify(data.project_semesters));
+      formData.append('project_year', data.project_year); // 單一值
+      formData.append('project_semester', data.project_semester); // 單一值
       
       const validSocialLinks = data.social_links.filter(link => link && link.trim() !== '');
       if (validSocialLinks.length > 0) {
@@ -372,8 +317,6 @@ const SubmitForm = () => {
         setTagInput('');
         setAuthorInput('');
         setCategoryInput('');
-        setProjectYearInput('');
-        setProjectSemesterInput('');
         setValue('social_links', ['']);
         
         setTimeout(() => {
@@ -404,16 +347,6 @@ const SubmitForm = () => {
   const filteredCategories = availableCategories.filter(category => 
     category.name.toLowerCase().includes(categoryInput.toLowerCase()) &&
     !watch('categories').some(c => c.id === category.id)
-  );
-
-  const filteredProjectYears = availableProjectYears.filter(year => 
-    year.toLowerCase().includes(projectYearInput.toLowerCase()) &&
-    !watch('project_years').includes(year)
-  );
-
-  const filteredProjectSemesters = availableProjectSemesters.filter(semester => 
-    semester.toLowerCase().includes(projectSemesterInput.toLowerCase()) &&
-    !watch('project_semesters').includes(semester)
   );
 
   // 滾動到底部以顯示提示訊息
@@ -872,126 +805,56 @@ const SubmitForm = () => {
         <div className="form-section">
           <h3 className="section-title">專題區收錄 <span className="required">*</span></h3>
           
-          {/* 創作年份（原學年度） */}
-          <div className="form-group">
-            <label className="form-label">創作年份</label>
-            <Controller
-              name="project_years"
-              control={control}
-              rules={{ 
-                validate: value => value.length > 0 || '請至少新增一個創作年份'
-              }}
-              render={({ field }) => (
-                <div className="relative">
-                  <div className="tag-list">
-                    {field.value.map((year, index) => (
-                      <span key={index} className="tag-item">
-                        {year}
-                        <button
-                          type="button"
-                          onClick={() => removeProjectYear(year)}
-                          className="tag-remove"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    value={projectYearInput}
-                    onChange={(e) => {
-                      setProjectYearInput(e.target.value);
-                      setShowProjectYearSuggestions(e.target.value.length > 0);
-                    }}
-                    onKeyDown={handleAddProjectYear}
-                    onFocus={() => setShowProjectYearSuggestions(projectYearInput.length > 0)}
-                    onBlur={() => setTimeout(() => setShowProjectYearSuggestions(false), 200)}
-                    className={`form-input ${errors.project_years ? 'error' : ''}`}
-                    placeholder="例如：112，按 Enter 新增"
-                  />
-                  
-                  {/* 創作年份建議下拉選單 */}
-                  {showProjectYearSuggestions && filteredProjectYears.length > 0 && (
-                    <div className="suggestions-dropdown">
-                      {filteredProjectYears.map((year, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => addProjectYearFromSuggestion(year)}
-                          className="suggestion-item"
-                        >
-                          {year}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            />
-            {errors.project_years && <p className="form-error">{errors.project_years.message}</p>}
-          </div>
+          <div className="form-grid">
+            {/* 創作年份（單選） */}
+            <div className="form-group">
+              <label htmlFor="project-year" className="form-label">
+                創作年份 <span className="required">*</span>
+              </label>
+              <select
+                id="project-year"
+                {...register('project_year', { required: '請選擇創作年份' })}
+                className={`form-select ${errors.project_year ? 'error' : ''}`}
+              >
+                <option value="">請選擇創作年份</option>
+                {/* 預設選項 */}
+                {['2020', '2021', '2022', '2023', '2024', '2025', '2026'].map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+                {/* 從資料庫來的選項 */}
+                {availableProjectYears
+                  .filter(year => !['2020','2021', '2022', '2023', '2024', '2025', '2026'].includes(year))
+                  .map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+              </select>
+              {errors.project_year && <p className="form-error">{errors.project_year.message}</p>}
+            </div>
 
-          {/* 年級學期 - 多選 */}
-          <div className="form-group">
-            <label className="form-label">年級學期</label>
-            <Controller
-              name="project_semesters"
-              control={control}
-              rules={{ 
-                validate: value => value.length > 0 || '請至少新增一個年級學期'
-              }}
-              render={({ field }) => (
-                <div className="relative">
-                  <div className="tag-list">
-                    {field.value.map((semester, index) => (
-                      <span key={index} className="tag-item">
-                        {semester}
-                        <button
-                          type="button"
-                          onClick={() => removeProjectSemester(semester)}
-                          className="tag-remove"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    value={projectSemesterInput}
-                    onChange={(e) => {
-                      setProjectSemesterInput(e.target.value);
-                      setShowProjectSemesterSuggestions(e.target.value.length > 0);
-                    }}
-                    onKeyDown={handleAddProjectSemester}
-                    onFocus={() => setShowProjectSemesterSuggestions(projectSemesterInput.length > 0)}
-                    onBlur={() => setTimeout(() => setShowProjectSemesterSuggestions(false), 200)}
-                    className={`form-input ${errors.project_semesters ? 'error' : ''}`}
-                    placeholder="例如：大二下，按 Enter 新增"
-                  />
-                  
-                  {/* 年級學期建議下拉選單 */}
-                  {showProjectSemesterSuggestions && filteredProjectSemesters.length > 0 && (
-                    <div className="suggestions-dropdown">
-                      {filteredProjectSemesters.map((semester, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => addProjectSemesterFromSuggestion(semester)}
-                          className="suggestion-item"
-                        >
-                          {semester}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            />
-            {errors.project_semesters && <p className="form-error">{errors.project_semesters.message}</p>}
+            {/* 年級學期（單選） */}
+            <div className="form-group">
+              <label htmlFor="project-semester" className="form-label">
+                年級學期 <span className="required">*</span>
+              </label>
+              <select
+                id="project-semester"
+                {...register('project_semester', { required: '請選擇年級學期' })}
+                className={`form-select ${errors.project_semester ? 'error' : ''}`}
+              >
+                <option value="">請選擇年級學期</option>
+                {/* 預設選項 */}
+                {['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下', '未分類'].map(semester => (
+                  <option key={semester} value={semester}>{semester}</option>
+                ))}
+                {/* 從資料庫來的選項 */}
+                {availableProjectSemesters
+                  .filter(semester => !['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下','未分類'].includes(semester))
+                  .map(semester => (
+                    <option key={semester} value={semester}>{semester}</option>
+                  ))}
+              </select>
+              {errors.project_semester && <p className="form-error">{errors.project_semester.message}</p>}
+            </div>
           </div>
         </div>
 
