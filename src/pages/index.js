@@ -70,8 +70,8 @@ const ThreeScene = () => {
           glitchIntensity: 1.5,
           scanLineIntensity: 1.2,
           wanderStrength: 0,
-          entranceDelay: 2.5,
-          entranceDuration: isMobile ? 2.5 : 3.5,
+          entranceDelay: 0.5,
+          entranceDuration: isMobile ? 1 : 2,
           entranceStagger: 0.03
         },
         camera:{
@@ -1438,7 +1438,7 @@ const IndexPage = () => {
             
             <p 
               id="ui-subtitle"
-              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-6 sm:mt-8 md:mt-10 opacity-0 pointer-events-auto cursor-default select-none"
+              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-6 sm:mt-8 md:mt-2 opacity-0 pointer-events-auto cursor-default select-none"
               style={{
                 fontSize: 'clamp(0.7rem, 1.8vw, 0.9rem)',
                 animation: 'subtitleFadeIn 2s 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards',
@@ -1446,13 +1446,13 @@ const IndexPage = () => {
               }}
             >
               新沒系館是一個虛擬的「系館」<br/>
-              因為我們沒有真正的系館。。
+              因為我們沒有真正的系館。
             </p>
             
             <button 
               id="ui-enter"
               onClick={handleEnter}
-              className="mt-6 sm:mt-8 md:mt-10 text-white/70 font-light tracking-[0.5rem] transition-all duration-[600ms] opacity-0 hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group pointer-events-auto cursor-pointer"
+              className="mt-6 sm:mt-8 md:mt-6 text-white/70 font-light tracking-[0.5rem] transition-all duration-[600ms] opacity-0 hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group pointer-events-auto cursor-pointer"
               style={{
                 fontSize: 'clamp(0.8rem, 1.6vw, 1rem)',
                 animation: 'enterFadeIn 2s 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',

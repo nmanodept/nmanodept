@@ -24,7 +24,6 @@ const SubmitForm = () => {
   const [galleryPreviews, setGalleryPreviews] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [authorInput, setAuthorInput] = useState('');
-  const [categoryInput, setCategoryInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   
@@ -35,7 +34,6 @@ const SubmitForm = () => {
   const [availableProjectSemesters, setAvailableProjectSemesters] = useState([]);
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
   const description = watch('description', '');
 
@@ -198,27 +196,10 @@ const SubmitForm = () => {
   };
 
   // 類別管理 - 多選功能
-  const handleAddCategory = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const category = categoryInput.trim();
-      if (category) {
-        const existingCategory = availableCategories.find(c => c.name === category);
-        if (existingCategory && !watch('categories').some(c => c.id === existingCategory.id)) {
-          setValue('categories', [...watch('categories'), existingCategory]);
-          setCategoryInput('');
-          setShowCategorySuggestions(false);
-        }
-      }
-    }
-  };
-
   const addCategoryFromSuggestion = (category) => {
     if (!watch('categories').some(c => c.id === category.id)) {
       setValue('categories', [...watch('categories'), category]);
     }
-    setCategoryInput('');
-    setShowCategorySuggestions(false);
   };
 
   const removeCategory = (categoryToRemove) => {
@@ -316,7 +297,6 @@ const SubmitForm = () => {
         setGalleryPreviews([]);
         setTagInput('');
         setAuthorInput('');
-        setCategoryInput('');
         setValue('social_links', ['']);
         
         setTimeout(() => {
@@ -344,21 +324,16 @@ const SubmitForm = () => {
     !watch('tags').includes(tag.name)
   );
 
-  const filteredCategories = availableCategories.filter(category => 
-    category.name.toLowerCase().includes(categoryInput.toLowerCase()) &&
-    !watch('categories').some(c => c.id === category.id)
-  );
-
-  // 滾動到底部以顯示提示訊息
+  // 滾動到頂部以顯示提示訊息
   useEffect(() => {
     if (submitStatus) {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [submitStatus]);
 
   return (
-    <>
-      {/* 成功/錯誤訊息 */}
+    <div className="submit-form-container">
+      {/* 成功/錯誤訊息 - 移到表單容器內的頂部 */}
       {submitStatus === 'success' && (
         <div className="alert alert-success">
           <div className="alert-icon">✓</div>
@@ -506,7 +481,7 @@ const SubmitForm = () => {
           {errors.authors && <p className="form-error">{errors.authors.message}</p>}
         </div>
 
-        {/* 作品類別 - 多選 */}
+        {/* 作品類別 - 多選列表 */}
         <div className="form-group">
           <label className="form-label">
             作品類別 <span className="required">*</span>
@@ -518,54 +493,60 @@ const SubmitForm = () => {
               validate: value => value.length > 0 || '請至少選擇一個類別'
             }}
             render={({ field }) => (
-              <div className="relative">
-                <div className="category-tags">
-                  {field.value.map((category) => (
-                    <span key={category.id} className="category-tag">
-                      {category.name}
-                      <button
-                        type="button"
-                        onClick={() => removeCategory(category)}
-                        className="tag-remove"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={categoryInput}
-                  onChange={(e) => {
-                    setCategoryInput(e.target.value);
-                    setShowCategorySuggestions(e.target.value.length > 0);
-                  }}
-                  onKeyDown={handleAddCategory}
-                  onFocus={() => setShowCategorySuggestions(categoryInput.length > 0)}
-                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
-                  className={`form-input ${errors.categories ? 'error' : ''}`}
-                  placeholder="選擇類別（可多選）"
-                />
-                
-                {/* 類別建議下拉選單 */}
-                {showCategorySuggestions && filteredCategories.length > 0 && (
-                  <div className="suggestions-dropdown">
-                    {filteredCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => addCategoryFromSuggestion(category)}
-                        className="suggestion-item"
-                      >
-                        {category.name}
-                        {category.description && (
-                          <span className="suggestion-desc"> - {category.description}</span>
-                        )}
-                      </button>
-                    ))}
+              <div>
+                {/* 已選類別 */}
+                {field.value.length > 0 && (
+                  <div className="selected-categories">
+                    <div className="selected-label">已選擇：</div>
+                    <div className="category-tags">
+                      {field.value.map((category) => (
+                        <span key={category.id} className="category-tag selected">
+                          {category.name}
+                          <button
+                            type="button"
+                            onClick={() => removeCategory(category)}
+                            className="tag-remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
+                
+                {/* 可選類別列表 */}
+                <div className="category-selector">
+                  <div className="category-list">
+                    {availableCategories.map((category) => {
+                      const isSelected = field.value.some(c => c.id === category.id);
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              removeCategory(category);
+                            } else {
+                              addCategoryFromSuggestion(category);
+                            }
+                          }}
+                          className={`category-option ${isSelected ? 'selected' : ''}`}
+                        >
+                          <span className="category-name">{category.name}</span>
+                          {category.description && (
+                            <span className="category-desc">{category.description}</span>
+                          )}
+                          {isSelected && (
+                            <svg className="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           />
@@ -818,12 +799,12 @@ const SubmitForm = () => {
               >
                 <option value="">請選擇創作年份</option>
                 {/* 預設選項 */}
-                {['2020', '2021', '2022', '2023', '2024', '2025', '2026'].map(year => (
+                {['2020', '2021', '2022', '2023', '2024', '2025'].map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
                 {/* 從資料庫來的選項 */}
                 {availableProjectYears
-                  .filter(year => !['2020','2021', '2022', '2023', '2024', '2025', '2026'].includes(year))
+                  .filter(year => !['2020', '2021', '2022', '2023', '2024', '2025'].includes(year))
                   .map(year => (
                     <option key={year} value={year}>{year}</option>
                   ))}
@@ -843,12 +824,12 @@ const SubmitForm = () => {
               >
                 <option value="">請選擇年級學期</option>
                 {/* 預設選項 */}
-                {['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下', '未分類'].map(semester => (
+                {['大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下', '碩士班', '未分類'].map(semester => (
                   <option key={semester} value={semester}>{semester}</option>
                 ))}
                 {/* 從資料庫來的選項 */}
                 {availableProjectSemesters
-                  .filter(semester => !['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下','未分類'].includes(semester))
+                  .filter(semester => !['大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下', '碩士班', '未分類'].includes(semester))
                   .map(semester => (
                     <option key={semester} value={semester}>{semester}</option>
                   ))}
@@ -871,7 +852,7 @@ const SubmitForm = () => {
           </Button>
         </div>
       </form>
-    </>
+    </div>
   );
 };
 

@@ -225,7 +225,7 @@ const ArtworkTemplate = ({ pageContext }) => {
             <span className="topbar-text">
               {projectYears.map((year, index) => (
                 <span key={index}>
-                  {year} 級
+                  {year} 
                   {index < projectYears.length - 1 && '、'}
                 </span>
               ))}

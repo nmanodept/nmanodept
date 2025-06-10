@@ -270,7 +270,7 @@
 .emerging-list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-2xl);
 }
 
 .author-link {
