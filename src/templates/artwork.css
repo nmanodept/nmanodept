@@ -64,7 +64,7 @@
 /* 頂部資訊條 */
 .artwork-topbar {
   position: sticky;
-  top: 60px;
+  top: 50px;
   z-index: 10;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(10px);
