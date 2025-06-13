@@ -89,7 +89,7 @@ const ThreeScene = () => {
           breathIntensity: 1.2
         },
         visual: {
-          fogNear: 20,
+          fogNear: 50,
           fogFar: 300,
           baseOpacity: { min: .35, max: .5 },
           colorOpacity: { min: .5, max: .8 },
