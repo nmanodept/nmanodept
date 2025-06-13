@@ -3,10 +3,10 @@
  */
 module.exports = {
   siteMetadata: {
-    title: `NMAnodept`,
-    description: `NMAnodept`,
+    title: `新沒系館 NMANODEPT`,
+    description: `新沒系館（NMANODEPT）是專為新媒體藝術系學生打造的虛擬系館，收錄、展示並保存各類創作，促進交流與合作。`,
     author: `@nmanodept`,
-    siteUrl: `https://gallery.nmanodept.com`,
+    siteUrl: `https://nmanodept.com`,
   },  flags: {
     DEV_SSR: true // 開發時啟用 SSR
   },

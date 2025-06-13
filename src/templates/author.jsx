@@ -147,10 +147,11 @@ const AuthorTemplate = ({ pageContext }) => {
   return (
     <Layout>
       <Seo 
-        title={`${decodeURIComponent(author)} 的作品`}
-        description={authorInfo.bio || `瀏覽 ${decodeURIComponent(author)} 的所有創作`}
+        title={`${decodeURIComponent(author)} 的作品 | 新沒系館`}
+        description={authorInfo.bio || `新沒系館收錄的 ${decodeURIComponent(author)} 所有創作`}
         image={authorInfo.avatar_url}
       />
+
       
       <div className="author-container">
         {/* Hero Section - 新佈局 */}

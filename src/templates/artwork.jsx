@@ -213,8 +213,8 @@ const ArtworkTemplate = ({ pageContext }) => {
   return (
     <Layout>
       <Seo 
-        title={artwork.title}
-        description={artwork.description}
+        title={`${artwork.title} | 新沒系館 NMANODEPT`}
+        description={artwork.description || `新沒系館收錄的 ${artwork.title}，作者：${(artwork.authors && artwork.authors.length > 0 ? artwork.authors.join('、') : artwork.author)}。`}
         image={artwork.main_image_url}
       />
       
