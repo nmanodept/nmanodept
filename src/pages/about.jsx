@@ -150,6 +150,11 @@ const AboutPage = () => {
                 <span className="item-number">04</span>
                 <p>讓你在深夜失眠時，還能看看同學曾經的作品找一下靈感</p>
               </div>
+                <div className="purpose-item">
+                <span className="item-number">05</span>
+                <p>當你離開新媒的時候，可以懷念你的曾經</p>
+              </div>
+
             </div>
           </div>
           

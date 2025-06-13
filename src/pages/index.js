@@ -756,7 +756,7 @@ const ThreeScene = () => {
             new THREE.LineBasicMaterial({
               color: 0xffffff,
               transparent: true,
-              opacity: 0.15,
+              opacity: 0.05,
               linewidth: 1
             })
           );
