@@ -8,7 +8,7 @@ const Card = ({ artwork, link }) => {
   
   // 處理作者顯示
   const authors = artwork.authors || (artwork.author ? [artwork.author] : [])
-  const authorDisplay = authors.join('、')
+  const authorDisplay = authors.join(' 、 ')
   
   // 處理標籤
   const tags = artwork.tags || []
@@ -35,6 +35,24 @@ const Card = ({ artwork, link }) => {
           <span className="card-year">{artwork.project_year}</span>
         </div>
         
+                {/* 類別 - 支援多類別 */}
+        {((artwork.categories && artwork.categories.length > 0) || artwork.category_name) && (
+          <div className="card-categories">
+            {artwork.categories && artwork.categories.length > 0 ? (
+              artwork.categories.map((category, index) => (
+                <span key={index} className="card-category">
+                  {category.name}
+                  {index < artwork.categories.length - 1 && ''}
+                </span>
+              ))
+            ) : (
+              <span className="card-category">
+                {artwork.category_name}
+              </span>
+            )}
+          </div>
+        )}
+
         {displayTags.length > 0 && (
           <div className="card-tags">
             {displayTags.map((tag, index) => (

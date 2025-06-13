@@ -23,7 +23,7 @@ const Layout = ({ children }) => {
     { path: '/authors', label: '作者' },
     { path: '/search', label: '搜尋' },
     { path: '/submit', label: '投稿' },
-    { path: '/author-profile', label: '資料' }
+    { path: '/author-profile', label: '補充資料' }
   ]
   
   return (
