@@ -179,7 +179,7 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      aauthor={artwork.author || '未知作者'}
+                      author={artwork.author || '未知作者'}
                       tags={artwork.tags}
                       year={artwork.project_year}
                       viewCount={artwork.view_count}
