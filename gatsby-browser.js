@@ -1,5 +1,12 @@
-// gatsby-browser.js
+//Location: /gatsby-browser.js
+import React from "react"
 import "./src/styles/global.css"
+import { AuthProvider } from "./src/components/auth/AuthContext"
+
+// 包裝根元素以提供認證狀態
+export const wrapRootElement = ({ element }) => {
+  return <AuthProvider>{element}</AuthProvider>
+}
 
 // 頁面切換時的處理
 export const onRouteUpdate = ({ location, prevLocation }) => {

@@ -1,13 +1,15 @@
-// /src/components/common/Layout/Layout.jsx
+//Location: /src/components/common/Layout/Layout.jsx
 import React, { useState, useEffect } from 'react'
-import { Link } from 'gatsby'
 import PropTypes from 'prop-types'
+import { Link } from 'gatsby'
+import { useAuth } from '../../auth/AuthContext'
 import './Layout.css'
 
 const Layout = ({ children }) => {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  
+  const { user, logout } = useAuth()
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
@@ -16,23 +18,29 @@ const Layout = ({ children }) => {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-  
+
   const navItems = [
     { path: '/', label: '首頁' },
     { path: '/about', label: '關於' },
-    { path: '/authors', label: '作者' },
     { path: '/search', label: '搜尋' },
     { path: '/submit', label: '投稿' },
-    { path: '/author-profile', label: '補充資料' }
   ]
-  
+
+  const userNavItems = user ? [
+    { path: '/my-artworks', label: '我的作品' },
+    { path: '/profile', label: '個人資料' },
+  ] : [
+    { path: '/login', label: '登入' },
+    { path: '/register', label: '註冊' },
+  ]
+
   return (
     <div className="layout-wrapper">
       {/* Header */}
       <header className={`layout-header ${scrolled ? 'scrolled' : ''}`}>
         <div className="header-inner">
-          {/* Logo */}
           <Link to="/" className="logo">
+            {/* NO LOGO QwQ*/}
           </Link>
           
           {/* Desktop Navigation */}
@@ -47,6 +55,28 @@ const Layout = ({ children }) => {
                 {item.label}
               </Link>
             ))}
+            
+            <div className="nav-divider" />
+            
+            {userNavItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="nav-link"
+                activeClassName="nav-link-active"
+              >
+                {item.label}
+              </Link>
+            ))}
+            
+            {user && (
+              <button
+                onClick={logout}
+                className="nav-link logout-btn"
+              >
+                登出
+              </button>
+            )}
           </nav>
           
           {/* Mobile Menu Toggle */}
@@ -75,6 +105,31 @@ const Layout = ({ children }) => {
             {item.label}
           </Link>
         ))}
+        
+        <div className="mobile-nav-divider" />
+        
+        {userNavItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            className="mobile-nav-link"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+        
+        {user && (
+          <button
+            onClick={() => {
+              logout()
+              setMobileMenuOpen(false)
+            }}
+            className="mobile-nav-link logout-btn"
+          >
+            登出
+          </button>
+        )}
       </nav>
       
       {/* Main Content */}
@@ -87,26 +142,31 @@ const Layout = ({ children }) => {
         <div className="footer-inner">
           <div className="footer-content">
             <div className="footer-section">
-               <h4>主頁</h4>
+              <h4>新沒系館</h4>
               <div className="footer-links">
-              <Link to="/">新沒系館</Link>
+                <Link to="/">首頁</Link>
+                <Link to="/search">瀏覽作品</Link>
+                {user ? (
+                  <Link to="/my-artworks">我的作品</Link>
+                ) : (
+                  <Link to="/login">登入投稿</Link>
+                )}
               </div>
             </div>
             
             <div className="footer-section">
-              <h4>連結</h4>
+              <h4>關於</h4>
               <div className="footer-links">
                 <Link to="/about">關於我們</Link>
-                <Link to="/submit">作品投稿</Link>
                 <Link to="/contact">聯絡我們</Link>
+                <Link to="/submit">投稿指南</Link>
               </div>
             </div>
 
-            <br />
           </div>
           
           <div className="footer-bottom">
-            <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} NMANODEPT. All rights reserved.</p>
           </div>
         </div>
       </footer>

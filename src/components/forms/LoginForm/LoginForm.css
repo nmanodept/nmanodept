@@ -1,0 +1,6 @@
+/*Location: /src/components/forms/LoginForm/LoginForm.css*/
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}

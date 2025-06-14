@@ -329,3 +329,47 @@ body {
     gap: var(--spacing-xl);
   }
 }
+
+.nav-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--color-gray-700);
+  margin: 0 var(--spacing-md);
+}
+
+/* 登出按鈕樣式 */
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+}
+
+.logout-btn:hover {
+  color: var(--color-gray-100);
+}
+
+/* 手機版導航分隔線 */
+.mobile-nav-divider {
+  height: 1px;
+  background-color: var(--color-gray-700);
+  margin: var(--spacing-lg) 0;
+}
+
+/* Footer 登出按鈕 */
+.footer-logout {
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 0;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.footer-logout:hover {
+  color: var(--color-gray-100);
+}
