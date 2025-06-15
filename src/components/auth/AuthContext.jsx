@@ -18,8 +18,14 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null)
 
   // 檢查本地儲存的 token
-  useEffect(() => {
+ useEffect(() => {
     const checkAuth = async () => {
+      // 在 SSR 時跳過
+      if (typeof window === 'undefined') {
+        setLoading(false)
+        return
+      }
+
       const token = localStorage.getItem('authToken')
       if (token) {
         try {
@@ -45,7 +51,7 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth()
   }, [])
-
+  
   const login = async (username, password) => {
     setError(null)
     try {
