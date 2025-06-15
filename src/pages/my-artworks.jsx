@@ -148,7 +148,7 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      author={artwork.author || '未知作者'}
+                      author={artwork.authors?.[0] || artwork.author}
                       tags={artwork.tags}
                       year={artwork.project_year}
                       viewCount={artwork.view_count}
@@ -179,7 +179,7 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      author={artwork.author || '未知作者'}
+                      author={artwork.authors?.[0] || artwork.author}
                       tags={artwork.tags}
                       year={artwork.project_year}
                       viewCount={artwork.view_count}
@@ -211,7 +211,7 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      author={artwork.author || '未知作者'}
+                      author={artwork.authors?.[0] || artwork.author}
                       tags={artwork.tags}
                       year={artwork.project_year}
                       viewCount={artwork.view_count}
