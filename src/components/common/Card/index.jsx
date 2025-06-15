@@ -1,3 +1,7 @@
+import React from 'react'
+import { Link } from 'gatsby'
+import './Card.css'
+
 const Card = ({ 
   id, 
   title = '未命名作品', 
