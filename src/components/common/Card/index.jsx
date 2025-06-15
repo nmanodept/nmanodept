@@ -1,78 +1,61 @@
-// /src/components/common/Card/index.jsx
-import React, { useState } from 'react'
-import { Link } from 'gatsby'
-import './Card.css'
-
-const Card = ({ artwork, link }) => {
-  const [imageLoaded, setImageLoaded] = useState(false)
+const Card = ({ 
+  id, 
+  title = '未命名作品', 
+  imageUrl, 
+  author = '未知作者', 
+  tags = [], 
+  year, 
+  viewCount = 0 
+}) => {
+  // 確保 author 是字串
+  const authorName = typeof author === 'string' ? author : 
+                     (author?.name || author?.toString() || '未知作者')
   
-  // 處理作者顯示
-  const authors = artwork.authors || (artwork.author ? [artwork.author] : [])
-  const authorDisplay = authors.join(' 、 ')
-  
-  // 處理標籤
-  const tags = artwork.tags || []
-  const displayTags = tags.slice(0, 3) // 最多顯示3個標籤
+  // 確保 tags 是陣列
+  const tagsList = Array.isArray(tags) ? tags : []
   
   return (
-    <Link to={link} className="card">
-      <div className="card-image">
-        {!imageLoaded && <div className="card-image-skeleton" />}
-        <img
-          src={artwork.main_image_url || artwork.image_url}
-          alt={artwork.title}
-          onLoad={() => setImageLoaded(true)}
-          style={{ opacity: imageLoaded ? 1 : 0 }}
-        />
-      </div>
-      
-      <div className="card-content">
-        <h3 className="card-title">{artwork.title}</h3>
-        
-        <div className="card-meta">
-          <span className="card-author">{authorDisplay}</span>
-          <span>·</span>
-          <span className="card-year">{artwork.project_year}</span>
+    <Link to={`/art/${id}`} className="card-link">
+      <article className="card">
+        <div className="card-image">
+          {imageUrl ? (
+            <img src={imageUrl} alt={title} loading="lazy" />
+          ) : (
+            <div className="card-placeholder">
+              <span>無圖片</span>
+            </div>
+          )}
         </div>
-        
-                {/* 類別 - 支援多類別 */}
-        {((artwork.categories && artwork.categories.length > 0) || artwork.category_name) && (
-          <div className="card-categories">
-            {artwork.categories && artwork.categories.length > 0 ? (
-              artwork.categories.map((category, index) => (
-                <span key={index} className="card-category">
-                  {category.name}
-                  {index < artwork.categories.length - 1 && ''}
+        <div className="card-content">
+          <h3 className="card-title">{title}</h3>
+          <p className="card-author">by {authorName}</p>
+          {tagsList.length > 0 && (
+            <div className="card-tags">
+              {tagsList.slice(0, 3).map((tag, index) => (
+                <span key={index} className="card-tag">
+                  {typeof tag === 'string' ? tag : tag.name}
                 </span>
-              ))
-            ) : (
-              <span className="card-category">
-                {artwork.category_name}
-              </span>
-            )}
+              ))}
+              {tagsList.length > 3 && (
+                <span className="card-tag">+{tagsList.length - 3}</span>
+              )}
+            </div>
+          )}
+          <div className="card-meta">
+            {year && <span className="card-year">{year}</span>}
+            <span className="card-views">{viewCount} 次觀看</span>
           </div>
-        )}
-
-        {displayTags.length > 0 && (
-          <div className="card-tags">
-            {displayTags.map((tag, index) => (
-              <span key={index} className="card-tag">
-                {tag}
-              </span>
-            ))}
-            {tags.length > 3 && (
-              <span className="card-tag">+{tags.length - 3}</span>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      </article>
     </Link>
   )
 }
 
-// 卡片網格元件
-export const CardGrid = ({ children }) => {
-  return <div className="card-grid">{children}</div>
-}
+// 新增 CardGrid 元件
+export const CardGrid = ({ children }) => (
+  <div className="card-grid">
+    {children}
+  </div>
+)
 
 export default Card

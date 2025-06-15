@@ -19,13 +19,22 @@ const MyArtworksPage = () => {
   const [needsDisclaimer, setNeedsDisclaimer] = useState([])
 
   useEffect(() => {
-    fetchMyArtworks()
-  }, [])
+    if (user) {
+      fetchMyArtworks()
+    }
+  }, [user])
 
   const fetchMyArtworks = async () => {
     try {
+      setLoading(true)
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       const token = localStorage.getItem('authToken')
+      
+      if (!token) {
+        setError('請先登入')
+        setLoading(false)
+        return
+      }
       
       const response = await fetch(`${apiUrl}/user/artworks`, {
         headers: {
@@ -36,18 +45,36 @@ const MyArtworksPage = () => {
       if (response.ok) {
         const data = await response.json()
         
+        // 確保每個作品都有正確的資料結構
+        const normalizedData = data.map(artwork => ({
+          ...artwork,
+          authors: Array.isArray(artwork.authors) ? artwork.authors : 
+                   (artwork.author ? [artwork.author] : []),
+          tags: Array.isArray(artwork.tags) ? artwork.tags : [],
+          categories: Array.isArray(artwork.categories) ? artwork.categories : [],
+          social_links: Array.isArray(artwork.social_links) ? artwork.social_links : [],
+          gallery_images: Array.isArray(artwork.gallery_images) ? artwork.gallery_images : [],
+          gallery_videos: Array.isArray(artwork.gallery_videos) ? artwork.gallery_videos : []
+        }))
+        
         // 分類作品
-        const approved = data.filter(a => a.status === 'approved')
-        const pending = data.filter(a => a.status === 'pending')
-        const needDisclaimer = data.filter(a => a.status === 'needs_disclaimer')
+        const approved = normalizedData.filter(a => a.status === 'approved')
+        const pending = normalizedData.filter(a => a.status === 'pending')
+        const needDisclaimer = normalizedData.filter(a => a.status === 'needs_disclaimer')
         
         setArtworks(approved)
         setPendingArtworks(pending)
         setNeedsDisclaimer(needDisclaimer)
+        setError('')
+      } else if (response.status === 401) {
+        setError('請重新登入')
+        localStorage.removeItem('authToken')
+        navigate('/login')
       } else {
         setError('無法載入作品資料')
       }
     } catch (error) {
+      console.error('Fetch error:', error)
       setError('載入失敗，請稍後再試')
     } finally {
       setLoading(false)
@@ -104,6 +131,32 @@ const MyArtworksPage = () => {
     }
   }
 
+  const renderArtworkCard = (artwork) => {
+    // 確保資料正確
+    const safeArtwork = {
+      id: artwork.id,
+      title: artwork.title || '未命名作品',
+      main_image_url: artwork.main_image_url,
+      author: artwork.authors?.[0] || artwork.author || '未知作者',
+      tags: artwork.tags || [],
+      project_year: artwork.project_year,
+      view_count: artwork.view_count || 0
+    }
+
+    return (
+      <Card
+        key={safeArtwork.id}
+        id={safeArtwork.id}
+        title={safeArtwork.title}
+        imageUrl={safeArtwork.main_image_url}
+        author={safeArtwork.author}
+        tags={safeArtwork.tags}
+        year={safeArtwork.project_year}
+        viewCount={safeArtwork.view_count}
+      />
+    )
+  }
+
   if (loading) return <Layout><Loading /></Layout>
 
   return (
@@ -144,15 +197,7 @@ const MyArtworksPage = () => {
               <div className="artworks-grid">
                 {needsDisclaimer.map(artwork => (
                   <div key={artwork.id} className="artwork-card needs-disclaimer">
-                    <Card
-                      id={artwork.id}
-                      title={artwork.title}
-                      imageUrl={artwork.main_image_url}
-                      author={artwork.authors?.[0] || artwork.author}
-                      tags={artwork.tags}
-                      year={artwork.project_year}
-                      viewCount={artwork.view_count}
-                    />
+                    {renderArtworkCard(artwork)}
                     <div className="card-actions">
                       <Button 
                         onClick={() => handleAcceptDisclaimer(artwork.id)}
@@ -175,15 +220,7 @@ const MyArtworksPage = () => {
               <div className="artworks-grid">
                 {pendingArtworks.map(artwork => (
                   <div key={artwork.id} className="artwork-card pending">
-                    <Card
-                      id={artwork.id}
-                      title={artwork.title}
-                      imageUrl={artwork.main_image_url}
-                      author={artwork.authors?.[0] || artwork.author || '未知作者'}
-                      tags={artwork.tags || []}
-                      year={artwork.project_year}
-                      viewCount={artwork.view_count || 0}
-                    />
+                    {renderArtworkCard(artwork)}
                     <div className="card-status">
                       <span className="status-badge pending">待審核</span>
                     </div>
@@ -207,15 +244,7 @@ const MyArtworksPage = () => {
               <div className="artworks-grid">
                 {artworks.map(artwork => (
                   <div key={artwork.id} className="artwork-card">
-                    <Card
-                      id={artwork.id}
-                      title={artwork.title}
-                      imageUrl={artwork.main_image_url}
-                      author={artwork.authors?.[0] || artwork.author}
-                      tags={artwork.tags}
-                      year={artwork.project_year}
-                      viewCount={artwork.view_count}
-                    />
+                    {renderArtworkCard(artwork)}
                     <div className="card-actions">
                       <Button 
                         onClick={() => navigate(`/artwork/${artwork.id}/edit`)}
