@@ -179,10 +179,10 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      author={artwork.authors?.[0] || artwork.author}
-                      tags={artwork.tags}
+                      author={artwork.authors?.[0]?.name || artwork.author || '未知作者'} // 修改這行
+                      tags={artwork.tags || []}
                       year={artwork.project_year}
-                      viewCount={artwork.view_count}
+                      viewCount={artwork.view_count || 0}
                     />
                     <div className="card-status">
                       <span className="status-badge pending">待審核</span>

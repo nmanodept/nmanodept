@@ -1,4 +1,4 @@
-//Location: /src/components/auth/AuthContext.jsx
+//Location: /src/components/auth/AuthContext.jsx (完整更新)
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { navigate } from 'gatsby'
 
@@ -17,18 +17,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 檢查本地儲存的 token
- useEffect(() => {
+  useEffect(() => {
     const checkAuth = async () => {
-      // 在 SSR 時跳過
+      // 檢查是否在瀏覽器環境
       if (typeof window === 'undefined') {
         setLoading(false)
         return
       }
 
-      const token = localStorage.getItem('authToken')
-      if (token) {
-        try {
+      try {
+        const token = localStorage.getItem('authToken')
+        if (token) {
           const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
           const response = await fetch(`${apiUrl}/auth/me`, {
             headers: {
@@ -42,16 +41,17 @@ export const AuthProvider = ({ children }) => {
           } else {
             localStorage.removeItem('authToken')
           }
-        } catch (error) {
-          console.error('Auth check failed:', error)
         }
+      } catch (error) {
+        console.error('Auth check failed:', error)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     checkAuth()
   }, [])
-  
+
   const login = async (username, password) => {
     setError(null)
     try {
@@ -67,7 +67,9 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json()
 
       if (response.ok) {
-        localStorage.setItem('authToken', data.token)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authToken', data.token)
+        }
         setUser(data.user)
         return { success: true }
       } else {
@@ -107,15 +109,23 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = () => {
-    localStorage.removeItem('authToken')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken')
+    }
     setUser(null)
-    navigate('/login')
+    if (typeof navigate === 'function') {
+      navigate('/login')
+    }
   }
 
   const updateProfile = async (profileData) => {
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const token = localStorage.getItem('authToken')
+      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+      
+      if (!token) {
+        return { success: false, error: '未登入' }
+      }
       
       const response = await fetch(`${apiUrl}/auth/profile`, {
         method: 'PUT',
@@ -127,8 +137,8 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (response.ok) {
-        const updatedUser = await response.json()
-        setUser(updatedUser)
+        const data = await response.json()
+        setUser(prev => ({ ...prev, ...data }))
         return { success: true }
       } else {
         const error = await response.json()
