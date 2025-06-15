@@ -179,7 +179,7 @@ const MyArtworksPage = () => {
                       id={artwork.id}
                       title={artwork.title}
                       imageUrl={artwork.main_image_url}
-                      author={artwork.authors?.[0]?.name || artwork.author || '未知作者'} // 修改這行
+                      author={artwork.authors?.[0] || artwork.author || '未知作者'}
                       tags={artwork.tags || []}
                       year={artwork.project_year}
                       viewCount={artwork.view_count || 0}
