@@ -23,12 +23,7 @@ const Layout = ({ children }) => {
     { path: '/', label: '首頁' },
     { path: '/about', label: '關於' },
     { path: '/authors', label: '作者' },
-    { path: '/search', label: '搜尋' },
-    ...(isAuthenticated ? [
-      { path: '/submit', label: '投稿' },
-      { path: '/profile', label: '個人資料' },
-      { path: '/my-artworks', label: '我的作品' }
-    ] : [])
+    { path: '/search', label: '搜尋' }
   ]
 
   const authItems = isAuthenticated ? [
