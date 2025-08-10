@@ -14,21 +14,23 @@ const LoginPage = ({ location }) => {
   })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [from, setFrom] = useState('/')
+  const [from, setFrom] = useState('/profile')
 
   useEffect(() => {
-    // 如果已經登入，重定向
+    // 如果已經登入，重定向到個人資料頁面
     if (isAuthenticated) {
-      navigate(from)
+      navigate('/profile')
     }
     
-    // 檢查是否有重定向來源
+    // 檢查是否有重定向來源，如果沒有特別指定則預設到個人資料頁面
     const params = new URLSearchParams(location.search)
     const redirectFrom = params.get('from')
     if (redirectFrom) {
       setFrom(redirectFrom)
+    } else {
+      setFrom('/profile')
     }
-  }, [isAuthenticated, location, from])
+  }, [isAuthenticated, location])
 
   const handleChange = (e) => {
     setFormData({
@@ -46,7 +48,7 @@ const LoginPage = ({ location }) => {
       const result = await login(formData.username, formData.password)
       
       if (result.success) {
-        navigate('/profile')
+        navigate(from)
       } else {
         setError(result.error || '登入失敗，請檢查用戶名稱和密碼')
       }

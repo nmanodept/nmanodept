@@ -1,5 +1,79 @@
 /* /src/pages/profile.css */
 
+/* 個人資料容器 */
+.profile-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--spacing-xl);
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-700);
+}
+
+.profile-header h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 300;
+  color: var(--color-gray-100);
+  margin: 0;
+}
+
+.profile-nav {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.profile-nav .nav-link {
+  color: var(--color-gray-400);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: var(--transition-fast);
+  border: 1px solid var(--color-gray-700);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 6px;
+}
+
+.profile-nav .nav-link:hover {
+  color: var(--color-gray-100);
+  border-color: var(--color-gray-500);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 個人資料卡片 */
+.profile-content {
+  display: flex;
+  justify-content: center;
+}
+
+.profile-card {
+  width: 100%;
+  max-width: 700px;
+  background-color: transparent;
+  border: 1px solid var(--color-gray-700);
+  border-radius: 12px;
+  padding: var(--spacing-3xl);
+}
+
+.profile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.profile-card-header h2 {
+  font-size: var(--font-size-xl);
+  font-weight: 400;
+  color: var(--color-gray-100);
+  margin: 0;
+}
+
+/* 顯示模式 */
 .profile-display {
   display: flex;
   flex-direction: column;
@@ -10,6 +84,7 @@
   display: flex;
   justify-content: center;
   padding: var(--spacing-xl) 0;
+  margin-bottom: var(--spacing-lg);
 }
 
 .avatar-container {
@@ -73,6 +148,39 @@
   color: var(--color-gray-500);
 }
 
+/* 個人資料資訊顯示 */
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-gray-800);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-row .value {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-100);
+  margin-top: var(--spacing-xs);
+}
+
 .bio-row {
   flex-direction: column;
 }
@@ -81,6 +189,70 @@
   margin-top: var(--spacing-sm);
   line-height: 1.6;
   white-space: pre-wrap;
+  color: var(--color-gray-200);
+}
+
+/* 編輯表單樣式 */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group label {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-300);
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
+}
+
+.form-group input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 8px;
+  color: var(--color-gray-100);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-gray-500);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.form-group input::placeholder {
+  color: var(--color-gray-600);
+}
+
+.form-section {
+  padding: var(--spacing-xl) 0;
+  border-top: 1px solid var(--color-gray-800);
+  margin-top: var(--spacing-lg);
+}
+
+.form-section h3 {
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-200);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 400;
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-gray-800);
 }
 
 .char-count {
@@ -108,4 +280,119 @@ textarea:focus {
   outline: none;
   border-color: var(--color-gray-500);
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* 按鈕樣式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--color-white);
+  color: var(--color-black);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-gray-200);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-gray-300);
+  border: 1px solid var(--color-gray-700);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-gray-500);
+  color: var(--color-gray-100);
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-xs);
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: var(--spacing-lg);
+  }
+
+  .profile-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .profile-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .profile-card {
+    padding: var(--spacing-xl);
+  }
+
+  .profile-card-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    padding: var(--spacing-md);
+  }
+
+  .avatar-edit-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .info-row {
+    padding: var(--spacing-sm) 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: var(--spacing-md);
+  }
+
+  .profile-card {
+    padding: var(--spacing-lg);
+    border-radius: 8px;
+  }
+
+  .profile-header h1 {
+    font-size: var(--font-size-xl);
+  }
+
+  .profile-nav .nav-link {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+  }
 }
