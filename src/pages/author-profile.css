@@ -1,0 +1,125 @@
+/* /src/pages/author-profile.css */
+/* 極簡作者資料頁面樣式 */
+
+/* 引入共用表單樣式 */
+@import '../styles/form-styles.css';
+
+.profile-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+}
+
+/* 頁面標題 */
+.profile-header {
+  text-align: center;
+  margin-bottom: var(--spacing-3xl);
+}
+
+.profile-title {
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: var(--color-gray-100);
+  margin-bottom: var(--spacing-md);
+}
+
+.profile-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-400);
+}
+
+/* 使用共用的 form-wrapper */
+.profile-form-wrapper {
+  /* 繼承自 form-wrapper */
+}
+
+/* 頭像預覽 */
+.avatar-preview-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.avatar-remove:hover {
+  background-color: rgb(239, 68, 68);
+  transform: scale(1.1);
+}
+
+/* 注意事項 */
+.profile-notes {
+  background-color: var(--color-gray-800);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-gray-700);
+}
+
+.notes-title {
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+  color: var(--color-gray-100);
+  margin-bottom: var(--spacing-md);
+  letter-spacing: -0.01em;
+}
+
+.notes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notes-list li {
+  position: relative;
+  padding-left: var(--spacing-lg);
+  color: var(--color-gray-300);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-sm);
+}
+
+.notes-list li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: var(--spacing-xl) var(--spacing-lg);
+  }
+  
+  .profile-title {
+    font-size: 2rem;
+  }
+  
+  .profile-notes {
+    padding: var(--spacing-lg);
+  }
+}

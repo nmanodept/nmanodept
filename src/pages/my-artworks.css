@@ -1,0 +1,155 @@
+/* ========== /src/pages/my-artworks.css ========== */
+.my-artworks-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-xl);
+    min-height: calc(100vh - 200px);
+  }
+  
+  .my-artworks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-2xl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--color-gray-800);
+  }
+  
+  .my-artworks-header h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: var(--color-gray-100);
+    letter-spacing: -0.02em;
+  }
+  
+  .artworks-section {
+    margin-bottom: var(--spacing-3xl);
+  }
+  
+  .artworks-section h2 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: var(--color-gray-100);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .section-description {
+    color: var(--color-gray-400);
+    margin-bottom: var(--spacing-xl);
+  }
+  
+  .artworks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-xl);
+  }
+  
+  .artwork-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-gray-800);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  
+  .artwork-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-gray-600);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+  
+  .artwork-image {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: var(--color-gray-900);
+  }
+  
+  .artwork-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .status-badge {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 4px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .status-badge.pending {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+  }
+  
+  .status-badge.disclaimer {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+  }
+  
+  .artwork-info {
+    padding: var(--spacing-lg);
+  }
+  
+  .artwork-info h3 {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--color-gray-100);
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .artwork-author {
+    color: var(--color-gray-400);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .artwork-year {
+    color: var(--color-gray-500);
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .artwork-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-gray-800);
+  }
+  
+  .btn-sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+  }
+  
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-3xl);
+    color: var(--color-gray-400);
+  }
+  
+  .empty-state p {
+    font-size: 1.2rem;
+    margin-bottom: var(--spacing-xl);
+  }

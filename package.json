@@ -1,0 +1,65 @@
+{
+  "name": "nmanodept",
+  "version": "1.0.0",
+  "private": true,
+  "description": "nmanodept",
+  "author": "nmanodept",
+  "keywords": [
+    "gatsby"
+  ],
+  "scripts": {
+    "develop": "gatsby develop",
+    "start": "gatsby develop",
+    "build": "gatsby build",
+    "serve": "gatsby serve",
+    "clean": "gatsby clean"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@react-three/drei": "^9.88.0",
+    "@react-three/fiber": "^8.15.0",
+    "autoprefixer": "^10.4.21",
+    "axios": "^1.6.0",
+    "date-fns": "^2.30.0",
+    "gatsby": "^5.14.1",
+    "gatsby-plugin-env-variables": "^2.3.0",
+    "gatsby-plugin-image": "^3.14.0",
+    "gatsby-plugin-manifest": "^5.14.0",
+    "gatsby-plugin-postcss": "^6.14.0",
+    "gatsby-plugin-react-helmet": "^6.14.0",
+    "gatsby-plugin-sharp": "^5.14.0",
+    "gatsby-plugin-sitemap": "^6.14.0",
+    "gatsby-source-filesystem": "^5.14.0",
+    "gatsby-transformer-sharp": "^5.14.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.3.8",
+    "react-hook-form": "^7.56.4",
+    "react-icons": "^5.5.0",
+    "react-intersection-observer": "^9.5.0",
+    "react-query": "^3.39.0",
+    "react-select": "^5.8.0",
+    "three": "^0.158.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250531.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "prettier": "^3.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.18.0"
+  },
+  "eslintConfig": {
+    "extends": "react-app",
+    "rules": {
+      "jsx-a11y/label-has-associated-control": "off",
+      "jsx-a11y/no-autofocus": "off",
+      "react-hooks/exhaustive-deps": "warn",
+      "no-unused-vars": "warn",
+      "jsx-a11y/click-events-have-key-events": "warn"
+    }
+  }
+}

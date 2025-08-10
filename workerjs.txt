@@ -1,0 +1,3057 @@
+//This is a worker.js i put on cloudfalre dashboard as artwork api!
+//you can reference this to know more!
+
+
+// ========== 工具函數 ==========
+
+// 密碼雜湊函數（使用 Web Crypto API）
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(hash)));
+}
+
+// 驗證密碼
+async function verifyPassword(password, hash) {
+  const passwordHash = await hashPassword(password);
+  return passwordHash === hash;
+}
+
+// JWT 相關函數（不使用外部套件）
+const JWT_SECRET = 'f93c39df1a0e4e8b83e5b3c56f0ea1b6e7a45b9b487e309aecbc0171f1b128df4175cfd07368e916d4a4474ea09fd979a1e0c30290571db92beedb16d6d6caaa'; // 請更改此密鑰
+ // 請更改此密鑰
+
+// 簡單的 JWT 實現
+function base64UrlEncode(str) {
+  return btoa(str)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+function base64UrlDecode(str) {
+  str = (str + '===').slice(0, str.length + (str.length % 4));
+  return atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+}
+
+async function createJWT(payload, env) {
+  const header = {
+    alg: 'HS256',
+    typ: 'JWT'
+  };
+  
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = await createSignature(`${encodedHeader}.${encodedPayload}`, env);
+  
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+async function createSignature(data, env) {
+  const encoder = new TextEncoder();
+  const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(JWT_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(data)
+  );
+  
+  return base64UrlEncode(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+async function verifyJWT(token, env) {
+  try {
+    const [header, payload, signature] = token.split('.');
+    const validSignature = await createSignature(`${header}.${payload}`, env);
+    
+    if (signature !== validSignature) {
+      return null;
+    }
+    
+    const decodedPayload = JSON.parse(base64UrlDecode(payload));
+    
+    // 檢查過期時間
+    if (decodedPayload.exp && decodedPayload.exp < Date.now() / 1000) {
+      return null;
+    }
+    
+    return decodedPayload;
+  } catch (error) {
+    return null;
+  }
+}
+// Email 發送函數（使用 Cloudflare Email Workers）
+// 在 worker.js 中更新 sendEmail 函數
+async function sendEmail(to, subject, htmlContent, env) {
+  try {
+    // 使用 Resend API（每月 100 封免費）
+    if (env.RESEND_API_KEY) {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'NMANODEPT <noreply@nmanodept.com>',
+          to: to,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Email sent successfully via Resend');
+        return true;
+      } else {
+        const error = await response.text();
+        console.error('Resend API error:', error);
+      }
+    }
+    
+    // 備用方案：儲存到資料庫，手動處理
+    await env.DB.prepare(`
+      INSERT INTO email_queue (to_email, subject, content, status, created_at)
+      VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+    `).bind(to, subject, htmlContent).run();
+    
+    console.log('Email queued for manual processing');
+    return true;
+  } catch (error) {
+    console.error('Email sending error:', error);
+    return false;
+  }
+}
+
+// ========== 主要的 Worker 處理函數 ==========
+
+
+export default {
+  async fetch(request, env) {
+    // CORS 設定
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Password',
+      'Access-Control-Max-Age': '86400',
+    };
+
+    // 處理 OPTIONS 請求（預檢請求）
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { 
+        status: 204,
+        headers: corsHeaders 
+      });
+    }
+
+    const url = new URL(request.url);
+    
+    try {
+      // ===== 認證相關路由 =====
+      
+      // 用戶註冊
+      if (url.pathname === '/auth/register' && request.method === 'POST') {
+        return await handleRegister(request, env, corsHeaders);
+      }
+      
+      // 用戶登入
+      if (url.pathname === '/auth/login' && request.method === 'POST') {
+        return await handleLogin(request, env, corsHeaders);
+      }
+      
+      // 取得當前用戶資訊
+      if (url.pathname === '/auth/me' && request.method === 'GET') {
+        return await getCurrentUser(request, env, corsHeaders);
+      }
+      
+      // 更新個人資料
+      if (url.pathname === '/auth/profile' && request.method === 'PUT') {
+        return await updateProfile(request, env, corsHeaders);
+      }
+      
+      // 忘記密碼
+      if (url.pathname === '/auth/forgot-password' && request.method === 'POST') {
+        return await handleForgotPassword(request, env, corsHeaders);
+      }
+      
+      // 重設密碼
+      if (url.pathname === '/auth/reset-password' && request.method === 'POST') {
+        return await handleResetPassword(request, env, corsHeaders);
+      }
+      
+      // ===== 作品相關路由 =====
+      
+      // 提交作品（需要登入）
+      if (url.pathname === '/artwork/submit' && request.method === 'POST') {
+        return await handleArtworkSubmit(request, env, corsHeaders);
+      }
+      
+      // 獲取用戶的作品
+      if (url.pathname === '/user/artworks' && request.method === 'GET') {
+        return await getUserArtworks(request, env, corsHeaders);
+      }
+      
+      // 更新作品
+      if (url.pathname.match(/^\/artwork\/\d+\/update$/) && request.method === 'PUT') {
+        const id = url.pathname.split('/')[2];
+        return await updateArtwork(id, request, env, corsHeaders);
+      }
+      
+      // 刪除作品
+      if (url.pathname.match(/^\/artwork\/\d+\/delete$/) && request.method === 'DELETE') {
+        const id = url.pathname.split('/')[2];
+        return await deleteArtwork(id, request, env, corsHeaders);
+      }
+      
+      // 接受免責聲明
+      if (url.pathname.match(/^\/artwork\/\d+\/accept-disclaimer$/) && request.method === 'POST') {
+        const id = url.pathname.split('/')[2];
+        return await acceptDisclaimer(id, request, env, corsHeaders);
+      }
+      
+      // ===== 公開路由 =====
+      
+      // 獲取所有已審核作品
+      if (url.pathname === '/artworks' && request.method === 'GET') {
+        return await getPublicArtworks(env, corsHeaders);
+      }
+      
+      // 獲取單一作品
+      if (url.pathname.match(/^\/artwork\/\d+$/) && request.method === 'GET') {
+        const id = url.pathname.split('/')[2];
+        return await getArtworkById(id, env, corsHeaders);
+      }
+      
+      // 獲取作者列表
+      if (url.pathname === '/authors' && request.method === 'GET') {
+        return await getAuthors(env, corsHeaders);
+      }
+      
+      // 獲取分類
+      if (url.pathname === '/categories' && request.method === 'GET') {
+        return await getCategories(env, corsHeaders);
+      }
+      
+      // 獲取標籤
+      if (url.pathname === '/tags' && request.method === 'GET') {
+        return await getTags(env, corsHeaders);
+      }
+      
+      // 獲取專題資訊
+      if (url.pathname === '/project-info' && request.method === 'GET') {
+        return await getProjectInfo(env, corsHeaders);
+      }
+      
+      // ===== 管理員路由 =====
+      
+      // 獲取待審核用戶
+      if (url.pathname === '/admin/pending-users' && request.method === 'GET') {
+        return await getPendingUsers(request, env, corsHeaders);
+      }
+      
+      // 審核通過用戶
+      if (url.pathname.match(/^\/admin\/approve-user\/\d+$/) && request.method === 'PUT') {
+        const id = url.pathname.split('/')[3];
+        return await approveUser(id, request, env, corsHeaders);
+      }
+      
+      // 拒絕用戶
+      if (url.pathname.match(/^\/admin\/reject-user\/\d+$/) && request.method === 'PUT') {
+        const id = url.pathname.split('/')[3];
+        return await rejectUser(id, request, env, corsHeaders);
+      }
+      
+      // 獲取已發布作品（管理用）
+      if (url.pathname === '/admin/approved' && request.method === 'GET') {
+        return await getApprovedArtworks(request, env, corsHeaders);
+      }
+      
+      // 退回作品到草稿
+      if (url.pathname.match(/^\/admin\/revert-artwork\/\d+$/) && request.method === 'PUT') {
+        const id = url.pathname.split('/')[3];
+        return await revertArtwork(id, request, env, corsHeaders);
+      }
+      
+      // 刪除作品（管理員）
+      if (url.pathname.match(/^\/admin\/delete\/\d+$/) && request.method === 'DELETE') {
+        const id = url.pathname.split('/')[3];
+        return await deleteArtworkAdmin(id, request, env, corsHeaders);
+      }
+      
+      // 404
+      return new Response('Not Found', { 
+        status: 404,
+        headers: corsHeaders 
+      });
+      
+    } catch (error) {
+      console.error('Worker error:', error);
+      return new Response(JSON.stringify({ 
+        error: 'Internal Server Error',
+        details: error.message 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+  }
+};
+
+// ========== 認證相關函數 ==========
+
+async function handleRegister(request, env, corsHeaders) {
+  try {
+    const { username, email, password, authorName } = await request.json();
+    
+    // 驗證必填欄位
+    if (!username || !email || !password) {
+      return new Response(JSON.stringify({ error: '請填寫所有必填欄位' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 檢查用戶名稱是否已存在
+    const existingUser = await env.DB.prepare(
+      'SELECT id FROM users WHERE username = ? OR email = ?'
+    ).bind(username, email).first();
+    
+    if (existingUser) {
+      return new Response(JSON.stringify({ error: '用戶名稱或 Email 已被使用' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 雜湊密碼
+    const passwordHash = await hashPassword(password);
+    
+    // 查找關聯的作者ID
+    let authorId = null;
+    if (authorName) {
+      const author = await env.DB.prepare(
+        'SELECT id FROM authors WHERE name = ?'
+      ).bind(authorName).first();
+      
+      if (author) {
+        authorId = author.id;
+      }
+    }
+    
+    // 創建用戶
+    const result = await env.DB.prepare(`
+      INSERT INTO users (
+        username, email, password_hash, author_id, 
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(username, email, passwordHash, authorId).run();
+    
+    // 發送歡迎郵件（如果配置了郵件服務）
+    await sendEmail(
+      email,
+      '歡迎加入新沒系館',
+      `
+        <h2>歡迎加入新沒系館！</h2>
+        <p>您好 ${username}，</p>
+        <p>您的帳號已成功建立，正在等待管理員審核。</p>
+        <p>審核通過後，您將收到通知郵件。</p>
+        <p>感謝您的耐心等待。</p>
+      `,
+      env
+    );
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '註冊成功，請等待審核' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Register error:', error);
+    return new Response(JSON.stringify({ error: '註冊失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function handleLogin(request, env, corsHeaders) {
+  try {
+    const { username, password } = await request.json();
+    
+    // 查找用戶（支援用戶名稱或 email 登入）
+    const user = await env.DB.prepare(`
+      SELECT id, username, email, password_hash, author_id, status 
+      FROM users 
+      WHERE (username = ? OR email = ?) AND status = 'approved'
+    `).bind(username, username).first();
+    
+    if (!user) {
+      return new Response(JSON.stringify({ error: '用戶名稱或密碼錯誤' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 驗證密碼
+    const isValid = await verifyPassword(password, user.password_hash);
+    if (!isValid) {
+      return new Response(JSON.stringify({ error: '用戶名稱或密碼錯誤' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 獲取作者名稱
+    let authorName = null;
+    if (user.author_id) {
+      const author = await env.DB.prepare(
+        'SELECT name FROM authors WHERE id = ?'
+      ).bind(user.author_id).first();
+      if (author) {
+        authorName = author.name;
+      }
+    }
+    
+    // 生成 JWT
+    const token = await createJWT({
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      authorId: user.author_id,
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7天過期
+    }, env);
+    
+    // 更新最後登入時間
+    await env.DB.prepare(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(user.id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        authorName: authorName
+      }
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    return new Response(JSON.stringify({ error: '登入失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function getCurrentUser(request, env, corsHeaders) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token, env);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // 獲取用戶資訊
+  const user = await env.DB.prepare(`
+    SELECT id, username, email, author_id 
+    FROM users 
+    WHERE id = ?
+  `).bind(payload.userId).first();
+  
+  if (!user) {
+    return new Response(JSON.stringify({ error: '用戶不存在' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // 獲取作者名稱
+  let authorName = null;
+  if (user.author_id) {
+    const author = await env.DB.prepare(
+      'SELECT name FROM authors WHERE id = ?'
+    ).bind(user.author_id).first();
+    if (author) {
+      authorName = author.name;
+    }
+  }
+  
+  return new Response(JSON.stringify({
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    authorName: authorName
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// ========== 作品相關函數 ==========
+
+async function handleArtworkSubmit(request, env, corsHeaders) {
+  // 驗證用戶
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '請先登入' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token, env);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const formData = await request.formData();
+    
+    // 獲取表單數據
+    const title = formData.get('title');
+    const description = formData.get('description');
+    const video_url = formData.get('video_url');
+    const authors = JSON.parse(formData.get('authors') || '[]');
+    const categories = JSON.parse(formData.get('categories') || '[]');
+    const tags = JSON.parse(formData.get('tags') || '[]');
+    const social_links = JSON.parse(formData.get('social_links') || '[]');
+    const project_year = formData.get('project_year');
+    const project_semester = formData.get('project_semester');
+    const disclaimer_accepted = formData.get('disclaimer_accepted') === 'true';
+    
+    if (!disclaimer_accepted) {
+      return new Response(JSON.stringify({ error: '請接受免責聲明' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 處理主圖片上傳
+    const mainImage = formData.get('image');
+    if (!mainImage || !(mainImage instanceof File)) {
+      return new Response(JSON.stringify({ error: '請上傳主圖片' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const timestamp = Date.now();
+    const mainImageKey = `${timestamp}-main-${mainImage.name}`;
+    
+    // 上傳到 R2
+    await env.R2_BUCKET.put(mainImageKey, mainImage, {
+      httpMetadata: {
+        contentType: mainImage.type,
+      }
+    });
+    
+    const mainImageUrl = `https://gallery.nmanodept.com/${mainImageKey}`;
+    
+    // 開始資料庫交易
+    const db = env.DB;
+    
+    // 插入作品資料
+    const artworkResult = await db.prepare(`
+      INSERT INTO artworks (
+        title, author, video_url, description,
+        main_image_key, main_image_url, project_year, project_semester,
+        status, submitted_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(
+      title, 
+      authors[0] || '', 
+      video_url, 
+      description,
+      mainImageKey, 
+      mainImageUrl, 
+      project_year || null,
+      project_semester || null,
+      payload.userId
+    ).run();
+    
+    const artworkId = artworkResult.meta.last_row_id;
+    
+    // 處理多個作者
+    for (let i = 0; i < authors.length; i++) {
+      const authorName = authors[i];
+      
+      let authorResult = await db.prepare('SELECT id FROM authors WHERE name = ?')
+        .bind(authorName)
+        .first();
+      
+      let authorId;
+      if (!authorResult) {
+        const insertAuthorResult = await db.prepare('INSERT INTO authors (name) VALUES (?)')
+          .bind(authorName)
+          .run();
+        authorId = insertAuthorResult.meta.last_row_id;
+      } else {
+        authorId = authorResult.id;
+      }
+      
+      await db.prepare('INSERT INTO artwork_authors (artwork_id, author_id, display_order) VALUES (?, ?, ?)')
+        .bind(artworkId, authorId, i)
+        .run();
+    }
+    
+    // 處理類別
+    for (const categoryId of categories) {
+      if (categoryId) {
+        await db.prepare('INSERT INTO artwork_categories (artwork_id, category_id) VALUES (?, ?)')
+          .bind(artworkId, categoryId)
+          .run();
+      }
+    }
+    
+    // 處理標籤
+    for (const tagName of tags) {
+      let tagResult = await db.prepare('SELECT id FROM tags WHERE name = ?')
+        .bind(tagName)
+        .first();
+      
+      let tagId;
+      if (!tagResult) {
+        const insertTagResult = await db.prepare('INSERT INTO tags (name) VALUES (?)')
+          .bind(tagName)
+          .run();
+        tagId = insertTagResult.meta.last_row_id;
+      } else {
+        tagId = tagResult.id;
+      }
+      
+      await db.prepare('INSERT INTO artwork_tags (artwork_id, tag_id) VALUES (?, ?)')
+        .bind(artworkId, tagId)
+        .run();
+    }
+    
+    // 處理社交連結
+    for (let i = 0; i < social_links.length; i++) {
+      const link = social_links[i];
+      if (link && link.trim()) {
+        await db.prepare(`
+          INSERT INTO social_links (artwork_id, url, display_order) 
+          VALUES (?, ?, ?)
+        `).bind(artworkId, link, i).run();
+      }
+    }
+    
+    // 處理 Gallery 圖片
+    const galleryCount = parseInt(formData.get('gallery_count') || '0');
+    for (let i = 0; i < galleryCount; i++) {
+      const galleryImage = formData.get(`gallery_${i}`);
+      if (galleryImage && galleryImage instanceof File) {
+        const galleryKey = `${timestamp}-gallery-${i}-${galleryImage.name}`;
+        
+        await env.R2_BUCKET.put(galleryKey, galleryImage, {
+          httpMetadata: {
+            contentType: galleryImage.type,
+          }
+        });
+        
+        const galleryUrl = `https://gallery.nmanodept.com/${galleryKey}`;
+        
+        await db.prepare(`
+          INSERT INTO gallery_images (artwork_id, image_key, image_url, display_order)
+          VALUES (?, ?, ?, ?)
+        `).bind(artworkId, galleryKey, galleryUrl, i).run();
+      }
+    }
+    
+    // 處理 Gallery 影片連結
+    const galleryVideos = JSON.parse(formData.get('gallery_video_urls') || '[]');
+    for (let i = 0; i < galleryVideos.length; i++) {
+      const videoUrl = galleryVideos[i];
+      if (videoUrl && videoUrl.trim()) {
+        await db.prepare(`
+          INSERT INTO gallery_videos (artwork_id, video_url, display_order)
+          VALUES (?, ?, ?)
+        `).bind(artworkId, videoUrl, i).run();
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '作品已成功提交',
+      artworkId: artworkId 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Submit error:', error);
+    return new Response(JSON.stringify({ 
+      error: '提交失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function getUserArtworks(request, env, corsHeaders) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 獲取用戶提交的作品
+    const artworks = await env.DB.prepare(`
+      SELECT * FROM artworks 
+      WHERE submitted_by = ? 
+      ORDER BY created_at DESC
+    `).bind(payload.userId).all();
+    
+    // 如果用戶有關聯的作者ID，也獲取該作者的舊作品
+    if (payload.authorId) {
+      const oldArtworks = await env.DB.prepare(`
+        SELECT a.* FROM artworks a
+        JOIN artwork_authors aa ON a.id = aa.artwork_id
+        WHERE aa.author_id = ? AND a.submitted_by IS NULL
+        ORDER BY a.created_at DESC
+      `).bind(payload.authorId).all();
+      
+      // 標記需要確認免責聲明的作品
+      const needsDisclaimerArtworks = oldArtworks.results.map(artwork => ({
+        ...artwork,
+        status: 'needs_disclaimer'
+      }));
+      
+      artworks.results.push(...needsDisclaimerArtworks);
+    }
+    
+    // 獲取每個作品的完整資料
+    const artworksWithFullData = await Promise.all(
+      artworks.results.map(async (artwork) => {
+        // 獲取作者
+        const authors = await env.DB.prepare(`
+          SELECT a.name FROM authors a
+          JOIN artwork_authors aa ON a.id = aa.author_id
+          WHERE aa.artwork_id = ?
+          ORDER BY aa.display_order
+        `).bind(artwork.id).all();
+        
+        // 獲取類別
+        const categories = await env.DB.prepare(`
+          SELECT c.* FROM categories c
+          JOIN artwork_categories ac ON c.id = ac.category_id
+          WHERE ac.artwork_id = ?
+        `).bind(artwork.id).all();
+        
+        // 獲取標籤
+        const tags = await env.DB.prepare(`
+          SELECT t.name FROM tags t
+          JOIN artwork_tags at ON t.id = at.tag_id
+          WHERE at.artwork_id = ?
+        `).bind(artwork.id).all();
+        
+        // 獲取社交連結
+        const socialLinks = await env.DB.prepare(`
+          SELECT url FROM social_links
+          WHERE artwork_id = ?
+          ORDER BY display_order
+        `).bind(artwork.id).all();
+        
+        // 獲取 Gallery 圖片
+        const galleryImages = await env.DB.prepare(`
+          SELECT image_url FROM gallery_images
+          WHERE artwork_id = ?
+          ORDER BY display_order
+        `).bind(artwork.id).all();
+        
+        // 獲取 Gallery 影片
+        const galleryVideos = await env.DB.prepare(`
+          SELECT video_url FROM gallery_videos
+          WHERE artwork_id = ?
+          ORDER BY display_order
+        `).bind(artwork.id).all();
+        
+        return {
+          ...artwork,
+          authors: authors.results.map(a => a.name),
+          categories: categories.results,
+          tags: tags.results.map(t => t.name),
+          social_links: socialLinks.results.map(s => s.url),
+          gallery_images: galleryImages.results.map(g => g.image_url),
+          gallery_videos: galleryVideos.results.map(g => g.video_url)
+        };
+      })
+    );
+    
+    return new Response(JSON.stringify(artworksWithFullData), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Get user artworks error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function acceptDisclaimer(id, request, env, corsHeaders) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 更新作品狀態並設定提交者
+    await env.DB.prepare(`
+      UPDATE artworks 
+      SET status = 'approved', 
+          submitted_by = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(payload.userId, id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '作品已重新發布' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Accept disclaimer error:', error);
+    return new Response(JSON.stringify({ error: '操作失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 更新作品函數 ==========
+async function updateArtwork(id, request, env, corsHeaders) {
+  // 驗證用戶權限
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '請先登入' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token, env);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 檢查作品是否屬於該用戶
+    const artwork = await env.DB.prepare(
+      'SELECT * FROM artworks WHERE id = ? AND submitted_by = ?'
+    ).bind(id, payload.userId).first();
+    
+    if (!artwork) {
+      return new Response(JSON.stringify({ error: '無權限編輯此作品' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const formData = await request.formData();
+    
+    // 獲取更新資料
+    const title = formData.get('title');
+    const description = formData.get('description');
+    const video_url = formData.get('video_url');
+    const authors = JSON.parse(formData.get('authors') || '[]');
+    const categories = JSON.parse(formData.get('categories') || '[]');
+    const tags = JSON.parse(formData.get('tags') || '[]');
+    const social_links = JSON.parse(formData.get('social_links') || '[]');
+    const project_year = formData.get('project_year');
+    const project_semester = formData.get('project_semester');
+    
+    // 處理新的主圖片（如果有上傳）
+    const newMainImage = formData.get('image');
+    let mainImageKey = artwork.main_image_key;
+    let mainImageUrl = artwork.main_image_url;
+    
+    if (newMainImage && newMainImage instanceof File) {
+      // 刪除舊圖片
+      if (artwork.main_image_key) {
+        try {
+          await env.R2_BUCKET.delete(artwork.main_image_key);
+        } catch (error) {
+          console.error('Failed to delete old image:', error);
+        }
+      }
+      
+      // 上傳新圖片
+      const timestamp = Date.now();
+      mainImageKey = `${timestamp}-main-${newMainImage.name}`;
+      
+      await env.R2_BUCKET.put(mainImageKey, newMainImage, {
+        httpMetadata: {
+          contentType: newMainImage.type,
+        }
+      });
+      
+      mainImageUrl = `https://gallery.nmanodept.com/${mainImageKey}`;
+    }
+    
+    // 開始資料庫交易
+    const db = env.DB;
+    
+    // 更新作品主資料
+    await db.prepare(`
+      UPDATE artworks SET
+        title = ?,
+        video_url = ?,
+        description = ?,
+        main_image_key = ?,
+        main_image_url = ?,
+        project_year = ?,
+        project_semester = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      title,
+      video_url,
+      description,
+      mainImageKey,
+      mainImageUrl,
+      project_year || null,
+      project_semester || null,
+      id
+    ).run();
+    
+    // 更新作者關聯（先刪除舊的）
+    await db.prepare('DELETE FROM artwork_authors WHERE artwork_id = ?').bind(id).run();
+    
+    for (let i = 0; i < authors.length; i++) {
+      const authorName = authors[i];
+      
+      let authorResult = await db.prepare('SELECT id FROM authors WHERE name = ?')
+        .bind(authorName)
+        .first();
+      
+      let authorId;
+      if (!authorResult) {
+        const insertAuthorResult = await db.prepare('INSERT INTO authors (name) VALUES (?)')
+          .bind(authorName)
+          .run();
+        authorId = insertAuthorResult.meta.last_row_id;
+      } else {
+        authorId = authorResult.id;
+      }
+      
+      await db.prepare('INSERT INTO artwork_authors (artwork_id, author_id, display_order) VALUES (?, ?, ?)')
+        .bind(id, authorId, i)
+        .run();
+    }
+    
+    // 更新類別關聯
+    await db.prepare('DELETE FROM artwork_categories WHERE artwork_id = ?').bind(id).run();
+    
+    for (const categoryId of categories) {
+      if (categoryId) {
+        await db.prepare('INSERT INTO artwork_categories (artwork_id, category_id) VALUES (?, ?)')
+          .bind(id, categoryId)
+          .run();
+      }
+    }
+    
+    // 更新標籤關聯
+    await db.prepare('DELETE FROM artwork_tags WHERE artwork_id = ?').bind(id).run();
+    
+    for (const tagName of tags) {
+      let tagResult = await db.prepare('SELECT id FROM tags WHERE name = ?')
+        .bind(tagName)
+        .first();
+      
+      let tagId;
+      if (!tagResult) {
+        const insertTagResult = await db.prepare('INSERT INTO tags (name) VALUES (?)')
+          .bind(tagName)
+          .run();
+        tagId = insertTagResult.meta.last_row_id;
+      } else {
+        tagId = tagResult.id;
+      }
+      
+      await db.prepare('INSERT INTO artwork_tags (artwork_id, tag_id) VALUES (?, ?)')
+        .bind(id, tagId)
+        .run();
+    }
+    
+    // 更新社交連結
+    await db.prepare('DELETE FROM social_links WHERE artwork_id = ?').bind(id).run();
+    
+    for (let i = 0; i < social_links.length; i++) {
+      const link = social_links[i];
+      if (link && link.trim()) {
+        await db.prepare(`
+          INSERT INTO social_links (artwork_id, url, display_order) 
+          VALUES (?, ?, ?)
+        `).bind(id, link, i).run();
+      }
+    }
+    
+    // 處理 Gallery 圖片更新
+    const existingGalleryCount = parseInt(formData.get('existing_gallery_count') || '0');
+    const newGalleryCount = parseInt(formData.get('new_gallery_count') || '0');
+    const deletedGalleryIds = JSON.parse(formData.get('deleted_gallery_ids') || '[]');
+    
+    // 刪除被移除的 gallery 圖片
+    for (const galleryId of deletedGalleryIds) {
+      const galleryImage = await db.prepare(
+        'SELECT image_key FROM gallery_images WHERE id = ? AND artwork_id = ?'
+      ).bind(galleryId, id).first();
+      
+      if (galleryImage && galleryImage.image_key) {
+        try {
+          await env.R2_BUCKET.delete(galleryImage.image_key);
+        } catch (error) {
+          console.error('Failed to delete gallery image:', error);
+        }
+      }
+      
+      await db.prepare('DELETE FROM gallery_images WHERE id = ?').bind(galleryId).run();
+    }
+    
+    // 新增新的 gallery 圖片
+    const timestamp = Date.now();
+    for (let i = 0; i < newGalleryCount; i++) {
+      const galleryImage = formData.get(`new_gallery_${i}`);
+      if (galleryImage && galleryImage instanceof File) {
+        const galleryKey = `${timestamp}-gallery-${i}-${galleryImage.name}`;
+        
+        await env.R2_BUCKET.put(galleryKey, galleryImage, {
+          httpMetadata: {
+            contentType: galleryImage.type,
+          }
+        });
+        
+        const galleryUrl = `https://gallery.nmanodept.com/${galleryKey}`;
+        
+        await db.prepare(`
+          INSERT INTO gallery_images (artwork_id, image_key, image_url, display_order)
+          VALUES (?, ?, ?, ?)
+        `).bind(id, galleryKey, galleryUrl, existingGalleryCount + i).run();
+      }
+    }
+    
+    // 更新 Gallery 影片連結
+    await db.prepare('DELETE FROM gallery_videos WHERE artwork_id = ?').bind(id).run();
+    
+    const galleryVideos = JSON.parse(formData.get('gallery_video_urls') || '[]');
+    for (let i = 0; i < galleryVideos.length; i++) {
+      const videoUrl = galleryVideos[i];
+      if (videoUrl && videoUrl.trim()) {
+        await db.prepare(`
+          INSERT INTO gallery_videos (artwork_id, video_url, display_order)
+          VALUES (?, ?, ?)
+        `).bind(id, videoUrl, i).run();
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '作品已更新',
+      artworkId: id
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Update artwork error:', error);
+    return new Response(JSON.stringify({ 
+      error: '更新失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+
+// ========== 刪除作品函數（用戶） ==========
+async function deleteArtwork(id, request, env, corsHeaders) {
+  // 驗證用戶權限
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '請先登入' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token, env);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 檢查作品是否屬於該用戶
+    const artwork = await env.DB.prepare(
+      'SELECT * FROM artworks WHERE id = ? AND submitted_by = ?'
+    ).bind(id, payload.userId).first();
+    
+    if (!artwork) {
+      return new Response(JSON.stringify({ error: '無權限刪除此作品' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 獲取所有相關的圖片
+    const galleryImages = await env.DB.prepare(
+      'SELECT image_key FROM gallery_images WHERE artwork_id = ?'
+    ).bind(id).all();
+    
+    // 從 R2 刪除主圖片
+    if (artwork.main_image_key) {
+      try {
+        await env.R2_BUCKET.delete(artwork.main_image_key);
+      } catch (error) {
+        console.error('Failed to delete main image:', error);
+      }
+    }
+    
+    // 從 R2 刪除 gallery 圖片
+    for (const img of galleryImages.results) {
+      if (img.image_key) {
+        try {
+          await env.R2_BUCKET.delete(img.image_key);
+        } catch (error) {
+          console.error('Failed to delete gallery image:', error);
+        }
+      }
+    }
+    
+    // 刪除資料庫中的相關記錄
+    // 注意順序：先刪除外鍵關聯，最後刪除主表
+    await env.DB.prepare('DELETE FROM artwork_authors WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM artwork_categories WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM artwork_tags WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM social_links WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM gallery_images WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM gallery_videos WHERE artwork_id = ?').bind(id).run();
+    
+    // 最後刪除作品本身
+    await env.DB.prepare('DELETE FROM artworks WHERE id = ?').bind(id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '作品已刪除'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Delete artwork error:', error);
+    return new Response(JSON.stringify({ 
+      error: '刪除失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 批量查詢助手函數
+async function batchQueryArtworkData(artworkIds, env) {
+  if (artworkIds.length === 0) {
+    return { authorsMap: {}, categoriesMap: {}, tagsMap: {}, linksMap: {} };
+  }
+
+  const placeholders = artworkIds.map(() => '?').join(',');
+  
+  // 批量查詢所有關聯數據
+  const [authorsData, categoriesData, tagsData, linksData] = await Promise.all([
+    env.DB.prepare(`
+      SELECT aa.artwork_id, au.name 
+      FROM artwork_authors aa
+      JOIN authors au ON aa.author_id = au.id
+      WHERE aa.artwork_id IN (${placeholders})
+      ORDER BY aa.artwork_id, aa.display_order
+    `).bind(...artworkIds).all(),
+    
+    env.DB.prepare(`
+      SELECT ac.artwork_id, c.id, c.name 
+      FROM artwork_categories ac
+      JOIN categories c ON ac.category_id = c.id
+      WHERE ac.artwork_id IN (${placeholders})
+    `).bind(...artworkIds).all(),
+    
+    env.DB.prepare(`
+      SELECT at.artwork_id, t.name 
+      FROM artwork_tags at
+      JOIN tags t ON at.tag_id = t.id
+      WHERE at.artwork_id IN (${placeholders})
+    `).bind(...artworkIds).all(),
+    
+    env.DB.prepare(`
+      SELECT artwork_id, url 
+      FROM social_links
+      WHERE artwork_id IN (${placeholders})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all()
+  ]);
+  
+  // 建立映射
+  const authorsMap = {};
+  const categoriesMap = {};
+  const tagsMap = {};
+  const linksMap = {};
+  
+  authorsData.results.forEach(item => {
+    if (!authorsMap[item.artwork_id]) authorsMap[item.artwork_id] = [];
+    authorsMap[item.artwork_id].push(item.name);
+  });
+  
+  categoriesData.results.forEach(item => {
+    if (!categoriesMap[item.artwork_id]) categoriesMap[item.artwork_id] = [];
+    categoriesMap[item.artwork_id].push({ id: item.id, name: item.name });
+  });
+  
+  tagsData.results.forEach(item => {
+    if (!tagsMap[item.artwork_id]) tagsMap[item.artwork_id] = [];
+    tagsMap[item.artwork_id].push(item.name);
+  });
+  
+  linksData.results.forEach(item => {
+    if (!linksMap[item.artwork_id]) linksMap[item.artwork_id] = [];
+    linksMap[item.artwork_id].push(item.url);
+  });
+  
+  return { authorsMap, categoriesMap, tagsMap, linksMap };
+}
+
+// 批量查詢 Gallery 資料的助手函數
+async function batchQueryGalleryData(artworkIds, env) {
+  if (artworkIds.length === 0) {
+    return { galleryImagesMap: {}, galleryVideosMap: {} };
+  }
+
+  const placeholders = artworkIds.map(() => '?').join(',');
+  
+  const [galleryImagesData, galleryVideosData] = await Promise.all([
+    env.DB.prepare(`
+      SELECT artwork_id, image_url 
+      FROM gallery_images
+      WHERE artwork_id IN (${placeholders})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all(),
+    
+    env.DB.prepare(`
+      SELECT artwork_id, video_url 
+      FROM gallery_videos
+      WHERE artwork_id IN (${placeholders})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all()
+  ]);
+  
+  const galleryImagesMap = {};
+  const galleryVideosMap = {};
+  
+  galleryImagesData.results.forEach(item => {
+    if (!galleryImagesMap[item.artwork_id]) galleryImagesMap[item.artwork_id] = [];
+    galleryImagesMap[item.artwork_id].push(item.image_url);
+  });
+  
+  galleryVideosData.results.forEach(item => {
+    if (!galleryVideosMap[item.artwork_id]) galleryVideosMap[item.artwork_id] = [];
+    galleryVideosMap[item.artwork_id].push(item.video_url);
+  });
+  
+  return { galleryImagesMap, galleryVideosMap };
+}
+
+// 處理作品提交
+async function handleSubmit(request, env, corsHeaders) {
+  const formData = await request.formData();
+  
+  // 解析表單資料
+  const title = formData.get('title');
+  const authors = JSON.parse(formData.get('authors') || '[]'); // 多作者
+  const video_url = formData.get('video_url');
+  const description = formData.get('description');
+  const project_year = formData.get('project_year'); // 單一創作年份
+  const project_semester = formData.get('project_semester'); // 單一年級學期
+  const tags = JSON.parse(formData.get('tags') || '[]');
+  const categories = JSON.parse(formData.get('categories') || '[]'); // 多類別
+  const socialLinks = JSON.parse(formData.get('social_links') || '[]');
+  
+  // 處理主圖片上傳
+  const mainImage = formData.get('image');
+  if (!mainImage || !(mainImage instanceof File)) {
+    return new Response(JSON.stringify({ error: '請上傳主圖片' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // 生成唯一檔名
+  const timestamp = Date.now();
+  const mainImageKey = `${timestamp}-main-${mainImage.name}`;
+  
+  // 上傳到 R2
+  await env.R2_BUCKET.put(mainImageKey, mainImage, {
+    httpMetadata: {
+      contentType: mainImage.type,
+    }
+  });
+  
+  const mainImageUrl = `https://gallery.nmanodept.com/${mainImageKey}`;
+  
+  // 開始資料庫交易
+  const db = env.DB;
+  
+  try {
+    // 插入作品資料
+    const artworkResult = await db.prepare(`
+      INSERT INTO artworks (
+        title, author, video_url, description,
+        main_image_key, main_image_url, project_year, project_semester,
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    `).bind(
+      title, 
+      authors[0] || '', // 保留 author 欄位以向後相容
+      video_url, 
+      description,
+      mainImageKey, 
+      mainImageUrl, 
+      project_year || null,
+      project_semester || null
+    ).run();
+    
+    const artworkId = artworkResult.meta.last_row_id;
+    
+    // 處理多個作者
+    for (let i = 0; i < authors.length; i++) {
+      const authorName = authors[i];
+      
+      // 檢查作者是否存在
+      let authorResult = await db.prepare('SELECT id FROM authors WHERE name = ?')
+        .bind(authorName)
+        .first();
+      
+      let authorId;
+      if (!authorResult) {
+        // 建立新作者
+        const insertAuthorResult = await db.prepare('INSERT INTO authors (name) VALUES (?)')
+          .bind(authorName)
+          .run();
+        authorId = insertAuthorResult.meta.last_row_id;
+      } else {
+        authorId = authorResult.id;
+      }
+      
+      // 建立關聯
+      await db.prepare('INSERT INTO artwork_authors (artwork_id, author_id, display_order) VALUES (?, ?, ?)')
+        .bind(artworkId, authorId, i)
+        .run();
+    }
+    
+    // 處理多個類別
+    for (const categoryId of categories) {
+      if (categoryId) {
+        await db.prepare('INSERT INTO artwork_categories (artwork_id, category_id) VALUES (?, ?)')
+          .bind(artworkId, categoryId)
+          .run();
+      }
+    }
+    
+    // 處理標籤
+    for (const tagName of tags) {
+      // 先檢查標籤是否存在
+      let tagResult = await db.prepare('SELECT id FROM tags WHERE name = ?')
+        .bind(tagName)
+        .first();
+      
+      let tagId;
+      if (!tagResult) {
+        // 建立新標籤
+        const insertTagResult = await db.prepare('INSERT INTO tags (name) VALUES (?)')
+          .bind(tagName)
+          .run();
+        tagId = insertTagResult.meta.last_row_id;
+      } else {
+        tagId = tagResult.id;
+      }
+      
+      // 建立關聯
+      await db.prepare('INSERT INTO artwork_tags (artwork_id, tag_id) VALUES (?, ?)')
+        .bind(artworkId, tagId)
+        .run();
+    }
+    
+    // 處理社群連結
+    for (let i = 0; i < socialLinks.length; i++) {
+      const link = socialLinks[i];
+      if (link && link.trim()) {
+        await db.prepare(`
+          INSERT INTO social_links (artwork_id, url, display_order)
+          VALUES (?, ?, ?)
+        `).bind(artworkId, link, i).run();
+      }
+    }
+    
+    // 處理 Gallery 圖片
+    const galleryImages = formData.getAll('gallery_images[]');
+    for (let i = 0; i < galleryImages.length; i++) {
+      const image = galleryImages[i];
+      if (image instanceof File) {
+        const galleryKey = `${timestamp}-gallery-${i}-${image.name}`;
+        
+        await env.R2_BUCKET.put(galleryKey, image, {
+          httpMetadata: {
+            contentType: image.type,
+          }
+        });
+        
+        const galleryUrl = `https://gallery.nmanodept.com/${galleryKey}`;
+        
+        await db.prepare(`
+          INSERT INTO gallery_images (artwork_id, image_key, image_url, display_order)
+          VALUES (?, ?, ?, ?)
+        `).bind(artworkId, galleryKey, galleryUrl, i).run();
+      }
+    }
+    
+    // 處理 Gallery 影片連結
+    const galleryVideos = formData.getAll('gallery_video_urls[]');
+    for (let i = 0; i < galleryVideos.length; i++) {
+      const videoUrl = galleryVideos[i];
+      if (videoUrl && videoUrl.trim()) {
+        await db.prepare(`
+          INSERT INTO gallery_videos (artwork_id, video_url, display_order)
+          VALUES (?, ?, ?)
+        `).bind(artworkId, videoUrl, i).run();
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      artworkId,
+      message: '作品已成功提交，等待審核中！' 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Database error:', error);
+    return new Response(JSON.stringify({ error: '資料庫錯誤：' + error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 優化的取得已審核通過的作品
+async function getArtworks(env, corsHeaders) {
+  try {
+    // 1. 先獲取作品
+    const artworks = await env.DB.prepare(`
+      SELECT * FROM artworks 
+      WHERE status = 'approved' 
+      ORDER BY created_at DESC
+      LIMIT 100
+    `).all();
+    
+    if (artworks.results.length === 0) {
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const artworkIds = artworks.results.map(a => a.id);
+    
+    // 2. 批量查詢關聯數據
+    const { authorsMap, categoriesMap, tagsMap, linksMap } = await batchQueryArtworkData(artworkIds, env);
+    
+    // 3. 組合數據
+    const artworksWithFullData = artworks.results.map(artwork => ({
+      ...artwork,
+      authors: authorsMap[artwork.id] || [],
+      categories: categoriesMap[artwork.id] || [],
+      tags: tagsMap[artwork.id] || [],
+      social_links: linksMap[artwork.id] || []
+    }));
+    
+    return new Response(JSON.stringify(artworksWithFullData), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Error in getArtworks:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 取得單一作品詳情
+// ========== 獲取單一作品 ==========
+async function getArtworkById(id, env, corsHeaders) {
+  try {
+    // 獲取作品主資料
+    const artwork = await env.DB.prepare(
+      'SELECT * FROM artworks WHERE id = ? AND status = "approved"'
+    ).bind(id).first();
+    
+    if (!artwork) {
+      return new Response(JSON.stringify({ error: '找不到作品' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 獲取作者資訊
+    const authors = await env.DB.prepare(`
+      SELECT a.id, a.name FROM authors a
+      JOIN artwork_authors aa ON a.id = aa.author_id
+      WHERE aa.artwork_id = ?
+      ORDER BY aa.display_order
+    `).bind(id).all();
+    
+    // 獲取類別
+    const categories = await env.DB.prepare(`
+      SELECT c.id, c.name, c.description FROM categories c
+      JOIN artwork_categories ac ON c.id = ac.category_id
+      WHERE ac.artwork_id = ?
+    `).bind(id).all();
+    
+    // 獲取標籤
+    const tags = await env.DB.prepare(`
+      SELECT t.id, t.name FROM tags t
+      JOIN artwork_tags at ON t.id = at.tag_id
+      WHERE at.artwork_id = ?
+    `).bind(id).all();
+    
+    // 獲取社交連結
+    const socialLinks = await env.DB.prepare(`
+      SELECT url FROM social_links
+      WHERE artwork_id = ?
+      ORDER BY display_order
+    `).bind(id).all();
+    
+    // 獲取 Gallery 圖片
+    const galleryImages = await env.DB.prepare(`
+      SELECT id, image_url FROM gallery_images
+      WHERE artwork_id = ?
+      ORDER BY display_order
+    `).bind(id).all();
+    
+    // 獲取 Gallery 影片
+    const galleryVideos = await env.DB.prepare(`
+      SELECT id, video_url FROM gallery_videos
+      WHERE artwork_id = ?
+      ORDER BY display_order
+    `).bind(id).all();
+    
+    // 組合完整的作品資料
+    const fullArtwork = {
+      ...artwork,
+      authors: authors.results.map(a => ({
+        id: a.id,
+        name: a.name
+      })),
+      categories: categories.results.map(c => ({
+        id: c.id,
+        name: c.name,
+        description: c.description
+      })),
+      tags: tags.results.map(t => ({
+        id: t.id,
+        name: t.name
+      })),
+      social_links: socialLinks.results.map(s => s.url),
+      gallery_images: galleryImages.results.map(g => ({
+        id: g.id,
+        url: g.image_url
+      })),
+      gallery_videos: galleryVideos.results.map(g => ({
+        id: g.id,
+        url: g.video_url
+      }))
+    };
+    
+    // 獲取相關作品（同作者的其他作品）
+    const relatedArtworks = [];
+    if (authors.results.length > 0) {
+      const authorId = authors.results[0].id;
+      const related = await env.DB.prepare(`
+        SELECT DISTINCT a.id, a.title, a.main_image_url, a.project_year
+        FROM artworks a
+        JOIN artwork_authors aa ON a.id = aa.artwork_id
+        WHERE aa.author_id = ? 
+          AND a.id != ? 
+          AND a.status = 'approved'
+        ORDER BY a.created_at DESC
+        LIMIT 6
+      `).bind(authorId, id).all();
+      
+      // 為每個相關作品獲取作者
+      for (const relatedArtwork of related.results) {
+        const relatedAuthors = await env.DB.prepare(`
+          SELECT a.name FROM authors a
+          JOIN artwork_authors aa ON a.id = aa.author_id
+          WHERE aa.artwork_id = ?
+          ORDER BY aa.display_order
+        `).bind(relatedArtwork.id).all();
+        
+        relatedArtworks.push({
+          ...relatedArtwork,
+          authors: relatedAuthors.results.map(a => a.name)
+        });
+      }
+    }
+    
+    fullArtwork.related_artworks = relatedArtworks;
+    
+    return new Response(JSON.stringify(fullArtwork), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Get artwork by id error:', error);
+    return new Response(JSON.stringify({ 
+      error: '獲取作品失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 獲取所有作者
+async function getAuthors(env, corsHeaders) {
+  const authors = await env.DB.prepare('SELECT * FROM authors ORDER BY name').all();
+  
+  return new Response(JSON.stringify(authors.results), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 獲取所有類別
+async function getCategories(env, corsHeaders) {
+  const categories = await env.DB.prepare('SELECT * FROM categories ORDER BY name').all();
+  
+  return new Response(JSON.stringify(categories.results), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 獲取專題資訊（創作年份和年級學期選項）
+async function getProjectInfo(env, corsHeaders) {
+  try {
+    // 獲取所有不重複的創作年份
+    const years = await env.DB.prepare(`
+      SELECT DISTINCT project_year FROM artworks 
+      WHERE project_year IS NOT NULL 
+      ORDER BY project_year DESC
+    `).all();
+    
+    // 獲取所有不重複的年級學期
+    const semesters = await env.DB.prepare(`
+      SELECT DISTINCT project_semester FROM artworks 
+      WHERE project_semester IS NOT NULL 
+      ORDER BY project_semester
+    `).all();
+    
+    return new Response(JSON.stringify({ 
+      years: years.results.map(r => r.project_year),
+      semesters: semesters.results.map(r => r.project_semester)
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Failed to get project info:', error);
+    return new Response(JSON.stringify({ years: [], semesters: [] }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 獲取所有標籤
+async function getTags(env, corsHeaders) {
+  try {
+    const tags = await env.DB.prepare('SELECT * FROM tags ORDER BY name').all();
+    
+    return new Response(JSON.stringify(tags.results), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Failed to get tags:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 提交作者補充資料
+async function submitAuthorProfile(request, env, corsHeaders) {
+  const formData = await request.formData();
+  
+  const authorId = formData.get('author_id');
+  const bio = formData.get('bio');
+  const socialLinks = JSON.parse(formData.get('social_links') || '[]');
+  
+  // 處理頭像上傳
+  let avatarKey = null;
+  let avatarUrl = null;
+  const avatar = formData.get('avatar');
+  
+  if (avatar && avatar instanceof File) {
+    const timestamp = Date.now();
+    avatarKey = `${timestamp}-avatar-${avatar.name}`;
+    
+    await env.R2_BUCKET.put(avatarKey, avatar, {
+      httpMetadata: {
+        contentType: avatar.type,
+      }
+    });
+    
+    avatarUrl = `https://gallery.nmanodept.com/${avatarKey}`;
+  }
+  
+  try {
+    // 插入或更新作者資料
+    const profileResult = await env.DB.prepare(`
+      INSERT INTO author_profiles (author_id, bio, avatar_key, avatar_url, status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `).bind(authorId, bio, avatarKey, avatarUrl).run();
+    
+    const profileId = profileResult.meta.last_row_id;
+    
+    // 處理社交連結
+    for (let i = 0; i < socialLinks.length; i++) {
+      const link = socialLinks[i];
+      if (link && link.trim()) {
+        await env.DB.prepare(`
+          INSERT INTO author_social_links (profile_id, url, display_order)
+          VALUES (?, ?, ?)
+        `).bind(profileId, link, i).run();
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '作者資料已提交，等待審核中！' 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    return new Response(JSON.stringify({ error: '資料庫錯誤：' + error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 獲取作者資訊（包含已審核的補充資料）
+async function getAuthorInfo(authorName, env, corsHeaders) {
+  // 獲取作者基本資訊
+  const author = await env.DB.prepare('SELECT * FROM authors WHERE name = ?')
+    .bind(authorName)
+    .first();
+  
+  if (!author) {
+    return new Response(JSON.stringify({ error: '找不到作者' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // 獲取已審核的作者資料
+  const profile = await env.DB.prepare(`
+    SELECT * FROM author_profiles 
+    WHERE author_id = ? AND status = 'approved'
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `).bind(author.id).first();
+  
+  let socialLinks = [];
+  if (profile) {
+    // 獲取社交連結
+    const links = await env.DB.prepare(`
+      SELECT url FROM author_social_links
+      WHERE profile_id = ?
+      ORDER BY display_order
+    `).bind(profile.id).all();
+    socialLinks = links.results.map(link => link.url);
+  }
+  
+  // 獲取作者的作品
+  const artworks = await env.DB.prepare(`
+    SELECT DISTINCT a.* FROM artworks a
+    JOIN artwork_authors aa ON a.id = aa.artwork_id
+    WHERE aa.author_id = ? AND a.status = 'approved'
+    ORDER BY a.project_year DESC, a.created_at DESC
+  `).bind(author.id).all();
+  
+  // 為每個作品獲取完整資料
+  const artworksWithFullData = await Promise.all(
+    artworks.results.map(async (artwork) => {
+      // 獲取所有作者
+      const authors = await env.DB.prepare(`
+        SELECT au.name FROM authors au
+        JOIN artwork_authors aa ON au.id = aa.author_id
+        WHERE aa.artwork_id = ?
+        ORDER BY aa.display_order
+      `).bind(artwork.id).all();
+      
+      // 獲取標籤
+      const tags = await env.DB.prepare(`
+        SELECT t.name FROM tags t
+        JOIN artwork_tags at ON t.id = at.tag_id
+        WHERE at.artwork_id = ?
+      `).bind(artwork.id).all();
+      
+      return {
+        ...artwork,
+        authors: authors.results.map(a => a.name),
+        tags: tags.results.map(t => t.name)
+      };
+    })
+  );
+  
+  return new Response(JSON.stringify({
+    ...author,
+    bio: profile?.bio || null,
+    avatar_url: profile?.avatar_url || null,
+    social_links: socialLinks,
+    artworks: artworksWithFullData
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 優化的管理員功能：取得待審核作品
+async function getPendingArtworks(request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 1. 獲取待審核作品
+    const artworks = await env.DB.prepare(`
+      SELECT * FROM artworks
+      WHERE status = 'pending' 
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all();
+    
+    if (artworks.results.length === 0) {
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const artworkIds = artworks.results.map(a => a.id);
+    
+    // 2. 批量查詢關聯數據
+    const { authorsMap, categoriesMap, tagsMap, linksMap } = await batchQueryArtworkData(artworkIds, env);
+    const { galleryImagesMap, galleryVideosMap } = await batchQueryGalleryData(artworkIds, env);
+    
+    // 3. 組合數據
+    const artworksWithFullData = artworks.results.map(artwork => ({
+      ...artwork,
+      authors: authorsMap[artwork.id] || [],
+      categories: categoriesMap[artwork.id] || [],
+      tags: tagsMap[artwork.id] || [],
+      social_links: linksMap[artwork.id] || [],
+      gallery_images: galleryImagesMap[artwork.id] || [],
+      gallery_videos: galleryVideosMap[artwork.id] || []
+    }));
+    
+    return new Response(JSON.stringify(artworksWithFullData), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Error in getPendingArtworks:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 優化的管理員功能：取得已審核作品
+// ========== 管理員：獲取已審核作品 ==========
+async function getApprovedArtworks(request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 獲取查詢參數
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
+    const search = url.searchParams.get('search') || '';
+    
+    // 建立查詢條件
+    let query = `
+      SELECT * FROM artworks
+      WHERE status = 'approved'
+    `;
+    
+    let countQuery = `
+      SELECT COUNT(*) as total FROM artworks
+      WHERE status = 'approved'
+    `;
+    
+    const params = [];
+    const countParams = [];
+    
+    // 如果有搜尋條件
+    if (search) {
+      query += ` AND (title LIKE ? OR author LIKE ? OR description LIKE ?)`;
+      countQuery += ` AND (title LIKE ? OR author LIKE ? OR description LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+      countParams.push(searchPattern, searchPattern, searchPattern);
+    }
+    
+    query += ` ORDER BY updated_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+    
+    // 執行查詢
+    const artworks = await env.DB.prepare(query).bind(...params).all();
+    const totalCount = await env.DB.prepare(countQuery).bind(...countParams).first();
+    
+    if (artworks.results.length === 0) {
+      return new Response(JSON.stringify({
+        artworks: [],
+        pagination: {
+          page: page,
+          limit: limit,
+          total: 0,
+          totalPages: 0
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 批量獲取所有作品的關聯資料
+    const artworkIds = artworks.results.map(a => a.id);
+    const artworkIdsPlaceholder = artworkIds.map(() => '?').join(',');
+    
+    // 批量查詢作者
+    const allAuthors = await env.DB.prepare(`
+      SELECT aa.artwork_id, a.id, a.name
+      FROM artwork_authors aa
+      JOIN authors a ON aa.author_id = a.id
+      WHERE aa.artwork_id IN (${artworkIdsPlaceholder})
+      ORDER BY aa.artwork_id, aa.display_order
+    `).bind(...artworkIds).all();
+    
+    // 批量查詢類別
+    const allCategories = await env.DB.prepare(`
+      SELECT ac.artwork_id, c.id, c.name
+      FROM artwork_categories ac
+      JOIN categories c ON ac.category_id = c.id
+      WHERE ac.artwork_id IN (${artworkIdsPlaceholder})
+    `).bind(...artworkIds).all();
+    
+    // 批量查詢標籤
+    const allTags = await env.DB.prepare(`
+      SELECT at.artwork_id, t.id, t.name
+      FROM artwork_tags at
+      JOIN tags t ON at.tag_id = t.id
+      WHERE at.artwork_id IN (${artworkIdsPlaceholder})
+    `).bind(...artworkIds).all();
+    
+    // 批量查詢社交連結
+    const allSocialLinks = await env.DB.prepare(`
+      SELECT artwork_id, url
+      FROM social_links
+      WHERE artwork_id IN (${artworkIdsPlaceholder})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all();
+    
+    // 批量查詢 Gallery 圖片
+    const allGalleryImages = await env.DB.prepare(`
+      SELECT artwork_id, id, image_url
+      FROM gallery_images
+      WHERE artwork_id IN (${artworkIdsPlaceholder})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all();
+    
+    // 批量查詢 Gallery 影片
+    const allGalleryVideos = await env.DB.prepare(`
+      SELECT artwork_id, id, video_url
+      FROM gallery_videos
+      WHERE artwork_id IN (${artworkIdsPlaceholder})
+      ORDER BY artwork_id, display_order
+    `).bind(...artworkIds).all();
+    
+    // 組織資料到 Map
+    const authorsMap = {};
+    const categoriesMap = {};
+    const tagsMap = {};
+    const socialLinksMap = {};
+    const galleryImagesMap = {};
+    const galleryVideosMap = {};
+    
+    // 整理作者資料
+    allAuthors.results.forEach(item => {
+      if (!authorsMap[item.artwork_id]) {
+        authorsMap[item.artwork_id] = [];
+      }
+      authorsMap[item.artwork_id].push({
+        id: item.id,
+        name: item.name
+      });
+    });
+    
+    // 整理類別資料
+    allCategories.results.forEach(item => {
+      if (!categoriesMap[item.artwork_id]) {
+        categoriesMap[item.artwork_id] = [];
+      }
+      categoriesMap[item.artwork_id].push({
+        id: item.id,
+        name: item.name
+      });
+    });
+    
+    // 整理標籤資料
+    allTags.results.forEach(item => {
+      if (!tagsMap[item.artwork_id]) {
+        tagsMap[item.artwork_id] = [];
+      }
+      tagsMap[item.artwork_id].push({
+        id: item.id,
+        name: item.name
+      });
+    });
+    
+    // 整理社交連結
+    allSocialLinks.results.forEach(item => {
+      if (!socialLinksMap[item.artwork_id]) {
+        socialLinksMap[item.artwork_id] = [];
+      }
+      socialLinksMap[item.artwork_id].push(item.url);
+    });
+    
+    // 整理 Gallery 圖片
+    allGalleryImages.results.forEach(item => {
+      if (!galleryImagesMap[item.artwork_id]) {
+        galleryImagesMap[item.artwork_id] = [];
+      }
+      galleryImagesMap[item.artwork_id].push({
+        id: item.id,
+        url: item.image_url
+      });
+    });
+    
+    // 整理 Gallery 影片
+    allGalleryVideos.results.forEach(item => {
+      if (!galleryVideosMap[item.artwork_id]) {
+        galleryVideosMap[item.artwork_id] = [];
+      }
+      galleryVideosMap[item.artwork_id].push({
+        id: item.id,
+        url: item.video_url
+      });
+    });
+    
+    // 組合完整的作品資料
+    const artworksWithFullData = artworks.results.map(artwork => {
+      // 獲取提交者資訊
+      let submittedBy = null;
+      if (artwork.submitted_by) {
+        // 這裡可以額外查詢用戶資訊，但為了效能先省略
+        submittedBy = { id: artwork.submitted_by };
+      }
+      
+      return {
+        ...artwork,
+        authors: authorsMap[artwork.id] || [],
+        categories: categoriesMap[artwork.id] || [],
+        tags: tagsMap[artwork.id] || [],
+        social_links: socialLinksMap[artwork.id] || [],
+        gallery_images: galleryImagesMap[artwork.id] || [],
+        gallery_videos: galleryVideosMap[artwork.id] || [],
+        submitted_by: submittedBy
+      };
+    });
+    
+    // 如果需要，也獲取提交者的用戶資訊
+    const userIds = [...new Set(artworks.results.filter(a => a.submitted_by).map(a => a.submitted_by))];
+    
+    if (userIds.length > 0) {
+      const userIdsPlaceholder = userIds.map(() => '?').join(',');
+      const users = await env.DB.prepare(`
+        SELECT id, username, email FROM users 
+        WHERE id IN (${userIdsPlaceholder})
+      `).bind(...userIds).all();
+      
+      const usersMap = {};
+      users.results.forEach(user => {
+        usersMap[user.id] = user;
+      });
+      
+      // 更新作品的提交者資訊
+      artworksWithFullData.forEach(artwork => {
+        if (artwork.submitted_by && usersMap[artwork.submitted_by.id]) {
+          artwork.submitted_by = usersMap[artwork.submitted_by.id];
+        }
+      });
+    }
+    
+    // 返回結果
+    return new Response(JSON.stringify({
+      artworks: artworksWithFullData,
+      pagination: {
+        page: page,
+        limit: limit,
+        total: totalCount.total,
+        totalPages: Math.ceil(totalCount.total / limit)
+      }
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Get approved artworks error:', error);
+    return new Response(JSON.stringify({ 
+      error: '獲取已審核作品失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 刪除作品（管理員） ==========
+async function deleteArtworkAdmin(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 獲取作品資訊
+    const artwork = await env.DB.prepare(
+      'SELECT * FROM artworks WHERE id = ?'
+    ).bind(id).first();
+    
+    if (!artwork) {
+      return new Response(JSON.stringify({ error: '找不到作品' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 獲取所有相關的圖片
+    const galleryImages = await env.DB.prepare(
+      'SELECT image_key FROM gallery_images WHERE artwork_id = ?'
+    ).bind(id).all();
+    
+    // 從 R2 刪除主圖片
+    if (artwork.main_image_key) {
+      try {
+        await env.R2_BUCKET.delete(artwork.main_image_key);
+      } catch (error) {
+        console.error('Failed to delete main image:', error);
+      }
+    }
+    
+    // 從 R2 刪除 gallery 圖片
+    for (const img of galleryImages.results) {
+      if (img.image_key) {
+        try {
+          await env.R2_BUCKET.delete(img.image_key);
+        } catch (error) {
+          console.error('Failed to delete gallery image:', error);
+        }
+      }
+    }
+    
+    // 刪除資料庫中的相關記錄
+    await env.DB.prepare('DELETE FROM artwork_authors WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM artwork_categories WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM artwork_tags WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM social_links WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM gallery_images WHERE artwork_id = ?').bind(id).run();
+    await env.DB.prepare('DELETE FROM gallery_videos WHERE artwork_id = ?').bind(id).run();
+    
+    // 最後刪除作品本身
+    await env.DB.prepare('DELETE FROM artworks WHERE id = ?').bind(id).run();
+    
+    // 如果作品有提交者，發送通知郵件
+    if (artwork.submitted_by) {
+      const user = await env.DB.prepare(
+        'SELECT email, username FROM users WHERE id = ?'
+      ).bind(artwork.submitted_by).first();
+      
+      if (user) {
+        await sendEmail(
+          user.email,
+          '作品已被刪除 - 新沒系館',
+          `
+            <h2>作品刪除通知</h2>
+            <p>您好 ${user.username}，</p>
+            <p>您的作品「${artwork.title}」已被管理員刪除。</p>
+            <p>如有疑問，請聯繫管理員。</p>
+          `,
+          env
+        );
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '作品已刪除'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Admin delete artwork error:', error);
+    return new Response(JSON.stringify({ 
+      error: '刪除失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 管理員：創建類別
+async function createCategory(request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const { name, description } = await request.json();
+  
+  try {
+    await env.DB.prepare('INSERT INTO categories (name, description) VALUES (?, ?)')
+      .bind(name, description || null)
+      .run();
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '類別已創建' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    if (error.message.includes('UNIQUE')) {
+      return new Response(JSON.stringify({ error: '類別名稱已存在' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    throw error;
+  }
+}
+
+// 管理員：刪除類別
+async function deleteCategory(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  await env.DB.prepare('DELETE FROM categories WHERE id = ?')
+    .bind(id)
+    .run();
+  
+  return new Response(JSON.stringify({ 
+    success: true, 
+    message: '類別已刪除' 
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 管理員：獲取待審核作者資料
+async function getPendingProfiles(request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const profiles = await env.DB.prepare(`
+    SELECT p.*, a.name as author_name
+    FROM author_profiles p
+    JOIN authors a ON p.author_id = a.id
+    WHERE p.status = 'pending'
+    ORDER BY p.created_at DESC
+  `).all();
+  
+  // 獲取每個 profile 的社交連結
+  const profilesWithLinks = await Promise.all(
+    profiles.results.map(async (profile) => {
+      const links = await env.DB.prepare(`
+        SELECT url FROM author_social_links
+        WHERE profile_id = ?
+        ORDER BY display_order
+      `).bind(profile.id).all();
+      
+      return {
+        ...profile,
+        social_links: links.results.map(link => link.url)
+      };
+    })
+  );
+  
+  return new Response(JSON.stringify(profilesWithLinks), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 管理員：通過作者資料
+async function approveProfile(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  await env.DB.prepare(`
+    UPDATE author_profiles 
+    SET status = 'approved', updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `).bind(id).run();
+  
+  return new Response(JSON.stringify({ 
+    success: true, 
+    message: '作者資料已通過審核' 
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 管理員：駁回作者資料
+async function rejectProfile(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  await env.DB.prepare(`
+    UPDATE author_profiles 
+    SET status = 'rejected', updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `).bind(id).run();
+  
+  return new Response(JSON.stringify({ 
+    success: true, 
+    message: '作者資料已駁回' 
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// 管理員功能：通過作品
+async function approveArtwork(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const result = await env.DB.prepare(`
+      UPDATE artworks 
+      SET status = 'approved', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '作品已通過審核',
+      updated: result.meta.changes 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ 
+      error: '審核失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 管理員功能：駁回作品
+async function rejectArtwork(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const result = await env.DB.prepare(`
+      UPDATE artworks 
+      SET status = 'rejected', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '作品已駁回',
+      updated: result.meta.changes 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ 
+      error: '駁回失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+
+// 管理員功能：將作品改回待審核
+async function revertToPending(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const result = await env.DB.prepare(`
+      UPDATE artworks 
+      SET status = 'pending', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: '作品已改回待審核狀態',
+      updated: result.meta.changes 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ 
+      error: '操作失敗', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 獲取作者統計資料
+async function getAuthorsWithCounts(env, corsHeaders) {
+  try {
+    const authors = await env.DB.prepare(`
+      SELECT 
+        a.id,
+        a.name,
+        COUNT(DISTINCT aa.artwork_id) as artwork_count,
+        CASE WHEN ap.id IS NOT NULL THEN 1 ELSE 0 END as has_profile
+      FROM authors a
+      LEFT JOIN artwork_authors aa ON a.id = aa.author_id
+      LEFT JOIN artworks aw ON aa.artwork_id = aw.id AND aw.status = 'approved'
+      LEFT JOIN author_profiles ap ON a.id = ap.author_id AND ap.status = 'approved'
+      GROUP BY a.id, a.name
+      ORDER BY a.name
+    `).all();
+    
+    return new Response(JSON.stringify(authors.results), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Failed to get authors with counts:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 增加瀏覽次數
+async function incrementViewCount(id, env, corsHeaders) {
+  try {
+    await env.DB.prepare(`
+      UPDATE artworks 
+      SET view_count = view_count + 1 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Failed to increment view count:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// 在所有管理員功能中，改為使用環境變數
+// ========== 修正 getPendingUsers 函數（需要完整實現）==========
+async function getPendingUsers(request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) { // 注意：改為變數而非字串
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const users = await env.DB.prepare(`
+      SELECT id, username, email, author_id, created_at 
+      FROM users 
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+    `).all();
+    
+    // 獲取關聯的作者名稱
+    const usersWithAuthor = await Promise.all(
+      users.results.map(async (user) => {
+        let authorName = null;
+        if (user.author_id) {
+          const author = await env.DB.prepare(
+            'SELECT name FROM authors WHERE id = ?'
+          ).bind(user.author_id).first();
+          if (author) {
+            authorName = author.name;
+          }
+        }
+        return { ...user, authorName };
+      })
+    );
+    
+    return new Response(JSON.stringify(usersWithAuthor), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 updateProfile 函數 ==========
+async function updateProfile(request, env, corsHeaders) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = await verifyJWT(token, env);
+  
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '無效的 token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const { email, currentPassword, newPassword } = await request.json();
+    
+    // 如果要更改密碼，需要驗證當前密碼
+    if (newPassword) {
+      if (!currentPassword) {
+        return new Response(JSON.stringify({ error: '請提供當前密碼' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      const user = await env.DB.prepare(
+        'SELECT password_hash FROM users WHERE id = ?'
+      ).bind(payload.userId).first();
+      
+      const isValid = await verifyPassword(currentPassword, user.password_hash);
+      if (!isValid) {
+        return new Response(JSON.stringify({ error: '當前密碼錯誤' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // 更新密碼
+      const newPasswordHash = await hashPassword(newPassword);
+      await env.DB.prepare(
+        'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(newPasswordHash, payload.userId).run();
+    }
+    
+    // 更新 email
+    if (email) {
+      await env.DB.prepare(
+        'UPDATE users SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(email, payload.userId).run();
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '個人資料已更新' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return new Response(JSON.stringify({ error: '更新失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 handleForgotPassword 函數 ==========
+async function handleForgotPassword(request, env, corsHeaders) {
+  try {
+    const { authorName } = await request.json();
+    
+    // 查找用戶
+    const user = await env.DB.prepare(`
+      SELECT u.id, u.email, u.username 
+      FROM users u
+      JOIN authors a ON u.author_id = a.id
+      WHERE a.name = ?
+    `).bind(authorName).first();
+    
+    if (!user) {
+      // 為了安全，即使找不到用戶也返回成功
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: '如果該作者存在，重設密碼連結已發送到註冊的 Email' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 生成重設 token
+    const resetToken = await createJWT({
+      userId: user.id,
+      purpose: 'reset-password',
+      exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1小時過期
+    }, env);
+    
+    // 儲存 token 到資料庫
+    await env.DB.prepare(`
+      INSERT INTO password_resets (user_id, token, created_at, expires_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
+    `).bind(user.id, resetToken).run();
+    
+    // 發送重設郵件
+    const resetUrl = `https://nmanodept.com/reset-password?token=${resetToken}`;
+    await sendEmail(
+      user.email,
+      '重設密碼 - 新沒系館',
+      `
+        <h2>重設密碼</h2>
+        <p>您好 ${user.username}，</p>
+        <p>我們收到了您的密碼重設請求。</p>
+        <p>請點擊下方連結重設密碼（連結將在1小時後失效）：</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>如果您沒有請求重設密碼，請忽略此郵件。</p>
+      `,
+      env
+    );
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '如果該作者存在，重設密碼連結已發送到註冊的 Email' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return new Response(JSON.stringify({ error: '處理失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 handleResetPassword 函數 ==========
+async function handleResetPassword(request, env, corsHeaders) {
+  try {
+    const { token, password } = await request.json();
+    
+    // 驗證 token
+    const payload = await verifyJWT(token, env);
+    if (!payload || payload.purpose !== 'reset-password') {
+      return new Response(JSON.stringify({ error: '無效或已過期的重設連結' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 檢查 token 是否已使用
+    const resetRecord = await env.DB.prepare(
+      'SELECT * FROM password_resets WHERE token = ? AND used = 0'
+    ).bind(token).first();
+    
+    if (!resetRecord) {
+      return new Response(JSON.stringify({ error: '無效或已使用的重設連結' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // 更新密碼
+    const passwordHash = await hashPassword(password);
+    await env.DB.prepare(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(passwordHash, payload.userId).run();
+    
+    // 標記 token 為已使用
+    await env.DB.prepare(
+      'UPDATE password_resets SET used = 1 WHERE token = ?'
+    ).bind(token).run();
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '密碼已成功重設' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return new Response(JSON.stringify({ error: '重設失敗' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 getPublicArtworks 函數 ==========
+async function getPublicArtworks(env, corsHeaders) {
+  try {
+    const artworks = await env.DB.prepare(`
+      SELECT * FROM artworks 
+      WHERE status = 'approved' 
+      ORDER BY created_at DESC
+      LIMIT 100
+    `).all();
+    
+    if (artworks.results.length === 0) {
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const artworkIds = artworks.results.map(a => a.id);
+    
+    // 批量查詢關聯數據
+    const { authorsMap, categoriesMap, tagsMap, linksMap } = await batchQueryArtworkData(artworkIds, env);
+    
+    // 組合數據
+    const artworksWithFullData = artworks.results.map(artwork => ({
+      ...artwork,
+      authors: authorsMap[artwork.id] || [],
+      categories: categoriesMap[artwork.id] || [],
+      tags: tagsMap[artwork.id] || [],
+      social_links: linksMap[artwork.id] || []
+    }));
+    
+    return new Response(JSON.stringify(artworksWithFullData), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    console.error('Error in getPublicArtworks:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 approveUser 函數 ==========
+async function approveUser(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) { // 注意：改為變數而非字串
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    // 更新用戶狀態
+    await env.DB.prepare(`
+      UPDATE users 
+      SET status = 'approved', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    // 獲取用戶資訊以發送郵件
+    const user = await env.DB.prepare(
+      'SELECT email, username FROM users WHERE id = ?'
+    ).bind(id).first();
+    
+    // 發送審核通過郵件
+    await sendEmail(
+      user.email,
+      '帳號審核通過 - 新沒系館',
+      `
+        <h2>恭喜！您的帳號已審核通過</h2>
+        <p>您好 ${user.username}，</p>
+        <p>您的新沒系館帳號已經審核通過，現在可以登入並開始投稿作品了。</p>
+        <p><a href="https://nmanodept.com/login">立即登入</a></p>
+        <p>期待看到您的精彩作品！</p>
+      `,
+      env
+    );
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '用戶已通過審核' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 rejectUser 函數 ==========
+async function rejectUser(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) { // 注意：改為變數而非字串
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const { reason } = await request.json();
+    
+    // 獲取用戶資訊
+    const user = await env.DB.prepare(
+      'SELECT email, username FROM users WHERE id = ?'
+    ).bind(id).first();
+    
+    // 刪除用戶
+    await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+    
+    // 發送拒絕郵件
+    if (reason) {
+      await sendEmail(
+        user.email,
+        '帳號審核結果 - 新沒系館',
+        `
+          <h2>帳號審核未通過</h2>
+          <p>您好 ${user.username}，</p>
+          <p>很抱歉，您的帳號審核未通過。</p>
+          <p>原因：${reason}</p>
+          <p>如有疑問，請聯繫管理員。</p>
+        `,
+        env
+      );
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '用戶已拒絕' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 缺失的 revertArtwork 函數 ==========
+async function revertArtwork(id, request, env, corsHeaders) {
+  const adminPw = request.headers.get('X-Admin-Password');
+  if (adminPw !== env.ADMIN_PASSWORD) { // 注意：改為變數而非字串
+    return new Response(JSON.stringify({ error: '未授權' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  
+  try {
+    const { reason } = await request.json();
+    
+    // 更新作品狀態
+    await env.DB.prepare(`
+      UPDATE artworks 
+      SET status = 'draft', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(id).run();
+    
+    // 獲取作品提交者資訊
+    const artwork = await env.DB.prepare(`
+      SELECT a.title, u.email, u.username 
+      FROM artworks a
+      JOIN users u ON a.submitted_by = u.id
+      WHERE a.id = ?
+    `).bind(id).first();
+    
+    if (artwork) {
+      // 發送通知郵件
+      await sendEmail(
+        artwork.email,
+        '作品需要修改 - 新沒系館',
+        `
+          <h2>您的作品需要修改</h2>
+          <p>您好 ${artwork.username}，</p>
+          <p>您的作品「${artwork.title}」已被退回草稿狀態。</p>
+          <p>原因：${reason}</p>
+          <p>請登入修改後重新提交。</p>
+        `,
+        env
+      );
+    }
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: '作品已退回草稿' 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}

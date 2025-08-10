@@ -1,0 +1,310 @@
+/* /src/components/forms/SubmitForm/SubmitForm.css */
+/* 極簡表單樣式 - 繼承自 form-styles.css */
+
+/* 引入共用表單樣式 */
+@import '../../../styles/form-styles.css';
+
+/* 表單容器 */
+.submit-form-container {
+  position: relative;
+}
+
+/* 表單特定樣式 */
+.submit-form {
+  max-width: 100%;
+}
+
+/* 相對定位容器 */
+.relative {
+  position: relative;
+}
+
+/* 提示訊息樣式優化 */
+.alert {
+  margin-bottom: var(--spacing-xl);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 圖片預覽 */
+.image-preview-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-preview-full {
+  max-height: 400px;
+  max-width: 100%;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+/* 字數計數 */
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: var(--spacing-xs);
+}
+
+.char-count {
+  color: var(--color-gray-500);
+  font-size: var(--font-size-sm);
+  margin-left: auto;
+}
+
+/* 表單網格 */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+/* 類別選擇器樣式 */
+.selected-categories {
+  margin-bottom: var(--spacing-md);
+}
+
+.selected-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin-bottom: var(--spacing-xs);
+}
+
+.category-selector {
+  border: 1px solid var(--color-gray-700);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.category-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.category-option {
+  position: relative;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: transparent;
+  border: 2px solid var(--color-gray-700);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.category-option:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--color-gray-600);
+}
+
+.category-option.selected {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-gray-500);
+}
+
+.category-name {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-100);
+  font-weight: 500;
+}
+
+.category-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  line-height: 1.4;
+}
+
+.check-icon {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  color: var(--color-gray-400);
+}
+
+/* 類別標籤樣式 */
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-gray-600);
+  border-radius: 24px;
+  color: var(--color-gray-200);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.category-tag.selected {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-gray-500);
+}
+
+.category-tag .tag-remove {
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  font-size: 18px;
+  line-height: 1;
+  transition: var(--transition-fast);
+}
+
+.category-tag .tag-remove:hover {
+  color: rgba(239, 68, 68, 0.8);
+}
+
+/* 建議項目的描述文字 */
+.suggestion-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  font-weight: 400;
+}
+
+/* Gallery 預覽 */
+.gallery-previews {
+  margin-top: var(--spacing-md);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+}
+
+.gallery-preview-item {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+}
+
+.gallery-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 動畫效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.submit-header {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.submit-form-wrapper {
+  animation: fadeIn 0.6s ease-out 0.1s both;
+}
+
+.submit-notes {
+  animation: fadeIn 0.6s ease-out 0.2s both;
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  
+  .gallery-previews {
+    grid-template-columns: 1fr;
+  }
+  
+  .image-preview-full {
+    max-height: 250px;
+  }
+  
+  .category-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .category-option {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+/* 免責聲明同意欄位樣式 */
+.checkbox-group {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.checkbox-group input[type="checkbox"].error {
+  border-color: var(--color-error);
+}
+
+.checkbox-label {
+  margin-bottom: 0;
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-text);
+  flex: 1;
+}
+
+.disclaimer-list {
+  margin: var(--spacing-md) 0 0 var(--spacing-lg);
+  padding-left: var(--spacing-md);
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
+}
+
+.disclaimer-list li {
+  margin-bottom: var(--spacing-xs);
+  line-height: 1.4;
+}
+
+.disclaimer-list li:last-child {
+  margin-bottom: 0;
+}

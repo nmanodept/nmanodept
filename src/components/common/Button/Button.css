@@ -1,0 +1,121 @@
+/* src/components/common/Button/Button.css */
+/* 極簡按鈕樣式 - 黑色主題 */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+/* 尺寸變體 */
+.btn-sm {
+  font-size: 0.875rem;
+  padding: 6px 16px;
+  min-height: 32px;
+}
+
+.btn-md {
+  font-size: 1rem;
+  padding: 10px 24px;
+  min-height: 40px;
+}
+
+.btn-lg {
+  font-size: 1rem;
+  padding: 14px 32px;
+  min-height: 48px;
+}
+
+/* 樣式變體 */
+.btn-primary {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.87);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 全寬按鈕 */
+.btn-full {
+  width: 100%;
+}
+
+/* 禁用狀態 */
+.btn:disabled,
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 載入狀態 */
+.btn-loading {
+  color: transparent;
+}
+
+.btn-spinner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+
+.btn-primary .btn-spinner {
+  border-top-color: #000000;
+}
+
+.btn-secondary .btn-spinner,
+.btn-ghost .btn-spinner {
+  border-top-color: rgba(255, 255, 255, 0.87);
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+  .btn-lg {
+    padding: 12px 24px;
+  }
+}
