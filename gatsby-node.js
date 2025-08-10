@@ -36,3 +36,14 @@ exports.createPages = async ({ graphql, actions }) => {
     console.error('Error creating pages:', error);
   }
 };
+
+// 加入 onCreatePage 來處理 my-artworks 頁面
+exports.onCreatePage = async ({ page, actions }) => {
+  const { createPage } = actions
+
+  // 確保 my-artworks 頁面正確生成
+  if (page.path.match(/^\/my-artworks/)) {
+    page.matchPath = "/my-artworks/*"
+    createPage(page)
+  }
+}

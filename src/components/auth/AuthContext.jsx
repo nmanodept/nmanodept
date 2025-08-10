@@ -125,10 +125,15 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify(profileData)
       })
-
+  
       if (response.ok) {
         const data = await response.json()
-        setUser(prev => ({ ...prev, ...data }))
+        // 更新本地用戶資料
+        setUser(prev => ({
+          ...prev,
+          ...profileData,
+          ...data
+        }))
         return { success: true }
       } else {
         const error = await response.json()

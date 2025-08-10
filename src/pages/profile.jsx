@@ -1,5 +1,5 @@
-// ========== /src/pages/profile.jsx ==========
-import React, { useState } from 'react'
+// /src/pages/profile.jsx
+import React, { useState, useRef } from 'react'
 import { Link } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
@@ -12,10 +12,16 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     email: user?.email || '',
+    authorName: user?.authorName || '',
+    bio: user?.bio || '',
+    avatarUrl: user?.avatarUrl || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatarUrl || '')
+  const fileInputRef = useRef(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,6 +31,23 @@ const ProfilePage = () => {
       ...formData,
       [e.target.name]: e.target.value
     })
+  }
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('圖片大小不能超過 5MB')
+        return
+      }
+      
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setAvatarPreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -51,8 +74,35 @@ const ProfilePage = () => {
     setIsSubmitting(true)
 
     try {
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
+      const token = localStorage.getItem('authToken')
+      
+      // 如果有新頭像，先上傳
+      let newAvatarUrl = formData.avatarUrl
+      if (avatarFile) {
+        const uploadFormData = new FormData()
+        uploadFormData.append('avatar', avatarFile)
+        
+        const uploadResponse = await fetch(`${apiUrl}/auth/upload-avatar`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: uploadFormData
+        })
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json()
+          newAvatarUrl = uploadData.avatarUrl
+        }
+      }
+      
+      // 更新個人資料
       const updateData = {
-        email: formData.email
+        email: formData.email,
+        authorName: formData.authorName,
+        bio: formData.bio,
+        avatarUrl: newAvatarUrl
       }
       
       if (formData.newPassword) {
@@ -125,24 +175,72 @@ const ProfilePage = () => {
               )}
 
               {!isEditing ? (
-                <div className="profile-info">
-                  <div className="info-row">
-                    <span className="label">用戶名稱：</span>
-                    <span className="value">{user?.username}</span>
+                <div className="profile-display">
+                  <div className="profile-avatar-section">
+                    <div className="avatar-container">
+                      {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.username} className="avatar-image" />
+                      ) : (
+                        <div className="avatar-placeholder">
+                          {user?.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="info-row">
-                    <span className="label">Email：</span>
-                    <span className="value">{user?.email}</span>
-                  </div>
-                  {user?.authorName && (
+                  
+                  <div className="profile-info">
+                    <div className="info-row">
+                      <span className="label">用戶名稱：</span>
+                      <span className="value">{user?.username}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Email：</span>
+                      <span className="value">{user?.email}</span>
+                    </div>
                     <div className="info-row">
                       <span className="label">關聯作者：</span>
-                      <span className="value">{user.authorName}</span>
+                      <span className="value">{user?.authorName || '未設定'}</span>
                     </div>
-                  )}
+                    <div className="info-row bio-row">
+                      <span className="label">自我介紹：</span>
+                      <p className="value bio-text">{user?.bio || '尚未填寫自我介紹'}</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="profile-form">
+                  <div className="avatar-edit-section">
+                    <label>頭像</label>
+                    <div className="avatar-edit-container">
+                      <div className="avatar-preview">
+                        {avatarPreview ? (
+                          <img src={avatarPreview} alt="頭像預覽" />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            {user?.username?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="avatar-controls">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="btn btn-outline btn-sm"
+                        >
+                          選擇圖片
+                        </button>
+                        <span className="hint">最大 5MB，建議 200x200px</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <label htmlFor="email">Email</label>
                     <input
@@ -153,6 +251,32 @@ const ProfilePage = () => {
                       onChange={handleChange}
                       required
                     />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="authorName">關聯作者名稱（本名）</label>
+                    <input
+                      id="authorName"
+                      type="text"
+                      name="authorName"
+                      value={formData.authorName}
+                      onChange={handleChange}
+                      placeholder="請輸入您的本名"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="bio">自我介紹</label>
+                    <textarea
+                      id="bio"
+                      name="bio"
+                      value={formData.bio}
+                      onChange={handleChange}
+                      rows="4"
+                      placeholder="介紹一下自己吧..."
+                      maxLength="500"
+                    />
+                    <span className="char-count">{formData.bio.length}/500</span>
                   </div>
 
                   <div className="form-section">
@@ -211,10 +335,15 @@ const ProfilePage = () => {
                         setError('')
                         setFormData({
                           email: user?.email || '',
+                          authorName: user?.authorName || '',
+                          bio: user?.bio || '',
+                          avatarUrl: user?.avatarUrl || '',
                           currentPassword: '',
                           newPassword: '',
                           confirmPassword: ''
                         })
+                        setAvatarPreview(user?.avatarUrl || '')
+                        setAvatarFile(null)
                       }}
                     >
                       取消

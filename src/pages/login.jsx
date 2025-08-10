@@ -46,7 +46,7 @@ const LoginPage = ({ location }) => {
       const result = await login(formData.username, formData.password)
       
       if (result.success) {
-        navigate(from)
+        navigate('/profile')
       } else {
         setError(result.error || '登入失敗，請檢查用戶名稱和密碼')
       }
