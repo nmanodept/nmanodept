@@ -14,6 +14,7 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: '',
     authorName: '',
+    existingAuthorId: '',
     securityAnswer: ''
   })
   const [availableAuthors, setAvailableAuthors] = useState([])
@@ -77,7 +78,8 @@ const RegisterPage = () => {
         username: formData.username,
         email: formData.email,
         password: formData.password,
-        authorName: formData.authorName || null
+        authorName: showAuthorSelect ? null : formData.authorName, // 新作者名稱
+        existingAuthorId: showAuthorSelect ? formData.existingAuthorId : null // 現有作者ID
       })
       
       if (result.success) {
@@ -196,19 +198,32 @@ const RegisterPage = () => {
                 </label>
               </div>
               
-              {showAuthorSelect && (
+              {showAuthorSelect ? (
                 <select
-                  name="authorName"
-                  value={formData.authorName}
+                  name="existingAuthorId"
+                  value={formData.existingAuthorId}
                   onChange={handleChange}
+                  required
                 >
                   <option value="">選擇您的作者名稱</option>
                   {availableAuthors.map(author => (
-                    <option key={author.id} value={author.name}>
+                    <option key={author.id} value={author.id}>
                       {author.name}
                     </option>
                   ))}
                 </select>
+              ) : (
+                <div>
+                  <label htmlFor="authorName">作者名稱（可選）</label>
+                  <input
+                    id="authorName"
+                    type="text"
+                    name="authorName"
+                    value={formData.authorName}
+                    onChange={handleChange}
+                    placeholder="留空將使用用戶名稱"
+                  />
+                </div>
               )}
             </div>
 

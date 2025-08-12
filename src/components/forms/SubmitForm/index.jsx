@@ -39,6 +39,9 @@ const SubmitForm = () => {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   const description = watch('description', '');
+  
+  // 監聽所有表單數據變化以便自動保存
+  const formData = watch();
 
   useEffect(() => {
     fetchAuthors();
@@ -46,6 +49,55 @@ const SubmitForm = () => {
     fetchTags();
     fetchProjectInfo();
   }, []);
+
+  // 從 localStorage 讀取草稿
+  useEffect(() => {
+    const draft = localStorage.getItem('artwork_draft');
+    if (draft) {
+      try {
+        const draftData = JSON.parse(draft);
+        // 詢問是否要恢復草稿
+        if (window.confirm('發現未完成的草稿，是否要恢復？')) {
+          // 恢復可序列化的表單數據
+          Object.keys(draftData).forEach(key => {
+            if (key !== 'image' && key !== 'gallery_images') {
+              setValue(key, draftData[key]);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('讀取草稿失敗:', error);
+        localStorage.removeItem('artwork_draft');
+      }
+    }
+  }, [setValue]);
+
+  // 自動保存草稿（每30秒）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // 創建可序列化的數據副本（排除文件對象）
+      const draftData = {
+        title: formData.title,
+        authors: formData.authors,
+        video_url: formData.video_url,
+        tags: formData.tags,
+        categories: formData.categories,
+        description: formData.description,
+        project_year: formData.project_year,
+        project_semester: formData.project_semester,
+        social_links: formData.social_links,
+        gallery_video_urls: formData.gallery_video_urls,
+        disclaimer_accepted: formData.disclaimer_accepted
+      };
+      
+      // 只有當表單有內容時才保存草稿
+      if (draftData.title || draftData.description || (draftData.authors && draftData.authors.length > 0)) {
+        localStorage.setItem('artwork_draft', JSON.stringify(draftData));
+      }
+    }, 30000); // 30秒
+    
+    return () => clearInterval(interval);
+  }, [formData]);
 
   // 當用戶登入後，自動設定作者為當前用戶的 authorName
   useEffect(() => {
@@ -308,6 +360,8 @@ const SubmitForm = () => {
 
       if (response.ok) {
         setSubmitStatus('success');
+        // 提交成功後清除草稿
+        localStorage.removeItem('artwork_draft');
         reset();
         setPreviewImage(null);
         setGalleryPreviews([]);
