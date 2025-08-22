@@ -88,29 +88,48 @@ const MyArtworksPage = () => {
 
   const handleAcceptDisclaimer = async (id) => {
     if (!window.confirm('確認接受免責聲明並重新發布此作品？')) return
-
+  
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       const token = localStorage.getItem('authToken')
       
+      // 檢查 token 是否存在
+      if (!token) {
+        alert('請重新登入')
+        navigate('/login')
+        return
+      }
+      
+      console.log('Sending request with token:', token.substring(0, 20) + '...') // 調試用
+      
       const response = await fetch(`${apiUrl}/artwork/${id}/accept-disclaimer`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
-
+  
       if (response.ok) {
         alert('作品已重新發布')
-        fetchMyArtworks()
+        fetchMyArtworks() // 重新載入作品列表
       } else {
-        alert('操作失敗，請稍後再試')
+        const error = await response.json()
+        console.error('Error response:', error)
+        alert(error.error || '操作失敗，請稍後再試')
+        
+        // 如果是認證問題，重新登入
+        if (response.status === 401) {
+          localStorage.removeItem('authToken')
+          navigate('/login')
+        }
       }
     } catch (error) {
+      console.error('Accept disclaimer error:', error)
       alert('操作失敗，請稍後再試')
     }
   }
-
+  
   const renderArtworkCard = (artwork, showActions = true) => {
     const imageUrl = artwork.main_image_url || '/images/placeholder.jpg'
     const authorNames = artwork.authors?.join(', ') || artwork.author || '未知作者'
