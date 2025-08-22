@@ -341,7 +341,7 @@ const ArtworkTemplate = ({ pageContext }) => {
                         to={`/search?tags=${encodeURIComponent(tag)}`}
                         className="tag-link"
                       >
-                        {tag}
+                        {typeof tag === 'object' ? (tag.name || tag.toString()) : tag}
                       </Link>
                     ))}
                   </div>
@@ -356,15 +356,15 @@ const ArtworkTemplate = ({ pageContext }) => {
                     {artwork.authors && artwork.authors.length > 0 ? (
                       artwork.authors.map((author, index) => (
                         <span key={index}>
-                          <Link to={`/author/${encodeURIComponent(author)}`} className="author-link">
-                            {author}
+                          <Link to={`/author/${encodeURIComponent(typeof author === 'object' ? (author.name || author.toString()) : author)}`} className="author-link">
+                            {typeof author === 'object' ? (author.name || author.toString()) : author}
                           </Link>
                           {index < artwork.authors.length - 1 && '、'}
                         </span>
                       ))
                     ) : (
-                      <Link to={`/author/${encodeURIComponent(artwork.author)}`} className="author-link">
-                        {artwork.author}
+                      <Link to={`/author/${encodeURIComponent(typeof artwork.author === 'object' ? (artwork.author.name || artwork.author.toString()) : artwork.author)}`} className="author-link">
+                        {typeof artwork.author === 'object' ? (artwork.author.name || artwork.author.toString()) : artwork.author}
                       </Link>
                     )}
                   </span>
@@ -379,10 +379,10 @@ const ArtworkTemplate = ({ pageContext }) => {
                         artwork.categories.map((category, index) => (
                           <span key={index}>
                             <Link 
-                              to={`/search?categories=${category.id}`} 
+                              to={`/search?categories=${typeof category === 'object' ? category.id : category}`} 
                               className="category-link"
                             >
-                              {category.name}
+                              {typeof category === 'object' ? (category.name || category) : category}
                             </Link>
                             {index < artwork.categories.length - 1 && '、'}
                           </span>
