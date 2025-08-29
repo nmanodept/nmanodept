@@ -1,276 +1,262 @@
-import React, { useState, useEffect, useCallback } from 'react'
+// /src/templates/author.jsx
+import React, { useState, useEffect } from 'react'
 import { Link } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
+import Loading from '../components/common/Loading'
 import './author.css'
 
 const AuthorTemplate = ({ pageContext }) => {
-  const { author } = pageContext
-  const [authorInfo, setAuthorInfo] = useState(null)
+  const { author: authorName } = pageContext
+  const [author, setAuthor] = useState(null)
   const [artworks, setArtworks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  const fetchAuthorData = useCallback(async () => {
+  const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState('grid')
+  
+  useEffect(() => {
+    fetchAuthorData()
+  }, [authorName])
+  
+  const fetchAuthorData = async () => {
+    setLoading(true)
     try {
-      const response = await fetch(`${process.env.GATSBY_API_URL}/author/${encodeURIComponent(author)}`)
-      if (!response.ok) throw new Error('無法載入作者資料')
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       
-      const data = await response.json()
-      setAuthorInfo(data)
+      // 獲取作者資訊
+      const authorsResponse = await fetch(`${apiUrl}/authors`)
+      if (authorsResponse.ok) {
+        const authorsData = await authorsResponse.json()
+        const authorInfo = authorsData.find(a => a.name === authorName)
+        setAuthor(authorInfo)
+      }
       
-      const artworksWithDetails = await Promise.all(
-        data.artworks.map(async (artwork) => ({
-          ...artwork,
-          tags: typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : artwork.tags || [],
-          authors: typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : artwork.authors || []
-        }))
-      )
-      
-      // 按照學年度（現在是創作年份）排序
-      artworksWithDetails.sort((a, b) => {
-        const yearA = a.project_years?.[0] || a.project_year || 0
-        const yearB = b.project_years?.[0] || b.project_year || 0
-        return yearB - yearA // 新到舊
-      })
-      setArtworks(artworksWithDetails)
-    } catch (err) {
-      setError(err.message)
+      // 獲取所有作品
+      const artworksResponse = await fetch(`${apiUrl}/artworks`)
+      if (artworksResponse.ok) {
+        const allArtworks = await artworksResponse.json()
+        // 篩選該作者的作品
+        const authorArtworks = allArtworks.filter(artwork => 
+          artwork.authors && artwork.authors.includes(authorName)
+        )
+        setArtworks(authorArtworks)
+      }
+    } catch (error) {
+      console.error('Failed to fetch author data:', error)
+      setError('載入失敗，請稍後再試')
     } finally {
       setLoading(false)
     }
-  }, [author])
-
-  useEffect(() => {
-    fetchAuthorData()
-  }, [fetchAuthorData])
-
-  // 社交平台圖標組件
-  const SocialIcon = ({ url }) => {
-    const urlLower = url.toLowerCase()
-    
-    if (urlLower.includes('instagram.com')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="2" y="2" width="16" height="16" rx="5" stroke="currentColor" strokeWidth="1.5"/>
-          <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
-          <circle cx="14.5" cy="5.5" r="1" fill="currentColor"/>
-        </svg>
-      )
-    }
-    
-    if (urlLower.includes('github.com')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M10 2C5.58 2 2 5.58 2 10c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0018 10c0-4.42-3.58-8-8-8z" fill="currentColor"/>
-        </svg>
-      )
-    }
-    
-    if (urlLower.includes('behance.net')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M7.5 7.5H3v5h4c1.38 0 2.5-1.12 2.5-2.5S8.88 7.5 7.5 7.5zM7 11H4.5V9H7c.55 0 1 .45 1 1s-.45 1-1 1z" fill="currentColor"/>
-          <path d="M6.5 13H3v4h3.5c1.38 0 2.5-1.12 2.5-2.5S7.88 13 6.5 13zM6 15.5H4.5V14.5H6c.55 0 1 .45 1 1s-.45 1-1 1z" fill="currentColor"/>
-          <path d="M11.5 7.5h5v1h-5zM14 9c-1.65 0-3 1.35-3 3s1.35 3 3 3c1.11 0 2.08-.61 2.6-1.5h-1.71c-.21.3-.59.5-1 .5-.83 0-1.5-.67-1.5-1.5h4.71c.06-.24.09-.49.09-.75 0-1.65-1.35-3-3-3zm-1.5 2c.17-.66.76-1.15 1.5-1.15s1.33.49 1.5 1.15h-3z" fill="currentColor"/>
-        </svg>
-      )
-    }
-    
-    if (urlLower.includes('linkedin.com')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-          <path d="M6 8v6M6 6v.01M10 14v-4c0-1 .5-2 2-2s2 1 2 2v4M10 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )
-    }
-    
-    if (urlLower.includes('@') && !urlLower.includes('http')) {
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-          <path d="M3 7l7 4 7-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      )
-    }
-    
-    // 默認網站圖標
-    return (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M3 10h14M10 3c-1.5 2-2 4.5-2 7s.5 5 2 7M10 3c1.5 2 2 4.5 2 7s-.5 5-2 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      </svg>
-    )
   }
-
-  const groupByYear = (artworks) => {
-    const grouped = {}
-    artworks.forEach(artwork => {
-      // 使用學年度作為分組依據
-      const year = artwork.project_years?.[0] || artwork.project_year || '未知'
-      if (!grouped[year]) {
-        grouped[year] = []
-      }
-      grouped[year].push(artwork)
-    })
-    return grouped
-  }
-
+  
   if (loading) {
     return (
       <Layout>
-        <div className="author-loading">
-          <div className="loading-spinner"></div>
-          <p>載入中...</p>
-        </div>
+        <Seo title={`${authorName} - 創作者`} />
+        <Loading />
       </Layout>
     )
   }
-
-  if (error || !authorInfo) {
+  
+  if (!author && artworks.length === 0) {
     return (
       <Layout>
-        <div className="author-error">
-          <p>{error || '找不到作者'}</p>
-          <Link to="/search" className="error-link">瀏覽所有作品</Link>
+        <Seo title="找不到創作者" />
+        <div className="error-container">
+          <h1>找不到創作者</h1>
+          <p>無法找到名為 "{authorName}" 的創作者</p>
+          <Link to="/authors" className="btn btn-primary">
+            返回創作者列表
+          </Link>
         </div>
       </Layout>
     )
   }
-
-  const groupedArtworks = groupByYear(artworks)
-  const years = Object.keys(groupedArtworks).sort((a, b) => b - a) // 新到舊
-
+  
   return (
     <Layout>
       <Seo 
-        title={`${decodeURIComponent(author)} 的作品 | 新沒系館`}
-        description={authorInfo.bio || `新沒系館收錄的 ${decodeURIComponent(author)} 所有創作`}
-        image={authorInfo.avatar_url}
+        title={`${authorName} - 創作者`}
+        description={author?.bio || `查看 ${authorName} 的作品集`}
       />
-
       
-      <div className="author-container">
-        {/* Hero Section - 新佈局 */}
-        <section className="author-hero">
-          <div className="hero-background">
-            <div className="hero-gradient" />
-            <div className="hero-pattern" />
-          </div>
-          
-          {/* 新的橫向佈局 */}
-          <div className="author-profile-horizontal">
-            {/* 左側：大頭像 */}
-            <div className="profile-avatar-large">
-              {authorInfo.avatar_url ? (
+      <div className="author-page-container">
+        {/* 作者資訊區 */}
+        <div className="author-hero">
+          <div className="author-hero-content">
+            <div className="author-avatar-large">
+              {author?.avatar_url ? (
                 <img 
-                  src={authorInfo.avatar_url} 
-                  alt={decodeURIComponent(author)}
+                  src={author.avatar_url} 
+                  alt={authorName}
                   className="avatar-image-large"
                 />
               ) : (
                 <div className="avatar-placeholder-large">
-                  <span>{decodeURIComponent(author).charAt(0).toUpperCase()}</span>
+                  <span>{authorName.charAt(0).toUpperCase()}</span>
                 </div>
               )}
-              <div className="avatar-decoration" />
             </div>
             
-            {/* 右側：作者資訊 */}
-            <div className="profile-info-horizontal">
-              <h1 className="author-name">{decodeURIComponent(author)}</h1>
+            <div className="author-details">
+              <h1 className="author-title">{authorName}</h1>
+              <p className="author-stats">
+                {artworks.length} 件作品
+              </p>
               
-              <div className="author-stats">
-                <div className="stat-item">
-                  <span className="stat-number">{artworks.length}</span>
-                  <span className="stat-label">作品</span>
-                </div>
-                <div className="stat-divider" />
-                <div className="stat-item">
-                  <span className="stat-number">{years.length}</span>
-                  <span className="stat-label">創作年份</span>
-                </div>
-              </div>
-              
-              {authorInfo.bio && (
-                <p className="author-bio">{authorInfo.bio}</p>
+              {author?.bio && (
+                <p className="author-bio-full">{author.bio}</p>
               )}
               
-              {/* 社交連結 - 單行顯示 */}
-              {authorInfo.social_links && authorInfo.social_links.length > 0 && (
-                <div className="social-links-horizontal">
-                  {authorInfo.social_links.map((link, index) => (
-                    <a
-                      key={index}
-                      href={link.includes('@') && !link.includes('http') 
-                        ? `mailto:${link}`
-                        : link.includes('http') 
-                        ? link 
-                        : `https://${link}`
-                      }
-                      target="_blank"
+              {/* 社交媒體連結 */}
+              {author && (author.website || author.instagram || author.behance || author.facebook || author.youtube) && (
+                <div className="author-social-links">
+                  {author.website && (
+                    <a 
+                      href={author.website} 
+                      target="_blank" 
                       rel="noopener noreferrer"
                       className="social-link"
-                      title={link}
+                      aria-label="Website"
                     >
-                      <SocialIcon url={link} />
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 0C4.477 0 0 4.477 0 10s4.477 10 10 10 10-4.477 10-10S15.523 0 10 0zm6.93 6h-2.95a15.65 15.65 0 00-1.38-3.56A8.03 8.03 0 0116.93 6zM10 2.04c.83 1.2 1.48 2.53 1.91 3.96H8.09c.43-1.43 1.08-2.76 1.91-3.96zM2.26 12C2.1 11.36 2 10.69 2 10s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H2.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.987 7.987 0 013.08 14zm2.95-8H3.08a7.987 7.987 0 014.33-3.56A15.65 15.65 0 006.03 6zM10 17.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM12.34 12H7.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.56 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 01-4.33 3.56zM14.36 12c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/>
+                      </svg>
                     </a>
-                  ))}
+                  )}
+                  {author.instagram && (
+                    <a 
+                      href={`https://instagram.com/${author.instagram.replace('@', '')}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      aria-label="Instagram"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 1.802c2.67 0 2.987.01 4.042.059 2.71.123 3.975 1.409 4.099 4.099.048 1.054.057 1.37.057 4.04 0 2.672-.01 2.988-.057 4.042-.124 2.687-1.387 3.975-4.1 4.099-1.054.048-1.37.058-4.041.058-2.67 0-2.987-.01-4.04-.058-2.717-.124-3.977-1.416-4.1-4.1-.048-1.054-.058-1.37-.058-4.041 0-2.67.01-2.986.058-4.04.124-2.69 1.387-3.977 4.1-4.1 1.054-.048 1.37-.058 4.04-.058zM10 0C7.284 0 6.944.012 5.878.06 2.246.227.228 2.242.06 5.877.01 6.944 0 7.284 0 10s.012 3.057.06 4.123c.167 3.632 2.182 5.65 5.817 5.817 1.067.048 1.407.06 4.123.06s3.057-.012 4.123-.06c3.629-.167 5.652-2.182 5.816-5.817.05-1.066.061-1.407.061-4.123s-.012-3.056-.06-4.122C19.777 2.249 17.76.228 14.124.06 13.057.01 12.716 0 10 0zm0 4.865a5.135 5.135 0 100 10.27 5.135 5.135 0 000-10.27zm0 8.468a3.333 3.333 0 110-6.666 3.333 3.333 0 010 6.666zm5.338-9.87a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4z"/>
+                      </svg>
+                    </a>
+                  )}
+                  {author.behance && (
+                    <a 
+                      href={`https://behance.net/${author.behance}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      aria-label="Behance"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8.072 6.784s1.52-.113 1.52-1.896c0-1.783-1.243-2.653-2.819-2.653H0v15.408h6.773s3.165.1 3.165-2.94c0 0 .138-2.919-1.866-2.919zm-5.04-1.973h3.741s.705 0 .705.875-.414.999-.886.999H3.032V4.811zm3.56 7.833H3.032V9.49h3.741s1.051-.013 1.051 1.367c0 1.168-.696 1.775-1.232 1.787zM15.197 5.654c-3.833 0-3.829 3.829-3.829 3.829s-.263 3.808 3.829 3.808c0 0 3.415.195 3.415-2.653h-1.759s.058 1.073-1.601 1.073c0 0-1.759.117-1.759-1.738h5.174s.566-4.319-3.47-4.319zm1.392 2.997h-3.264s.215-1.538 1.759-1.538 1.505 1.538 1.505 1.538zM16.764 2.95h-4.099v1.248h4.099V2.95z"/>
+                      </svg>
+                    </a>
+                  )}
+                  {author.facebook && (
+                    <a 
+                      href={`https://facebook.com/${author.facebook}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      aria-label="Facebook"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M20 10.061C20 4.505 15.523 0 10 0S0 4.505 0 10.061c0 5.022 3.657 9.184 8.438 9.939v-7.03h-2.54v-2.91h2.54V7.845c0-2.522 1.492-3.915 3.777-3.915 1.094 0 2.238.197 2.238.197v2.476h-1.26c-1.243 0-1.63.775-1.63 1.57v1.888h2.773l-.443 2.91h-2.33V20c4.78-.755 8.437-4.917 8.437-9.939z"/>
+                      </svg>
+                    </a>
+                  )}
+                  {author.youtube && (
+                    <a 
+                      href={`https://youtube.com/@${author.youtube}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      aria-label="YouTube"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M19.582 5.187s-.195-1.378-.795-1.985c-.76-.796-1.613-.8-2.004-.847C14.005 2.16 10.002 2.16 10.002 2.16h-.008s-4.003 0-6.782.195c-.39.047-1.243.051-2.004.847-.6.607-.794 1.985-.794 1.985S0 6.796 0 8.404v1.508c0 1.608.21 3.217.21 3.217s.205 1.378.794 1.985c.76.796 1.76.77 2.205.854 1.6.153 6.593.201 6.593.201s4.007-.006 6.785-.201c.391-.047 1.244-.051 2.004-.847.6-.607.795-1.985.795-1.985s.21-1.609.21-3.217V8.411c-.002-1.608-.212-3.217-.212-3.217l.198-.007zM7.932 12.594V6.333l5.403 3.14-5.403 3.121z"/>
+                      </svg>
+                    </a>
+                  )}
                 </div>
               )}
             </div>
           </div>
-        </section>
+        </div>
         
         {/* 作品展示區 */}
-        <section className="artworks-section">
+        <div className="author-artworks">
+          <div className="artworks-header">
+            <h2 className="artworks-title">作品集</h2>
+            <div className="view-tabs">
+              <button
+                className={`tab-btn ${activeTab === 'grid' ? 'active' : ''}`}
+                onClick={() => setActiveTab('grid')}
+              >
+                網格視圖
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
+                onClick={() => setActiveTab('list')}
+              >
+                列表視圖
+              </button>
+            </div>
+          </div>
+          
+          {error && (
+            <div className="alert alert-error">
+              {error}
+            </div>
+          )}
+          
           {artworks.length === 0 ? (
-            <div className="empty-state">
-              <p>目前沒有此作者的作品</p>
-              <Link to="/search">
-                <Button variant="ghost">瀏覽其他作品</Button>
-              </Link>
+            <div className="no-artworks">
+              <p>尚無作品</p>
             </div>
           ) : (
-            <>
-              <div className="section-header">
-                <h2>作品集</h2>
-                <div className="header-line" />
-              </div>
-              
-              {/* 時間線 */}
-              <div className="timeline-container">
-                {years.map((year, yearIndex) => (
-                  <div key={year} className="timeline-year">
-                    {/* 年份標記 */}
-                    <div className="year-marker">
-                      <div className="year-badge">
-                        <span>{year}</span>
-                      </div>
-                      <div className="year-line" />
-                    </div>
-                    
-                    {/* 作品網格 */}
-                    <div className="year-artworks">
-                      <div className="artworks-grid">
-                        {groupedArtworks[year].map(artwork => (
-                          <Card
-                            key={artwork.id}
-                            artwork={artwork}
-                            link={`/art/${artwork.id}`}
-                          />
+            <div className={`artworks-${activeTab}`}>
+              {artworks.map(artwork => (
+                <Link
+                  key={artwork.id}
+                  to={`/art/${artwork.id}`}
+                  className={`artwork-item ${activeTab}`}
+                >
+                  <div className="artwork-image-container">
+                    <img 
+                      src={artwork.main_image_url || '/images/placeholder.jpg'} 
+                      alt={artwork.title}
+                      className="artwork-image"
+                    />
+                    {artwork.requires_disclaimer && (
+                      <div className="artwork-badge">需確認</div>
+                    )}
+                  </div>
+                  <div className="artwork-info">
+                    <h3 className="artwork-title">{artwork.title}</h3>
+                    {artwork.project_year && (
+                      <p className="artwork-year">{artwork.project_year}年作品</p>
+                    )}
+                    {artwork.categories && artwork.categories.length > 0 && (
+                      <div className="artwork-categories">
+                        {artwork.categories.map(cat => (
+                          <span key={cat.id} className="category-tag">
+                            {cat.name}
+                          </span>
                         ))}
                       </div>
-                    </div>
+                    )}
+                    {activeTab === 'list' && artwork.description && (
+                      <p className="artwork-description">
+                        {artwork.description.length > 150 
+                          ? artwork.description.substring(0, 150) + '...'
+                          : artwork.description}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            </>
+                </Link>
+              ))}
+            </div>
           )}
-        </section>
+        </div>
       </div>
     </Layout>
   )

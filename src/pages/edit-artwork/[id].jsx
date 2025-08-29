@@ -37,6 +37,8 @@ const EditArtworkPage = ({ params }) => {
   const [availableAuthors, setAvailableAuthors] = useState([])
   const [availableCategories, setAvailableCategories] = useState([])
   const [availableTags, setAvailableTags] = useState([])
+  const [projectYears, setProjectYears] = useState([])
+  const [projectSemesters, setProjectSemesters] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -81,11 +83,15 @@ const EditArtworkPage = ({ params }) => {
         })
         
         setMainImagePreview(artwork.main_image_url)
-        setGalleryPreviews(artwork.gallery_images?.map(img => ({
-          id: img.id,
-          url: img.url,
-          isExisting: true
-        })) || [])
+        
+        // 設置 Gallery 圖片預覽
+        if (artwork.gallery_images && artwork.gallery_images.length > 0) {
+          setGalleryPreviews(artwork.gallery_images.map(img => ({
+            id: img.id,
+            url: img.url || img.image_url,
+            isExisting: true
+          })))
+        }
       } else {
         alert('無法載入作品資料')
         navigate('/my-artworks')
@@ -103,15 +109,21 @@ const EditArtworkPage = ({ params }) => {
     const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
     
     try {
-      const [authorsRes, categoriesRes, tagsRes] = await Promise.all([
+      const [authorsRes, categoriesRes, tagsRes, projectRes] = await Promise.all([
         fetch(`${apiUrl}/authors`),
         fetch(`${apiUrl}/categories`),
-        fetch(`${apiUrl}/tags`)
+        fetch(`${apiUrl}/tags`),
+        fetch(`${apiUrl}/project-info`)
       ])
       
       if (authorsRes.ok) setAvailableAuthors(await authorsRes.json())
       if (categoriesRes.ok) setAvailableCategories(await categoriesRes.json())
       if (tagsRes.ok) setAvailableTags(await tagsRes.json())
+      if (projectRes.ok) {
+        const projectData = await projectRes.json()
+        setProjectYears(projectData.years || [])
+        setProjectSemesters(projectData.semesters || [])
+      }
     } catch (error) {
       console.error('Failed to fetch options:', error)
     }
@@ -141,7 +153,10 @@ const EditArtworkPage = ({ params }) => {
 
   // Gallery 圖片上傳
   const onDropGallery = useCallback((acceptedFiles) => {
-    const newImages = acceptedFiles.slice(0, 10 - galleryImages.length)
+    const currentTotal = galleryPreviews.length - deletedGalleryIds.length
+    const availableSlots = 10 - currentTotal
+    const newImages = acceptedFiles.slice(0, availableSlots)
+    
     setGalleryImages([...galleryImages, ...newImages])
     
     newImages.forEach(file => {
@@ -149,12 +164,13 @@ const EditArtworkPage = ({ params }) => {
       reader.onload = (e) => {
         setGalleryPreviews(prev => [...prev, {
           url: e.target.result,
-          isExisting: false
+          isExisting: false,
+          file: file
         }])
       }
       reader.readAsDataURL(file)
     })
-  }, [galleryImages])
+  }, [galleryImages, galleryPreviews, deletedGalleryIds])
 
   const { getRootProps: getGalleryRootProps, getInputProps: getGalleryInputProps } = useDropzone({
     onDrop: onDropGallery,
@@ -174,8 +190,7 @@ const EditArtworkPage = ({ params }) => {
     if (preview.isExisting && preview.id) {
       setDeletedGalleryIds([...deletedGalleryIds, preview.id])
     } else {
-      const newGalleryImages = [...galleryImages]
-      newGalleryImages.splice(index - galleryPreviews.filter(p => p.isExisting).length, 1)
+      const newGalleryImages = galleryImages.filter(img => img !== preview.file)
       setGalleryImages(newGalleryImages)
     }
     
@@ -248,16 +263,14 @@ const EditArtworkPage = ({ params }) => {
       // 被刪除的 gallery 圖片 ID
       submitData.append('deleted_gallery_ids', JSON.stringify(deletedGalleryIds))
       
-      // 現有 gallery 圖片數量
-      const existingCount = galleryPreviews.filter(p => p.isExisting).length - deletedGalleryIds.length
-      submitData.append('existing_gallery_count', existingCount)
-      
-      // 新 gallery 圖片
-      submitData.append('new_gallery_count', galleryImages.length)
-      galleryImages.forEach((image, index) => {
-        submitData.append(`new_gallery_${index}`, image)
+      // 新的 gallery 圖片
+      const newGalleryImages = galleryPreviews.filter(p => !p.isExisting)
+      newGalleryImages.forEach(preview => {
+        if (preview.file) {
+          submitData.append('gallery_images[]', preview.file)
+        }
       })
-
+      
       const response = await fetch(`${apiUrl}/artwork/${artworkId}/update`, {
         method: 'PUT',
         headers: {
@@ -265,17 +278,17 @@ const EditArtworkPage = ({ params }) => {
         },
         body: submitData
       })
-
+      
       if (response.ok) {
-        alert('作品已更新成功！')
+        alert('作品已更新')
         navigate('/my-artworks')
       } else {
         const error = await response.json()
         setError(error.error || '更新失敗')
       }
     } catch (error) {
-      console.error('Submit error:', error)
-      setError('提交失敗，請稍後再試')
+      console.error('Update error:', error)
+      setError('更新失敗，請稍後再試')
     } finally {
       setIsSubmitting(false)
     }
@@ -299,80 +312,98 @@ const EditArtworkPage = ({ params }) => {
         <div className="edit-artwork-container">
           <div className="edit-artwork-header">
             <h1>編輯作品</h1>
-            <Button variant="outline" onClick={() => navigate('/my-artworks')}>
-              返回我的作品
-            </Button>
           </div>
-
+          
           {error && (
             <div className="alert alert-error">
               {error}
             </div>
           )}
-
+          
           <form onSubmit={handleSubmit} className="edit-artwork-form">
             {/* 基本資訊 */}
-            <section className="form-section">
+            <div className="form-section">
               <h2>基本資訊</h2>
               
               <div className="form-group">
-                <label htmlFor="title">作品名稱 *</label>
+                <label htmlFor="title">作品標題 *</label>
                 <input
-                  id="title"
                   type="text"
+                  id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
                   required
                 />
               </div>
-
+              
               <div className="form-group">
-                <label htmlFor="description">作品描述</label>
+                <label htmlFor="description">作品描述 *</label>
                 <textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   rows="6"
+                  required
                 />
               </div>
-
-              <div className="form-group">
-                <label htmlFor="video_url">影片連結</label>
-                <input
-                  id="video_url"
-                  type="url"
-                  name="video_url"
-                  value={formData.video_url}
-                  onChange={handleChange}
-                  placeholder="YouTube 或 Vimeo 連結"
-                />
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="project_year">創作年份</label>
+                  <select
+                    id="project_year"
+                    name="project_year"
+                    value={formData.project_year}
+                    onChange={handleChange}
+                  >
+                    <option value="">選擇年份</option>
+                    {projectYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="project_semester">學期</label>
+                  <select
+                    id="project_semester"
+                    name="project_semester"
+                    value={formData.project_semester}
+                    onChange={handleChange}
+                  >
+                    <option value="">選擇學期</option>
+                    {projectSemesters.map(sem => (
+                      <option key={sem} value={sem}>{sem}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </section>
-
+            </div>
+            
             {/* 主圖片 */}
-            <section className="form-section">
+            <div className="form-section">
               <h2>主圖片</h2>
               <div {...getMainRootProps()} className="dropzone">
                 <input {...getMainInputProps()} />
                 {mainImagePreview ? (
                   <div className="preview-container">
                     <img src={mainImagePreview} alt="主圖片預覽" />
-                    <p className="hint">點擊或拖曳新圖片以替換</p>
+                    <p className="hint">點擊或拖曳新圖片來替換</p>
                   </div>
                 ) : (
-                  <p>點擊或拖曳圖片至此處上傳</p>
+                  <p>點擊或拖曳圖片到此處上傳</p>
                 )}
               </div>
-            </section>
-
-            {/* Gallery */}
-            <section className="form-section">
+            </div>
+            
+            {/* Gallery 圖片 */}
+            <div className="form-section">
               <h2>Gallery 圖片（最多10張）</h2>
               <div {...getGalleryRootProps()} className="dropzone">
                 <input {...getGalleryInputProps()} />
-                <p>點擊或拖曳圖片至此處上傳</p>
+                <p>點擊或拖曳圖片到此處上傳（最多10張）</p>
               </div>
               
               {galleryPreviews.length > 0 && (
@@ -391,10 +422,10 @@ const EditArtworkPage = ({ params }) => {
                   ))}
                 </div>
               )}
-            </section>
-
+            </div>
+            
             {/* 作者 */}
-            <section className="form-section">
+            <div className="form-section">
               <h2>作者</h2>
               {formData.authors.map((author, index) => (
                 <div key={index} className="array-input-group">
@@ -402,7 +433,7 @@ const EditArtworkPage = ({ params }) => {
                     type="text"
                     value={author}
                     onChange={(e) => handleArrayChange('authors', index, e.target.value)}
-                    placeholder="作者名稱"
+                    placeholder="輸入作者名稱"
                   />
                   {formData.authors.length > 1 && (
                     <button
@@ -415,121 +446,60 @@ const EditArtworkPage = ({ params }) => {
                   )}
                 </div>
               ))}
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={() => addArrayItem('authors')}
+                className="btn btn-sm btn-outline"
               >
                 新增作者
-              </Button>
-            </section>
-
-            {/* 分類和標籤 */}
-            <section className="form-section">
-              <h2>分類和標籤</h2>
-              
-              <div className="form-group">
-                <label>分類</label>
-                <div className="checkbox-group">
-                  {availableCategories.map(category => (
-                    <label key={category.id} className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        value={category.id}
-                        checked={formData.categories.includes(category.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({
-                              ...prev,
-                              categories: [...prev.categories, category.id]
-                            }))
-                          } else {
-                            setFormData(prev => ({
-                              ...prev,
-                              categories: prev.categories.filter(id => id !== category.id)
-                            }))
-                          }
-                        }}
-                      />
-                      {category.name}
-                    </label>
-                  ))}
-                </div>
+              </button>
+            </div>
+            
+            {/* 類別 */}
+            <div className="form-section">
+              <h2>類別</h2>
+              <div className="checkbox-group">
+                {availableCategories.map(category => (
+                  <label key={category.id} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      value={category.id}
+                      checked={formData.categories.includes(category.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({
+                            ...prev,
+                            categories: [...prev.categories, category.id]
+                          }))
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            categories: prev.categories.filter(id => id !== category.id)
+                          }))
+                        }
+                      }}
+                    />
+                    {category.name}
+                  </label>
+                ))}
               </div>
-
-              <div className="form-group">
-                <label>標籤</label>
-                <input
-                  type="text"
-                  value={formData.tags.join(', ')}
-                  onChange={(e) => {
-                    const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
-                    setFormData(prev => ({
-                      ...prev,
-                      tags
-                    }))
-                  }}
-                  placeholder="輸入標籤，以逗號分隔"
-                />
-              </div>
-            </section>
-
-            {/* 專題資訊 */}
-            <section className="form-section">
-              <h2>專題資訊</h2>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="project_year">創作年份</label>
-                  <input
-                    id="project_year"
-                    type="number"
-                    name="project_year"
-                    value={formData.project_year}
-                    onChange={handleChange}
-                    min="2000"
-                    max={new Date().getFullYear()}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="project_semester">年級學期</label>
-                  <select
-                    id="project_semester"
-                    name="project_semester"
-                    value={formData.project_semester}
-                    onChange={handleChange}
-                  >
-                    <option value="">選擇學期</option>
-                    <option value="大一上">大一上</option>
-                    <option value="大一下">大一下</option>
-                    <option value="大二上">大二上</option>
-                    <option value="大二下">大二下</option>
-                    <option value="大三上">大三上</option>
-                    <option value="大三下">大三下</option>
-                    <option value="大四上">大四上</option>
-                    <option value="大四下">大四下</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            {/* 社交連結 */}
-            <section className="form-section">
-              <h2>社交連結</h2>
-              {formData.social_links.map((link, index) => (
+            </div>
+            
+            {/* 標籤 */}
+            <div className="form-section">
+              <h2>標籤</h2>
+              {formData.tags.map((tag, index) => (
                 <div key={index} className="array-input-group">
                   <input
-                    type="url"
-                    value={link}
-                    onChange={(e) => handleArrayChange('social_links', index, e.target.value)}
-                    placeholder="https://..."
+                    type="text"
+                    value={tag}
+                    onChange={(e) => handleArrayChange('tags', index, e.target.value)}
+                    placeholder="輸入標籤"
                   />
-                  {formData.social_links.length > 1 && (
+                  {formData.tags.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => removeArrayItem('social_links', index)}
+                      onClick={() => removeArrayItem('tags', index)}
                       className="remove-btn"
                     >
                       移除
@@ -537,31 +507,107 @@ const EditArtworkPage = ({ params }) => {
                   )}
                 </div>
               ))}
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addArrayItem('social_links')}
+                onClick={() => addArrayItem('tags')}
+                className="btn btn-sm btn-outline"
               >
-                新增連結
-              </Button>
-            </section>
-
+                新增標籤
+              </button>
+            </div>
+            
+            {/* 影片與連結 */}
+            <div className="form-section">
+              <h2>影片與連結</h2>
+              
+              <div className="form-group">
+                <label htmlFor="video_url">主要影片連結</label>
+                <input
+                  type="url"
+                  id="video_url"
+                  name="video_url"
+                  value={formData.video_url}
+                  onChange={handleChange}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Gallery 影片連結</label>
+                {formData.gallery_video_urls.map((url, index) => (
+                  <div key={index} className="array-input-group">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => handleArrayChange('gallery_video_urls', index, e.target.value)}
+                      placeholder="輸入影片連結"
+                    />
+                    {formData.gallery_video_urls.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem('gallery_video_urls', index)}
+                        className="remove-btn"
+                      >
+                        移除
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('gallery_video_urls')}
+                  className="btn btn-sm btn-outline"
+                >
+                  新增影片連結
+                </button>
+              </div>
+              
+              <div className="form-group">
+                <label>社交媒體連結</label>
+                {formData.social_links.map((link, index) => (
+                  <div key={index} className="array-input-group">
+                    <input
+                      type="url"
+                      value={link}
+                      onChange={(e) => handleArrayChange('social_links', index, e.target.value)}
+                      placeholder="輸入連結"
+                    />
+                    {formData.social_links.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem('social_links', index)}
+                        className="remove-btn"
+                      >
+                        移除
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('social_links')}
+                  className="btn btn-sm btn-outline"
+                >
+                  新增連結
+                </button>
+              </div>
+            </div>
+            
             {/* 提交按鈕 */}
             <div className="form-actions">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? '更新中...' : '更新作品'}
-              </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate('/my-artworks')}
               >
                 取消
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '更新中...' : '更新作品'}
               </Button>
             </div>
           </form>

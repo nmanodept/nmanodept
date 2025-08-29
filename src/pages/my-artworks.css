@@ -1,155 +1,339 @@
-/* ========== /src/pages/my-artworks.css ========== */
+/* /src/pages/my-artworks.css */
+
 .my-artworks-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: var(--spacing-2xl) var(--spacing-xl);
-    min-height: calc(100vh - 200px);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  min-height: 80vh;
+}
+
+/* 頁面標題 */
+.my-artworks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-3xl);
+  padding-bottom: var(--spacing-xl);
+  border-bottom: 1px solid var(--color-gray-700);
+}
+
+.my-artworks-header h1 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: var(--color-gray-100);
+}
+
+/* 作品區塊 */
+.artworks-section {
+  margin-bottom: var(--spacing-3xl);
+}
+
+.artworks-section h2 {
+  font-size: 1.8rem;
+  font-weight: 300;
+  color: var(--color-gray-100);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section-description {
+  color: var(--color-gray-400);
+  font-size: var(--font-size-base);
+  margin-top: var(--spacing-sm);
+}
+
+/* 免責聲明通知區塊 */
+.disclaimer-notice {
+  background-color: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.disclaimer-notice h3 {
+  color: var(--color-gray-100);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-md);
+  font-weight: 400;
+}
+
+.disclaimer-notice ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.disclaimer-notice li {
+  color: var(--color-gray-300);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-xs);
+  padding-left: var(--spacing-lg);
+  position: relative;
+}
+
+.disclaimer-notice li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: rgba(239, 68, 68, 0.5);
+}
+
+/* 作品網格 */
+.artworks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-xl);
+}
+
+/* 作品卡片 */
+.artwork-card {
+  background-color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: var(--transition-medium);
+}
+
+.artwork-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-gray-600);
+}
+
+/* 作品圖片 */
+.artwork-image {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background-color: var(--color-gray-900);
+}
+
+.artwork-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: var(--transition-medium);
+}
+
+.artwork-card:hover .artwork-image img {
+  transform: scale(1.05);
+}
+
+/* 狀態徽章 */
+.status-badge {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.pending {
+  background-color: rgba(251, 191, 36, 0.9);
+  color: var(--color-gray-900);
+}
+
+.status-badge.disclaimer {
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+/* 作品資訊 */
+.artwork-info {
+  padding: var(--spacing-lg);
+}
+
+.artwork-info h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+  color: var(--color-gray-100);
+  margin-bottom: var(--spacing-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artwork-author {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+  margin-bottom: var(--spacing-xs);
+}
+
+.artwork-year {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 類別標籤 */
+.artwork-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.category-tag {
+  padding: 2px 8px;
+  background-color: var(--color-gray-700);
+  color: var(--color-gray-300);
+  font-size: var(--font-size-xs);
+  border-radius: 4px;
+}
+
+/* 作品操作按鈕 */
+.artwork-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.artwork-actions .btn {
+  flex: 1;
+}
+
+/* 小按鈕樣式 */
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-gray-600);
+  color: var(--color-gray-300);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-gray-700);
+  border-color: var(--color-gray-500);
+  color: var(--color-gray-100);
+}
+
+.btn-danger {
+  background-color: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: rgba(239, 68, 68, 0.8);
+}
+
+.btn-danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.8);
+  color: rgb(239, 68, 68);
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: var(--color-gray-900);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 空狀態 */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-3xl);
+  background-color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 12px;
+}
+
+.empty-state p {
+  color: var(--color-gray-400);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+/* 警告訊息 */
+.alert {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: 8px;
+  margin-bottom: var(--spacing-xl);
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgb(239, 68, 68);
+}
+
+/* 動畫 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.artworks-section {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* 響應式設計 */
+@media (max-width: 1024px) {
+  .artworks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
   .my-artworks-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-2xl);
-    padding-bottom: var(--spacing-xl);
-    border-bottom: 1px solid var(--color-gray-800);
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    text-align: center;
   }
   
   .my-artworks-header h1 {
-    font-size: 2.5rem;
-    font-weight: 300;
-    color: var(--color-gray-100);
-    letter-spacing: -0.02em;
-  }
-  
-  .artworks-section {
-    margin-bottom: var(--spacing-3xl);
-  }
-  
-  .artworks-section h2 {
-    font-size: 1.8rem;
-    font-weight: 300;
-    color: var(--color-gray-100);
-    margin-bottom: var(--spacing-md);
-  }
-  
-  .section-description {
-    color: var(--color-gray-400);
-    margin-bottom: var(--spacing-xl);
+    font-size: 2rem;
   }
   
   .artworks-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--spacing-xl);
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--spacing-lg);
   }
   
-  .artwork-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--color-gray-800);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    position: relative;
-  }
-  
-  .artwork-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--color-gray-600);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  }
-  
-  .artwork-image {
-    position: relative;
-    width: 100%;
-    height: 200px;
-    overflow: hidden;
-    background: var(--color-gray-900);
-  }
-  
-  .artwork-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .status-badge {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: 4px;
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  .status-badge.pending {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(251, 191, 36, 0.3);
-  }
-  
-  .status-badge.disclaimer {
-    background: rgba(168, 85, 247, 0.2);
-    color: #a855f7;
-    border: 1px solid rgba(168, 85, 247, 0.3);
-  }
-  
-  .artwork-info {
+  .disclaimer-notice {
     padding: var(--spacing-lg);
   }
   
-  .artwork-info h3 {
-    font-size: 1.2rem;
-    font-weight: 400;
-    color: var(--color-gray-100);
-    margin-bottom: var(--spacing-xs);
-  }
-  
-  .artwork-author {
-    color: var(--color-gray-400);
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--spacing-xs);
-  }
-  
-  .artwork-year {
-    color: var(--color-gray-500);
-    font-size: var(--font-size-xs);
-    margin-bottom: var(--spacing-md);
-  }
-  
   .artwork-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-gray-800);
+    flex-direction: column;
   }
   
-  .btn-sm {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: var(--font-size-sm);
+  .artwork-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .my-artworks-container {
+    padding: var(--spacing-xl) var(--spacing-lg);
   }
   
-  .btn-danger {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+  .artworks-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .btn-danger:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.5);
-  }
-  
-  .empty-state {
-    text-align: center;
-    padding: var(--spacing-3xl);
-    color: var(--color-gray-400);
-  }
-  
-  .empty-state p {
-    font-size: 1.2rem;
-    margin-bottom: var(--spacing-xl);
-  }
+}

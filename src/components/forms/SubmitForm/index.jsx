@@ -1,11 +1,11 @@
 // src/components/forms/SubmitForm/index.jsx
-import React, { useState, useCallback, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { useDropzone } from 'react-dropzone';
-import { navigate } from 'gatsby';
-import Button from '../../common/Button';
-import { useAuth } from '../../auth/AuthContext';
-import './SubmitForm.css';
+import React, { useState, useEffect, useCallback } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { useDropzone } from 'react-dropzone'
+import { navigate } from 'gatsby'
+import { useAuth } from '../../auth/AuthContext'
+import Button from '../../common/Button'
+import './SubmitForm.css'
 
 const SubmitForm = () => {
   const { user } = useAuth();
@@ -29,6 +29,7 @@ const SubmitForm = () => {
   const [authorInput, setAuthorInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const [availableAuthors, setAvailableAuthors] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
@@ -309,6 +310,12 @@ const SubmitForm = () => {
 
   // 表單送出
   const onSubmit = async (data) => {
+    // 檢查免責聲明
+    if (!data.disclaimer_accepted) {
+      alert('請先閱讀並接受免責聲明');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -360,28 +367,22 @@ const SubmitForm = () => {
 
       if (response.ok) {
         setSubmitStatus('success');
-        // 提交成功後清除草稿
         localStorage.removeItem('artwork_draft');
         reset();
         setPreviewImage(null);
         setGalleryPreviews([]);
-        setTagInput('');
-        setAuthorInput('');
-        setValue('social_links', ['']);
-        // 重置後重新設定作者為當前用戶
-        if (user?.authorName) {
-          setValue('authors', [user.authorName]);
-        }
         
         setTimeout(() => {
-          navigate('/');
-        }, 3000);
+          navigate('/my-artworks');
+        }, 2000);
       } else {
-        throw new Error(result.error || '提交失敗');
+        setSubmitStatus('error');
+        setErrorMessage(result.error || '提交失敗，請稍後再試');
       }
     } catch (error) {
-      console.error('提交錯誤：', error);
+      console.error('Submit error:', error);
       setSubmitStatus('error');
+      setErrorMessage('提交失敗，請檢查網路連線');
     } finally {
       setIsSubmitting(false);
     }
@@ -410,21 +411,13 @@ const SubmitForm = () => {
       {/* 成功/錯誤訊息 - 移到表單容器內的頂部 */}
       {submitStatus === 'success' && (
         <div className="alert alert-success">
-          <div className="alert-icon">✓</div>
-          <div>
-            <p className="alert-title">作品提交成功！</p>
-            <p className="alert-message">您的作品已送出審核，將在3秒後返回首頁...</p>
-          </div>
+          作品已成功提交並發布！正在跳轉...
         </div>
       )}
-
+      
       {submitStatus === 'error' && (
         <div className="alert alert-error">
-          <div className="alert-icon">!</div>
-          <div>
-            <p className="alert-title">提交失敗</p>
-            <p className="alert-message">請檢查您的網路連線並重試</p>
-          </div>
+          {errorMessage}
         </div>
       )}
 
@@ -913,33 +906,64 @@ const SubmitForm = () => {
           </div>
         </div>
 
-        {/* 免責聲明 */}
-        <div className="form-group">
+        {/* 免責聲明區塊 */}
+        <div className="form-section">
+          <h2>免責聲明</h2>
           <div className="checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                {...register('disclaimer_accepted', { 
-                  required: '請同意免責聲明' 
-                })}
-              />
-              <span>
-                我同意並確認所提交的作品為原創內容，且已獲得相關授權。我了解並同意遵守平台的投稿規範和相關規定。
-                <span className="required">*</span>
-              </span>
+            <input
+              type="checkbox"
+              id="disclaimer"
+              {...register('disclaimer_accepted', { 
+                required: '請接受免責聲明' 
+              })}
+              className={errors.disclaimer_accepted ? 'error' : ''}
+            />
+            <label htmlFor="disclaimer" className="checkbox-label">
+              我已閱讀並同意以下條款：
+              <ul className="disclaimer-list">
+                <li>我確認擁有此作品的著作權或已獲得合法授權</li>
+                <li>我同意將作品展示於新沒系館網站</li>
+                <li>我理解作品將公開展示，並可能被分享或評論</li>
+                <li>我保證作品內容不違反法律規定及道德規範</li>
+                <li>我同意網站管理者有權移除不當內容而不另行通知</li>
+              </ul>
             </label>
           </div>
-          {errors.disclaimer_accepted && <p className="form-error">{errors.disclaimer_accepted.message}</p>}
+          {errors.disclaimer_accepted && (
+            <span className="error-message">{errors.disclaimer_accepted.message}</span>
+          )}
         </div>
 
-        {/* 送出按鈕 */}
+        {/* 提交按鈕 */}
         <div className="form-actions">
           <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              // 儲存草稿功能
+              const draftData = {
+                title: formData.title,
+                authors: formData.authors,
+                video_url: formData.video_url,
+                tags: formData.tags,
+                categories: formData.categories,
+                description: formData.description,
+                project_year: formData.project_year,
+                project_semester: formData.project_semester,
+                social_links: formData.social_links,
+                gallery_video_urls: formData.gallery_video_urls,
+                disclaimer_accepted: formData.disclaimer_accepted
+              };
+              localStorage.setItem('artwork_draft', JSON.stringify(draftData));
+              alert('草稿已儲存');
+            }}
+          >
+            儲存草稿
+          </Button>
+          <Button
             type="submit"
-            fullWidth
-            size="lg"
-            disabled={isSubmitting}
-            loading={isSubmitting}
+            variant="primary"
+            disabled={isSubmitting || !watch('disclaimer_accepted')}
           >
             {isSubmitting ? '提交中...' : '提交作品'}
           </Button>
