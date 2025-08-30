@@ -1,6 +1,6 @@
 // /src/pages/edit-artwork/[id].jsx - 完整修復版
 import React, { useState, useCallback, useEffect } from 'react'
-import { navigate } from 'gatsby'
+import { navigate, Link } from 'gatsby'
 import { useDropzone } from 'react-dropzone'
 import Layout from '../../components/common/Layout'
 import Seo from '../../components/common/Seo'
