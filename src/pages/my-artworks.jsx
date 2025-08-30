@@ -1,4 +1,4 @@
-// /src/pages/my-artworks.jsx
+// /src/pages/my-artworks.jsx - 關鍵部分：修復編輯連結
 import React, { useState, useEffect } from 'react'
 import { Link, navigate } from 'gatsby'
 import Layout from '../components/common/Layout'
@@ -11,11 +11,8 @@ import './my-artworks.css'
 const MyArtworksPage = () => {
   const { user } = useAuth()
   const [artworks, setArtworks] = useState([])
-  const [pendingArtworks, setPendingArtworks] = useState([])
-  const [needsDisclaimer, setNeedsDisclaimer] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [processingDisclaimer, setProcessingDisclaimer] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -37,15 +34,7 @@ const MyArtworksPage = () => {
       
       if (response.ok) {
         const data = await response.json()
-        
-        // 分類作品
-        const approved = data.filter(a => a.status === 'approved' && !a.requires_disclaimer)
-        const pending = data.filter(a => a.status === 'pending')
-        const needsConfirm = data.filter(a => a.status === 'needs_disclaimer' || a.requires_disclaimer)
-        
-        setArtworks(approved)
-        setPendingArtworks(pending)
-        setNeedsDisclaimer(needsConfirm)
+        setArtworks(data)
       } else if (response.status === 401) {
         navigate('/login')
       } else {
@@ -76,7 +65,6 @@ const MyArtworksPage = () => {
       })
       
       if (response.ok) {
-        // 重新載入作品列表
         fetchMyArtworks()
         alert('作品已刪除')
       } else {
@@ -88,46 +76,19 @@ const MyArtworksPage = () => {
     }
   }
 
-  const handleAcceptDisclaimer = async (artworkId) => {
-    if (!window.confirm('確認接受免責聲明並重新發布此作品？')) {
+  const handleEdit = (artworkId) => {
+    // 確保有正確的 ID
+    if (!artworkId) {
+      console.error('No artwork ID provided')
       return
     }
-
-    setProcessingDisclaimer(artworkId)
-    
-    try {
-      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const token = localStorage.getItem('authToken')
-      
-      const response = await fetch(`${apiUrl}/artwork/${artworkId}/accept-disclaimer`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ accept: true })
-      })
-      
-      if (response.ok) {
-        // 重新載入作品列表
-        await fetchMyArtworks()
-        alert('作品已重新發布！')
-      } else {
-        const error = await response.json()
-        alert(error.error || '操作失敗，請稍後再試')
-      }
-    } catch (error) {
-      console.error('Accept disclaimer error:', error)
-      alert('操作失敗，請稍後再試')
-    } finally {
-      setProcessingDisclaimer(null)
-    }
+    // 使用客戶端導航
+    navigate(`/edit-artwork/${artworkId}`)
   }
-  
-  const renderArtworkCard = (artwork, showActions = true) => {
+
+  const renderArtworkCard = (artwork) => {
     const imageUrl = artwork.main_image_url || '/images/placeholder.jpg'
     const authorNames = artwork.authors?.join(', ') || artwork.author || '未知作者'
-    const isProcessing = processingDisclaimer === artwork.id
     
     return (
       <div key={artwork.id} className="artwork-card">
@@ -135,9 +96,6 @@ const MyArtworksPage = () => {
           <img src={imageUrl} alt={artwork.title} loading="lazy" />
           {artwork.status === 'pending' && (
             <div className="status-badge pending">待審核</div>
-          )}
-          {(artwork.status === 'needs_disclaimer' || artwork.requires_disclaimer) && (
-            <div className="status-badge disclaimer">需確認</div>
           )}
         </div>
         <div className="artwork-info">
@@ -155,35 +113,29 @@ const MyArtworksPage = () => {
               ))}
             </div>
           )}
-          {showActions && (
-            <div className="artwork-actions">
-              {artwork.status === 'approved' && !artwork.requires_disclaimer && (
-                <>
-                  <Link 
-                    to={`/edit-artwork/${artwork.id}`} 
-                    className="btn btn-sm btn-outline"
-                  >
-                    編輯
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(artwork.id)}
-                    className="btn btn-sm btn-danger"
-                  >
-                    刪除
-                  </button>
-                </>
-              )}
-              {(artwork.status === 'needs_disclaimer' || artwork.requires_disclaimer) && (
-                <button
-                  onClick={() => handleAcceptDisclaimer(artwork.id)}
-                  className="btn btn-sm btn-primary"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? '處理中...' : '接受免責聲明並發布'}
-                </button>
-              )}
+          {artwork.tags && artwork.tags.length > 0 && (
+            <div className="artwork-tags">
+              {artwork.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="tag">
+                  #{tag}
+                </span>
+              ))}
             </div>
           )}
+          <div className="artwork-actions">
+            <button
+              onClick={() => handleEdit(artwork.id)}
+              className="btn btn-sm btn-outline"
+            >
+              編輯
+            </button>
+            <button
+              onClick={() => handleDelete(artwork.id)}
+              className="btn btn-sm btn-danger"
+            >
+              刪除
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -218,44 +170,8 @@ const MyArtworksPage = () => {
             </div>
           )}
 
-          {/* 需要確認免責聲明的作品 */}
-          {needsDisclaimer.length > 0 && (
-            <section className="artworks-section">
-              <div className="section-header">
-                <h2>需要確認免責聲明</h2>
-                <p className="section-description">
-                  這些是您在內測時期提交的作品，需要確認免責聲明後才能重新發布
-                </p>
-              </div>
-              <div className="disclaimer-notice">
-                <h3>免責聲明內容：</h3>
-                <ul>
-                  <li>我確認擁有此作品的著作權或已獲得合法授權</li>
-                  <li>我同意將作品展示於新沒系館網站</li>
-                  <li>我理解作品將公開展示，並可能被分享或評論</li>
-                  <li>我保證作品內容不違反法律規定及道德規範</li>
-                  <li>我同意網站管理者有權移除不當內容而不另行通知</li>
-                </ul>
-              </div>
-              <div className="artworks-grid">
-                {needsDisclaimer.map(artwork => renderArtworkCard(artwork))}
-              </div>
-            </section>
-          )}
-
-          {/* 待審核作品 */}
-          {pendingArtworks.length > 0 && (
-            <section className="artworks-section">
-              <h2>待審核作品</h2>
-              <div className="artworks-grid">
-                {pendingArtworks.map(artwork => renderArtworkCard(artwork, false))}
-              </div>
-            </section>
-          )}
-
-          {/* 已發布作品 */}
           <section className="artworks-section">
-            <h2>已發布作品</h2>
+            <h2>我的作品集</h2>
             {artworks.length > 0 ? (
               <div className="artworks-grid">
                 {artworks.map(artwork => renderArtworkCard(artwork))}

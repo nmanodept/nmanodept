@@ -57,8 +57,8 @@ exports.createPages = async ({ graphql, actions }) => {
 
 // 處理客戶端路由
 exports.onCreatePage = async ({ page, actions }) => {
-  const { createPage, deletePage } = actions;
-  
+  const { createPage, deletePage } = actions
+
   // 處理 my-artworks 頁面
   if (page.path.match(/^\/my-artworks/)) {
     deletePage(page);

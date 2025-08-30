@@ -1,4 +1,4 @@
-// /src/pages/authors.jsx
+// /src/pages/authors.jsx - 修正版本
 import React, { useState, useEffect } from 'react'
 import { Link } from 'gatsby'
 import Layout from '../components/common/Layout'
@@ -12,7 +12,6 @@ const AuthorsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [authorProfiles, setAuthorProfiles] = useState({})
   
   useEffect(() => {
     fetchAuthors()
@@ -27,24 +26,47 @@ const AuthorsPage = () => {
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       
-      // 使用新的 API endpoint 只獲取有作品的作者
-      const response = await fetch(`${apiUrl}/authors-with-counts`)
+      // 先嘗試使用 authors-with-counts，如果失敗則使用 authors
+      let response = await fetch(`${apiUrl}/authors-with-counts`)
+      
+      if (!response.ok) {
+        // 備用方案：使用普通的 authors endpoint
+        console.log('authors-with-counts 失敗，使用備用 API')
+        response = await fetch(`${apiUrl}/authors`)
+      }
       
       if (response.ok) {
         const data = await response.json()
+        
+        // 如果沒有 artwork_count，手動計算
+        const authorsWithCounts = await Promise.all(
+          data.map(async (author) => {
+            if (author.artwork_count === undefined) {
+              // 獲取該作者的作品數量
+              try {
+                const artworksRes = await fetch(`${apiUrl}/artworks`)
+                if (artworksRes.ok) {
+                  const artworks = await artworksRes.json()
+                  const count = artworks.filter(artwork => 
+                    artwork.authors && artwork.authors.includes(author.name)
+                  ).length
+                  return { ...author, artwork_count: count }
+                }
+              } catch (e) {
+                console.error('計算作品數量失敗:', e)
+              }
+            }
+            return author
+          })
+        )
+        
         // 只顯示有作品的作者
-        const authorsWithArtworks = data.filter(author => author.artwork_count > 0)
+        const authorsWithArtworks = authorsWithCounts.filter(
+          author => author.artwork_count > 0
+        )
+        
         setAuthors(authorsWithArtworks)
         setFilteredAuthors(authorsWithArtworks)
-        
-        // 收集有頭像的作者
-        const profiles = {}
-        authorsWithArtworks.forEach(author => {
-          if (author.avatar_url) {
-            profiles[author.name] = author.avatar_url
-          }
-        })
-        setAuthorProfiles(profiles)
       } else {
         setError('無法載入作者列表')
       }
@@ -91,7 +113,9 @@ const AuthorsPage = () => {
     return (
       <Layout>
         <Seo title="創作者" />
-        <Loading />
+        <div className="authors-loading">
+          <Loading />
+        </div>
       </Layout>
     )
   }
@@ -105,7 +129,7 @@ const AuthorsPage = () => {
         <div className="authors-header">
           <h1 className="authors-title">創作者</h1>
           <p className="authors-subtitle">
-            共 {authors.length} 位創作者
+            探索 {authors.length} 位藝術家的創作世界
           </p>
         </div>
         
@@ -133,41 +157,29 @@ const AuthorsPage = () => {
             <p>找不到符合的創作者</p>
           </div>
         ) : (
-          <div className="authors-content">
+          <div className="authors-grid-container">
             {/* 精選創作者 */}
             {groupedAuthors.featured.length > 0 && (
-              <section className="author-section">
-                <h2 className="section-title">
-                  <span className="accent-bar"></span>
-                  精選創作者
-                </h2>
-                <div className="featured-authors">
+              <section className="author-section featured-section">
+                <h2 className="section-title">精選創作者</h2>
+                <div className="authors-grid featured-grid">
                   {groupedAuthors.featured.map(author => (
                     <Link
-                      key={author.id}
+                      key={author.id || author.name}
                       to={`/author/${encodeURIComponent(author.name)}`}
-                      className="author-card featured"
+                      className="author-card featured-card"
                     >
                       <div className="author-avatar">
-                        {authorProfiles[author.name] ? (
-                          <img 
-                            src={authorProfiles[author.name]} 
-                            alt={author.name}
-                            className="avatar-image"
-                          />
+                        {author.avatar_url ? (
+                          <img src={author.avatar_url} alt={author.name} />
                         ) : (
                           <div className="avatar-placeholder">
-                            <span>{author.name.charAt(0).toUpperCase()}</span>
+                            {author.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <div className="author-info">
-                        <h3 className="author-name">{author.name}</h3>
-                        <p className="author-works">共 {author.artwork_count} 件作品</p>
-                        {author.bio && (
-                          <p className="author-bio">{author.bio}</p>
-                        )}
-                      </div>
+                      <h3 className="author-name">{author.name}</h3>
+                      <p className="author-count">{author.artwork_count} 件作品</p>
                     </Link>
                   ))}
                 </div>
@@ -177,34 +189,25 @@ const AuthorsPage = () => {
             {/* 活躍創作者 */}
             {groupedAuthors.active.length > 0 && (
               <section className="author-section">
-                <h2 className="section-title">
-                  <span className="accent-bar"></span>
-                  活躍創作者
-                </h2>
-                <div className="active-authors">
+                <h2 className="section-title">活躍創作者</h2>
+                <div className="authors-grid">
                   {groupedAuthors.active.map(author => (
                     <Link
-                      key={author.id}
+                      key={author.id || author.name}
                       to={`/author/${encodeURIComponent(author.name)}`}
-                      className="author-card-compact"
+                      className="author-card"
                     >
-                      <div className="author-avatar-compact">
-                        {authorProfiles[author.name] ? (
-                          <img 
-                            src={authorProfiles[author.name]} 
-                            alt={author.name}
-                            className="avatar-image-small"
-                          />
+                      <div className="author-avatar small">
+                        {author.avatar_url ? (
+                          <img src={author.avatar_url} alt={author.name} />
                         ) : (
-                          <div className="avatar-circle-small">
-                            <span>{author.name.charAt(0).toUpperCase()}</span>
+                          <div className="avatar-placeholder">
+                            {author.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <div className="author-info-compact">
-                        <h3 className="author-name-small">{author.name}</h3>
-                        <p className="author-works-small">共 {author.artwork_count} 件作品</p>
-                      </div>
+                      <h3 className="author-name">{author.name}</h3>
+                      <p className="author-count">{author.artwork_count} 件作品</p>
                     </Link>
                   ))}
                 </div>
@@ -214,32 +217,16 @@ const AuthorsPage = () => {
             {/* 新進創作者 */}
             {groupedAuthors.emerging.length > 0 && (
               <section className="author-section">
-                <h2 className="section-title">
-                  <span className="accent-bar"></span>
-                  新進創作者
-                </h2>
-                <div className="emerging-list">
+                <h2 className="section-title">新進創作者</h2>
+                <div className="authors-list">
                   {groupedAuthors.emerging.map(author => (
                     <Link
-                      key={author.id}
+                      key={author.id || author.name}
                       to={`/author/${encodeURIComponent(author.name)}`}
-                      className="author-link"
+                      className="author-list-item"
                     >
-                      <div className="author-link-content">
-                        {authorProfiles[author.name] ? (
-                          <img 
-                            src={authorProfiles[author.name]} 
-                            alt={author.name}
-                            className="avatar-image-tiny"
-                          />
-                        ) : (
-                          <div className="avatar-circle-tiny">
-                            <span>{author.name.charAt(0).toUpperCase()}</span>
-                          </div>
-                        )}
-                        <span className="author-link-name">{author.name}</span>
-                        <span className="author-link-count">({author.artwork_count})</span>
-                      </div>
+                      <span className="author-name">{author.name}</span>
+                      <span className="author-count">({author.artwork_count})</span>
                     </Link>
                   ))}
                 </div>

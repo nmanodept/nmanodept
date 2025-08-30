@@ -1,6 +1,6 @@
 // /src/pages/search.jsx
 import React, { useState, useEffect, useCallback } from 'react'
-import { navigate } from 'gatsby'
+import { navigate, Link } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
 import Card, { CardGrid } from '../components/common/Card'
@@ -297,6 +297,54 @@ const SearchPage = ({ location }) => {
   const endIndex = startIndex + itemsPerPage
   const currentArtworks = filteredArtworks.slice(startIndex, endIndex)
 
+  // 作品卡片渲染函數
+  const renderArtwork = (artwork) => {
+    const imageUrl = artwork.main_image_url || '/images/placeholder.jpg'
+    const authorNames = artwork.authors?.join(', ') || artwork.author || '未知作者'
+    
+    return (
+      <Link
+        key={artwork.id}
+        to={`/art/${artwork.id}`}
+        className="artwork-card"
+      >
+        <div className="artwork-image">
+          <img src={imageUrl} alt={artwork.title} loading="lazy" />
+          {/* 在圖片上顯示標籤 */}
+          {artwork.tags && artwork.tags.length > 0 && (
+            <div className="artwork-tags-overlay">
+              {artwork.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="tag-badge">
+                  {tag}
+                </span>
+              ))}
+              {artwork.tags.length > 3 && (
+                <span className="tag-badge more">+{artwork.tags.length - 3}</span>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="artwork-info">
+          <h3 className="artwork-title">{artwork.title}</h3>
+          <p className="artwork-author">{authorNames}</p>
+          {artwork.project_year && (
+            <p className="artwork-year">{artwork.project_year}年作品</p>
+          )}
+          {/* 類別顯示 */}
+          {artwork.categories && artwork.categories.length > 0 && (
+            <div className="artwork-categories">
+              {artwork.categories.map((cat, index) => (
+                <span key={index} className="category-tag">
+                  {cat.name || cat}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </Link>
+    )
+  }
+
   // 載入骨架
   const renderSkeleton = () => (
     <div className="search-grid">
@@ -480,13 +528,7 @@ const SearchPage = ({ location }) => {
           <>
             {currentArtworks.length > 0 ? (
               <div className="search-grid">
-                {currentArtworks.map(artwork => (
-                  <Card
-                    key={artwork.id}
-                    artwork={artwork}
-                    link={`/art/${artwork.id}`}
-                  />
-                ))}
+                {currentArtworks.map(artwork => renderArtwork(artwork))}
               </div>
             ) : (
               <div className="empty-state">
