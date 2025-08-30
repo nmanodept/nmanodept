@@ -1,4 +1,4 @@
-// /src/pages/edit-artwork.jsx - 使用客戶端路由處理動態ID
+// /src/pages/edit-artwork/[id].jsx - 完整修復版
 import React, { useState, useCallback, useEffect } from 'react'
 import { navigate } from 'gatsby'
 import { useDropzone } from 'react-dropzone'
@@ -10,10 +10,30 @@ import Loading from '../../components/common/Loading'
 import { useAuth } from '../../components/auth/AuthContext'
 import './edit-artwork.css'
 
-const EditArtworkPage = ({ location }) => {
+const EditArtworkPage = ({ params, location }) => {
   const { user } = useAuth()
-  // 從 URL 獲取 artwork ID
-  const artworkId = location?.pathname?.split('/').pop()
+  
+  // 從 URL 獲取 artwork ID - 修復路由問題
+  const getArtworkId = () => {
+    // 優先使用 params.id (Gatsby 動態路由)
+    if (params && params.id) {
+      return params.id
+    }
+    
+    // 備用方案：從 pathname 解析
+    const pathParts = location?.pathname?.split('/').filter(Boolean)
+    if (pathParts && pathParts.length >= 2) {
+      const lastPart = pathParts[pathParts.length - 1]
+      // 確保是數字ID
+      if (lastPart && !isNaN(lastPart)) {
+        return lastPart
+      }
+    }
+    
+    return null
+  }
+  
+  const artworkId = getArtworkId()
   
   const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
@@ -45,7 +65,7 @@ const EditArtworkPage = ({ location }) => {
 
   // 載入作品資料
   useEffect(() => {
-    if (!artworkId || artworkId === 'edit-artwork') {
+    if (!artworkId) {
       setError('無效的作品ID')
       setLoading(false)
       return
@@ -56,7 +76,7 @@ const EditArtworkPage = ({ location }) => {
   }, [artworkId])
 
   const fetchArtworkData = async () => {
-    if (!artworkId || artworkId === 'edit-artwork') {
+    if (!artworkId) {
       setError('無效的作品ID')
       setLoading(false)
       return
@@ -73,87 +93,82 @@ const EditArtworkPage = ({ location }) => {
       })
       
       if (response.ok) {
-        const artwork = await response.json()
+        const data = await response.json()
         
-        // 檢查權限 - 只能編輯自己提交的作品
-        if (artwork.submitted_by && artwork.submitted_by !== user?.id) {
-          alert('您沒有權限編輯此作品')
-          navigate('/my-artworks')
-          return
+        // 處理資料格式
+        const processedData = {
+          title: data.title || '',
+          description: data.description || '',
+          video_url: data.video_url || '',
+          authors: Array.isArray(data.authors) ? data.authors : 
+                   typeof data.authors === 'string' ? JSON.parse(data.authors || '[]') : [],
+          categories: Array.isArray(data.categories) ? 
+                      data.categories.map(cat => typeof cat === 'object' ? cat.id : cat) :
+                      typeof data.categories === 'string' ? JSON.parse(data.categories || '[]') : [],
+          tags: Array.isArray(data.tags) ? data.tags : 
+                typeof data.tags === 'string' ? JSON.parse(data.tags || '[]') : [],
+          social_links: data.social_links?.length > 0 ? data.social_links : [''],
+          gallery_video_urls: data.gallery_videos?.map(v => v.video_url || v.url) || [''],
+          project_year: data.project_year || '',
+          project_semester: data.project_semester || ''
         }
         
-        // 如果是內測作品，檢查是否是作者之一
-        if (artwork.is_beta_artwork) {
-          const userResponse = await fetch(`${apiUrl}/auth/user`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          })
-          
-          if (userResponse.ok) {
-            const userData = await userResponse.json()
-            if (!artwork.authors.includes(userData.authorName)) {
-              alert('您沒有權限編輯此作品')
-              navigate('/my-artworks')
-              return
-            }
-          }
-        }
+        setFormData(processedData)
+        setMainImagePreview(data.main_image_url)
         
-        setFormData({
-          title: artwork.title || '',
-          description: artwork.description || '',
-          video_url: artwork.video_url || '',
-          authors: artwork.authors || [],
-          categories: artwork.categories?.map(c => c.id || c) || [],
-          tags: artwork.tags || [],
-          social_links: artwork.social_links?.length ? artwork.social_links : [''],
-          gallery_video_urls: artwork.gallery_videos?.map(v => v.url || v.video_url) || [''],
-          project_year: artwork.project_year || '',
-          project_semester: artwork.project_semester || ''
-        })
-        
-        setMainImagePreview(artwork.main_image_url)
-        
-        // 設置 Gallery 圖片預覽
-        if (artwork.gallery_images && artwork.gallery_images.length > 0) {
-          setGalleryPreviews(artwork.gallery_images.map(img => ({
+        // 設定 gallery 圖片預覽
+        if (data.gallery_images && data.gallery_images.length > 0) {
+          setGalleryPreviews(data.gallery_images.map(img => ({
             id: img.id,
-            url: img.url || img.image_url,
-            isExisting: true
+            url: img.image_url || img.url
           })))
         }
+      } else if (response.status === 403) {
+        setError('您沒有權限編輯此作品')
       } else if (response.status === 404) {
         setError('找不到此作品')
       } else {
-        setError('無法載入作品資料')
+        setError('載入作品失敗')
       }
     } catch (error) {
-      console.error('Failed to fetch artwork:', error)
-      setError('載入失敗：' + error.message)
+      console.error('Fetch error:', error)
+      setError('載入作品時發生錯誤')
     } finally {
       setLoading(false)
     }
   }
 
   const fetchOptions = async () => {
-    const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-    
     try {
-      const [authorsRes, categoriesRes, tagsRes, projectRes] = await Promise.all([
-        fetch(`${apiUrl}/authors`),
-        fetch(`${apiUrl}/categories`),
-        fetch(`${apiUrl}/tags`),
-        fetch(`${apiUrl}/project-info`)
-      ])
+      const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       
-      if (authorsRes.ok) setAvailableAuthors(await authorsRes.json())
-      if (categoriesRes.ok) setAvailableCategories(await categoriesRes.json())
-      if (tagsRes.ok) setAvailableTags(await tagsRes.json())
+      // 載入作者
+      const authorsRes = await fetch(`${apiUrl}/authors`)
+      if (authorsRes.ok) {
+        const authors = await authorsRes.json()
+        setAvailableAuthors(authors.map(a => a.name))
+      }
+      
+      // 載入類別
+      const categoriesRes = await fetch(`${apiUrl}/categories`)
+      if (categoriesRes.ok) {
+        const categories = await categoriesRes.json()
+        setAvailableCategories(categories)
+      }
+      
+      // 載入標籤
+      const tagsRes = await fetch(`${apiUrl}/tags`)
+      if (tagsRes.ok) {
+        const tags = await tagsRes.json()
+        setAvailableTags(tags.map(t => t.name))
+      }
+      
+      // 載入專題資訊
+      const projectRes = await fetch(`${apiUrl}/project-info`)
       if (projectRes.ok) {
-        const projectData = await projectRes.json()
-        setProjectYears(projectData.years || [])
-        setProjectSemesters(projectData.semesters || [])
+        const projectInfo = await projectRes.json()
+        setProjectYears(projectInfo.years || [])
+        setProjectSemesters(projectInfo.semesters || [])
       }
     } catch (error) {
       console.error('Failed to fetch options:', error)
@@ -161,7 +176,7 @@ const EditArtworkPage = ({ location }) => {
   }
 
   // 主圖片上傳
-  const onDropMain = useCallback((acceptedFiles) => {
+  const onDropMainImage = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0]
     if (file) {
       setMainImage(file)
@@ -171,332 +186,291 @@ const EditArtworkPage = ({ location }) => {
     }
   }, [])
 
-  const { getRootProps: getMainRootProps, getInputProps: getMainInputProps } = useDropzone({
-    onDrop: onDropMain,
+  const { getRootProps: getMainProps, getInputProps: getMainInputProps } = useDropzone({
+    onDrop: onDropMainImage,
     accept: {
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/gif': ['.gif']
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
     },
-    maxSize: 5 * 1024 * 1024,
-    multiple: false
+    maxFiles: 1
   })
 
   // Gallery 圖片上傳
-  const onDropGallery = useCallback((acceptedFiles) => {
-    const currentTotal = galleryPreviews.length - deletedGalleryIds.length
-    const availableSlots = 10 - currentTotal
-    const newImages = acceptedFiles.slice(0, availableSlots)
-    
-    setGalleryImages([...galleryImages, ...newImages])
+  const onDropGalleryImages = useCallback((acceptedFiles) => {
+    const newImages = acceptedFiles.slice(0, 10 - galleryImages.length)
+    setGalleryImages(prev => [...prev, ...newImages])
     
     newImages.forEach(file => {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setGalleryPreviews(prev => [...prev, {
-          url: e.target.result,
-          isExisting: false,
-          file: file
-        }])
+        setGalleryPreviews(prev => [...prev, { url: e.target.result, isNew: true }])
       }
       reader.readAsDataURL(file)
     })
-  }, [galleryImages, galleryPreviews, deletedGalleryIds])
+  }, [galleryImages])
 
-  const { getRootProps: getGalleryRootProps, getInputProps: getGalleryInputProps } = useDropzone({
-    onDrop: onDropGallery,
+  const { getRootProps: getGalleryProps, getInputProps: getGalleryInputProps } = useDropzone({
+    onDrop: onDropGalleryImages,
     accept: {
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/gif': ['.gif']
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
     },
-    maxSize: 5 * 1024 * 1024,
-    multiple: true
+    maxFiles: 10
   })
-
-  // 刪除 Gallery 圖片
-  const removeGalleryImage = (index) => {
-    const preview = galleryPreviews[index]
-    
-    if (preview.isExisting && preview.id) {
-      setDeletedGalleryIds([...deletedGalleryIds, preview.id])
-    } else {
-      const newGalleryImages = galleryImages.filter(img => img !== preview.file)
-      setGalleryImages(newGalleryImages)
-    }
-    
-    const newPreviews = [...galleryPreviews]
-    newPreviews.splice(index, 1)
-    setGalleryPreviews(newPreviews)
-  }
-
-  // 處理表單變更
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  const handleArrayChange = (name, index, value) => {
-    const newArray = [...formData[name]]
-    newArray[index] = value
-    setFormData(prev => ({
-      ...prev,
-      [name]: newArray
-    }))
-  }
-
-  const addArrayItem = (name) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: [...prev[name], '']
-    }))
-  }
-
-  const removeArrayItem = (name, index) => {
-    const newArray = [...formData[name]]
-    newArray.splice(index, 1)
-    setFormData(prev => ({
-      ...prev,
-      [name]: newArray.length > 0 ? newArray : ['']
-    }))
-  }
 
   // 提交表單
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!artworkId || artworkId === 'edit-artwork') {
+    if (!artworkId) {
       setError('無效的作品ID')
       return
     }
     
     setIsSubmitting(true)
     setError('')
-
+    
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       const token = localStorage.getItem('authToken')
       
-      const submitData = new FormData()
-      submitData.append('title', formData.title)
-      submitData.append('description', formData.description)
-      submitData.append('video_url', formData.video_url)
-      submitData.append('authors', JSON.stringify(formData.authors))
-      submitData.append('categories', JSON.stringify(formData.categories))
-      submitData.append('tags', JSON.stringify(formData.tags))
-      submitData.append('social_links', JSON.stringify(formData.social_links.filter(link => link)))
-      submitData.append('gallery_video_urls', JSON.stringify(formData.gallery_video_urls.filter(url => url)))
-      submitData.append('project_year', formData.project_year)
-      submitData.append('project_semester', formData.project_semester)
+      const formDataToSend = new FormData()
+      formDataToSend.append('title', formData.title)
+      formDataToSend.append('description', formData.description)
+      formDataToSend.append('video_url', formData.video_url)
+      formDataToSend.append('authors', JSON.stringify(formData.authors))
+      formDataToSend.append('categories', JSON.stringify(formData.categories))
+      formDataToSend.append('tags', JSON.stringify(formData.tags))
+      formDataToSend.append('social_links', JSON.stringify(formData.social_links.filter(l => l)))
+      formDataToSend.append('gallery_video_urls', JSON.stringify(formData.gallery_video_urls.filter(v => v)))
+      formDataToSend.append('project_year', formData.project_year)
+      formDataToSend.append('project_semester', formData.project_semester)
       
-      // 新主圖片
+      // 新的主圖片
       if (mainImage) {
-        submitData.append('image', mainImage)
+        formDataToSend.append('image', mainImage)
       }
       
-      // 被刪除的 gallery 圖片 ID
-      submitData.append('deleted_gallery_ids', JSON.stringify(deletedGalleryIds))
+      // 刪除的 gallery 圖片
+      formDataToSend.append('deleted_gallery_ids', JSON.stringify(deletedGalleryIds))
       
       // 新的 gallery 圖片
-      const newGalleryImages = galleryPreviews.filter(p => !p.isExisting)
-      newGalleryImages.forEach(preview => {
-        if (preview.file) {
-          submitData.append('gallery_images[]', preview.file)
-        }
+      galleryImages.forEach((img, index) => {
+        formDataToSend.append(`new_gallery_${index}`, img)
       })
+      formDataToSend.append('new_gallery_count', galleryImages.length)
       
-      const response = await fetch(`${apiUrl}/artwork/${artworkId}/update`, {
+      const response = await fetch(`${apiUrl}/artwork/${artworkId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: submitData
+        body: formDataToSend
       })
       
       if (response.ok) {
-        alert('作品已更新')
         navigate('/my-artworks')
       } else {
         const errorData = await response.json()
         setError(errorData.error || '更新失敗')
       }
     } catch (error) {
-      console.error('Update error:', error)
-      setError('更新失敗：' + error.message)
+      console.error('Submit error:', error)
+      setError('提交時發生錯誤，請稍後再試')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (loading) {
-    return (
-      <PrivateRoute>
-        <Layout>
-          <Seo title="編輯作品" />
-          <Loading />
-        </Layout>
-      </PrivateRoute>
-    )
+  // 刪除 gallery 圖片
+  const removeGalleryImage = (index) => {
+    const preview = galleryPreviews[index]
+    if (preview.id) {
+      setDeletedGalleryIds(prev => [...prev, preview.id])
+    }
+    setGalleryPreviews(prev => prev.filter((_, i) => i !== index))
+    
+    // 如果是新上傳的圖片，也從 galleryImages 中移除
+    if (preview.isNew) {
+      const newImageIndex = galleryPreviews.slice(0, index).filter(p => p.isNew).length
+      setGalleryImages(prev => prev.filter((_, i) => i !== newImageIndex))
+    }
   }
-  
-  if (error && !formData.title) {
+
+  if (!user) {
     return (
-      <PrivateRoute>
-        <Layout>
-          <Seo title="編輯作品" />
-          <div className="edit-artwork-container">
-            <div className="alert alert-error">
-              {error}
-            </div>
-            <Button onClick={() => navigate('/my-artworks')}>
-              返回我的作品
-            </Button>
-          </div>
-        </Layout>
-      </PrivateRoute>
+      <Layout>
+        <Seo title="編輯作品" />
+        <div className="auth-required">
+          <h2>請先登入</h2>
+          <Link to="/login" className="btn btn-primary">
+            前往登入
+          </Link>
+        </div>
+      </Layout>
     )
   }
 
-  // 渲染表單的其餘部分與之前相同...
+  if (loading) {
+    return (
+      <Layout>
+        <Seo title="編輯作品" />
+        <Loading />
+      </Layout>
+    )
+  }
+
+  if (error && !formData.title) {
+    return (
+      <Layout>
+        <Seo title="錯誤" />
+        <div className="error-container">
+          <h1>無法編輯作品</h1>
+          <p>{error}</p>
+          <button onClick={() => navigate('/my-artworks')} className="btn btn-primary">
+            返回我的作品
+          </button>
+        </div>
+      </Layout>
+    )
+  }
+
   return (
     <PrivateRoute>
       <Layout>
-        <Seo title="編輯作品" />
+        <Seo title={`編輯 - ${formData.title || '作品'}`} />
+        
         <div className="edit-artwork-container">
           <div className="edit-artwork-header">
             <h1>編輯作品</h1>
+            <button 
+              onClick={() => navigate('/my-artworks')}
+              className="btn-back"
+            >
+              ← 返回
+            </button>
           </div>
-          
+
           {error && (
-            <div className="alert alert-error">
+            <div className="error-message">
               {error}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="edit-artwork-form">
-            {/* 基本資訊 */}
-            <div className="form-section">
-              <h2>基本資訊</h2>
-              
-              <div className="form-group">
-                <label htmlFor="title">作品標題 *</label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="description">作品描述 *</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="6"
-                  required
-                />
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="project_year">創作年份</label>
-                  <select
-                    id="project_year"
-                    name="project_year"
-                    value={formData.project_year}
-                    onChange={handleChange}
-                  >
-                    <option value="">選擇年份</option>
-                    {projectYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="project_semester">學期</label>
-                  <select
-                    id="project_semester"
-                    name="project_semester"
-                    value={formData.project_semester}
-                    onChange={handleChange}
-                  >
-                    <option value="">選擇學期</option>
-                    {projectSemesters.map(sem => (
-                      <option key={sem} value={sem}>{sem}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            {/* 作品標題 */}
+            <div className="form-group">
+              <label htmlFor="title">作品標題 *</label>
+              <input
+                type="text"
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                required
+                placeholder="輸入作品標題"
+              />
             </div>
-            
-            {/* 主圖片 */}
-            <div className="form-section">
-              <h2>主圖片</h2>
-              <div {...getMainRootProps()} className="dropzone">
+
+            {/* 作品描述 */}
+            <div className="form-group">
+              <label htmlFor="description">作品說明</label>
+              <textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                rows="6"
+                placeholder="描述您的創作理念、技術或故事..."
+              />
+            </div>
+
+            {/* 主圖片上傳 */}
+            <div className="form-group">
+              <label>主要圖片</label>
+              <div {...getMainProps()} className="dropzone">
                 <input {...getMainInputProps()} />
                 {mainImagePreview ? (
-                  <div className="preview-container">
-                    <img src={mainImagePreview} alt="主圖片預覽" />
-                    <p className="hint">點擊或拖曳新圖片來替換</p>
+                  <div className="image-preview-container">
+                    <img src={mainImagePreview} alt="預覽" className="image-preview-full" />
+                    <p className="upload-hint">點擊或拖放新圖片來替換</p>
                   </div>
                 ) : (
-                  <p>點擊或拖曳圖片到此處上傳</p>
+                  <div className="upload-prompt">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                      <path d="M24 16v16m-8-8h16" stroke="currentColor" strokeWidth="2"/>
+                      <rect x="4" y="4" width="40" height="40" rx="8" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                    <p>點擊或拖放圖片到此處</p>
+                    <span>支援 JPG, PNG, GIF, WebP</span>
+                  </div>
                 )}
               </div>
             </div>
-            
-            {/* Gallery 圖片 */}
-            <div className="form-section">
-              <h2>Gallery 圖片（最多10張）</h2>
-              <div {...getGalleryRootProps()} className="dropzone">
-                <input {...getGalleryInputProps()} />
-                <p>點擊或拖曳圖片到此處上傳（最多10張）</p>
-              </div>
-              
-              {galleryPreviews.length > 0 && (
-                <div className="gallery-previews">
-                  {galleryPreviews.map((preview, index) => (
-                    <div key={index} className="gallery-preview-item">
-                      <img src={preview.url} alt={`Gallery ${index + 1}`} />
-                      <button
-                        type="button"
-                        onClick={() => removeGalleryImage(index)}
-                        className="remove-btn"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+
+            {/* 影片連結 */}
+            <div className="form-group">
+              <label htmlFor="video_url">主要影片連結</label>
+              <input
+                type="url"
+                id="video_url"
+                value={formData.video_url}
+                onChange={(e) => setFormData({...formData, video_url: e.target.value})}
+                placeholder="YouTube 或 Vimeo 連結"
+              />
             </div>
-            
-            {/* 其餘表單欄位與之前相同... */}
-            
+
+            {/* 作者 */}
+            <div className="form-group">
+              <label>創作者</label>
+              <div className="tags-input">
+                {formData.authors.map((author, index) => (
+                  <span key={index} className="tag">
+                    {author}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          authors: formData.authors.filter((_, i) => i !== index)
+                        })
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  placeholder="輸入作者名稱後按 Enter"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target.value) {
+                      e.preventDefault()
+                      setFormData({
+                        ...formData,
+                        authors: [...formData.authors, e.target.value]
+                      })
+                      e.target.value = ''
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
             {/* 提交按鈕 */}
             <div className="form-actions">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting || !formData.title}
+                loading={isSubmitting}
+              >
+                {isSubmitting ? '更新中...' : '儲存變更'}
+              </Button>
+              
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate('/my-artworks')}
-              >
-                取消
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? '更新中...' : '更新作品'}
+                取消
               </Button>
             </div>
           </form>

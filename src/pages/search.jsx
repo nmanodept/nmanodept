@@ -1,17 +1,18 @@
-// /src/pages/search.jsx
+// /src/pages/search.jsx - 完整修復版
 import React, { useState, useEffect, useCallback } from 'react'
 import { navigate, Link } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
-import Card, { CardGrid } from '../components/common/Card'
+import Card from '../components/common/Card'
 import Button from '../components/common/Button'
+import Loading from '../components/common/Loading'
 import './search.css'
 
 const SearchPage = ({ location }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [selectedCategories, setSelectedCategories] = useState([])
-  const [selectedProjectYears, setSelectedProjectYears] = useState([]) // 創作年份
+  const [selectedProjectYears, setSelectedProjectYears] = useState([])
   const [selectedProjectSemesters, setSelectedProjectSemesters] = useState([])
   const [sortBy, setSortBy] = useState('newest')
   const [isLoading, setIsLoading] = useState(false)
@@ -49,7 +50,7 @@ const SearchPage = ({ location }) => {
     setCurrentPage(page)
   }, [location.search])
 
-  // 載入作品
+  // 載入作品 - 優化版本
   useEffect(() => {
     fetchAllArtworks()
   }, [])
@@ -58,11 +59,27 @@ const SearchPage = ({ location }) => {
     setIsLoading(true)
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const response = await fetch(`${apiUrl}/artworks`)
+      const response = await fetch(`${apiUrl}/artworks`, {
+        headers: {
+          'Cache-Control': 'max-age=300'
+        }
+      })
       
       if (response.ok) {
         const data = await response.json()
-        setAllArtworks(data)
+        
+        // 處理資料格式
+        const processedData = data.map(artwork => ({
+          ...artwork,
+          tags: Array.isArray(artwork.tags) ? artwork.tags : 
+                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [],
+          authors: Array.isArray(artwork.authors) ? artwork.authors :
+                   typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : [],
+          categories: Array.isArray(artwork.categories) ? artwork.categories :
+                      typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') : []
+        }))
+        
+        setAllArtworks(processedData)
         
         // 提取篩選選項
         const tags = new Set()
@@ -70,46 +87,37 @@ const SearchPage = ({ location }) => {
         const projectYears = new Set()
         const projectSemesters = new Set()
         
-        data.forEach(artwork => {
+        processedData.forEach(artwork => {
           // 標籤
-          const artworkTags = artwork.tags || []
-          artworkTags.forEach(tag => {
+          artwork.tags.forEach(tag => {
             if (tag) tags.add(tag)
           })
           
-          // 類別 - 現在可能是多個
+          // 類別
           if (artwork.categories && Array.isArray(artwork.categories)) {
             artwork.categories.forEach(cat => {
-              if (cat.id && cat.name) {
+              if (typeof cat === 'object' && cat.id && cat.name) {
                 categories.set(cat.id, cat.name)
+              } else if (typeof cat === 'string') {
+                categories.set(cat, cat)
               }
             })
-          } else if (artwork.category_id && artwork.category_name) {
-            categories.set(artwork.category_id, artwork.category_name)
           }
           
-          // 創作年份（原學年度）
-          if (artwork.project_years && Array.isArray(artwork.project_years)) {
-            artwork.project_years.forEach(year => {
-              if (year) projectYears.add(year)
-            })
-          } else if (artwork.project_year) {
+          // 創作年份
+          if (artwork.project_year) {
             projectYears.add(artwork.project_year)
           }
           
           // 年級學期
-          if (artwork.project_semesters && Array.isArray(artwork.project_semesters)) {
-            artwork.project_semesters.forEach(semester => {
-              if (semester) projectSemesters.add(semester)
-            })
-          } else if (artwork.project_semester) {
+          if (artwork.project_semester) {
             projectSemesters.add(artwork.project_semester)
           }
         })
         
         setAvailableTags(Array.from(tags).sort())
-        setAvailableCategories(Array.from(categories, ([id, name]) => ({ id, name })))
-        setAvailableProjectYears(Array.from(projectYears).sort())
+        setAvailableCategories(Array.from(categories.entries()).map(([id, name]) => ({ id, name })))
+        setAvailableProjectYears(Array.from(projectYears).sort((a, b) => b - a))
         setAvailableProjectSemesters(Array.from(projectSemesters).sort())
       }
     } catch (error) {
@@ -119,10 +127,8 @@ const SearchPage = ({ location }) => {
     }
   }
 
-  // 套用篩選
+  // 應用篩選
   const applyFilters = useCallback(() => {
-    if (allArtworks.length === 0) return
-    
     let filtered = [...allArtworks]
     
     // 文字搜尋
@@ -134,19 +140,25 @@ const SearchPage = ({ location }) => {
         const authorMatch = artwork.authors?.some(author => 
           author.toLowerCase().includes(searchLower)
         )
-        return titleMatch || descMatch || authorMatch
+        const tagMatch = artwork.tags?.some(tag => 
+          tag.toLowerCase().includes(searchLower)
+        )
+        return titleMatch || descMatch || authorMatch || tagMatch
       })
     }
     
-    // 類別篩選 - 現在支援多類別
+    // 類別篩選
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(artwork => {
         if (artwork.categories && Array.isArray(artwork.categories)) {
           return selectedCategories.some(selectedCatId => 
-            artwork.categories.some(cat => String(cat.id) === String(selectedCatId))
+            artwork.categories.some(cat => {
+              if (typeof cat === 'object') {
+                return String(cat.id) === String(selectedCatId)
+              }
+              return String(cat) === String(selectedCatId)
+            })
           )
-        } else if (artwork.category_id) {
-          return selectedCategories.includes(String(artwork.category_id))
         }
         return false
       })
@@ -164,30 +176,16 @@ const SearchPage = ({ location }) => {
     
     // 創作年份篩選
     if (selectedProjectYears.length > 0) {
-      filtered = filtered.filter(artwork => {
-        if (artwork.project_years && Array.isArray(artwork.project_years)) {
-          return selectedProjectYears.some(year => 
-            artwork.project_years.includes(year)
-          )
-        } else if (artwork.project_year) {
-          return selectedProjectYears.includes(artwork.project_year)
-        }
-        return false
-      })
+      filtered = filtered.filter(artwork => 
+        selectedProjectYears.includes(artwork.project_year)
+      )
     }
     
     // 年級學期篩選
     if (selectedProjectSemesters.length > 0) {
-      filtered = filtered.filter(artwork => {
-        if (artwork.project_semesters && Array.isArray(artwork.project_semesters)) {
-          return selectedProjectSemesters.some(semester => 
-            artwork.project_semesters.includes(semester)
-          )
-        } else if (artwork.project_semester) {
-          return selectedProjectSemesters.includes(artwork.project_semester)
-        }
-        return false
-      })
+      filtered = filtered.filter(artwork => 
+        selectedProjectSemesters.includes(artwork.project_semester)
+      )
     }
     
     // 排序
@@ -209,35 +207,15 @@ const SearchPage = ({ location }) => {
     setFilteredArtworks(filtered)
   }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy, allArtworks])
 
-  // 篩選條件改變時重置頁碼
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy])
-  
   // 應用篩選
   useEffect(() => {
     applyFilters()
   }, [applyFilters])
 
-  // 更新 URL
+  // 篩選條件改變時重置頁碼
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (searchTerm) params.set('q', searchTerm)
-    if (selectedTags.length > 0) params.set('tags', selectedTags.join(','))
-    if (selectedCategories.length > 0) params.set('categories', selectedCategories.join(','))
-    if (selectedProjectYears.length > 0) params.set('years', selectedProjectYears.join(','))
-    if (selectedProjectSemesters.length > 0) params.set('semesters', selectedProjectSemesters.join(','))
-    if (sortBy !== 'newest') params.set('sort', sortBy)
-    if (currentPage > 1) params.set('page', currentPage.toString())
-    
-    const newURL = params.toString() ? `/search?${params.toString()}` : '/search'
-    
-    // 只在 URL 真的需要改變時才更新
-    const currentURL = window.location.pathname + window.location.search
-    if (currentURL !== newURL) {
-      window.history.pushState({}, '', newURL)
-    }
-  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy, currentPage])
+    setCurrentPage(1)
+  }, [searchTerm, selectedTags, selectedCategories, selectedProjectYears, selectedProjectSemesters, sortBy])
 
   // 切換標籤
   const toggleTag = (tag) => {
@@ -246,7 +224,6 @@ const SearchPage = ({ location }) => {
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     )
-    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
   // 切換類別
@@ -256,7 +233,6 @@ const SearchPage = ({ location }) => {
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     )
-    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
   // 切換創作年份
@@ -266,7 +242,6 @@ const SearchPage = ({ location }) => {
         ? prev.filter(y => y !== year)
         : [...prev, year]
     )
-    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
   // 切換年級學期
@@ -276,7 +251,6 @@ const SearchPage = ({ location }) => {
         ? prev.filter(s => s !== semester)
         : [...prev, semester]
     )
-    window.scrollTo({ top: window.scrollY, behavior: 'instant' })
   }
 
   // 清除篩選
@@ -288,7 +262,6 @@ const SearchPage = ({ location }) => {
     setSelectedProjectSemesters([])
     setSortBy('newest')
     setCurrentPage(1)
-    navigate('/search')
   }
 
   // 計算分頁
@@ -297,72 +270,14 @@ const SearchPage = ({ location }) => {
   const endIndex = startIndex + itemsPerPage
   const currentArtworks = filteredArtworks.slice(startIndex, endIndex)
 
-  // 作品卡片渲染函數
-  const renderArtwork = (artwork) => {
-    const imageUrl = artwork.main_image_url || '/images/placeholder.jpg'
-    const authorNames = artwork.authors?.join(', ') || artwork.author || '未知作者'
-    
+  if (isLoading) {
     return (
-      <Link
-        key={artwork.id}
-        to={`/art/${artwork.id}`}
-        className="artwork-card"
-      >
-        <div className="artwork-image">
-          <img src={imageUrl} alt={artwork.title} loading="lazy" />
-          {/* 在圖片上顯示標籤 */}
-          {artwork.tags && artwork.tags.length > 0 && (
-            <div className="artwork-tags-overlay">
-              {artwork.tags.slice(0, 3).map((tag, index) => (
-                <span key={index} className="tag-badge">
-                  {tag}
-                </span>
-              ))}
-              {artwork.tags.length > 3 && (
-                <span className="tag-badge more">+{artwork.tags.length - 3}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="artwork-info">
-          <h3 className="artwork-title">{artwork.title}</h3>
-          <p className="artwork-author">{authorNames}</p>
-          {artwork.project_year && (
-            <p className="artwork-year">{artwork.project_year}年作品</p>
-          )}
-          {/* 類別顯示 */}
-          {artwork.categories && artwork.categories.length > 0 && (
-            <div className="artwork-categories">
-              {artwork.categories.map((cat, index) => (
-                <span key={index} className="category-tag">
-                  {cat.name || cat}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </Link>
+      <Layout>
+        <Seo title="搜尋作品" />
+        <Loading />
+      </Layout>
     )
   }
-
-  // 載入骨架
-  const renderSkeleton = () => (
-    <div className="search-grid">
-      {[...Array(12)].map((_, i) => (
-        <div key={i} className="card-skeleton">
-          <div className="skeleton-image"></div>
-          <div className="skeleton-content">
-            <div className="skeleton-title"></div>
-            <div className="skeleton-subtitle"></div>
-            <div className="skeleton-tags">
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
 
   return (
     <Layout>
@@ -373,106 +288,76 @@ const SearchPage = ({ location }) => {
         <div className="search-header">
           <h1 className="search-title">探索作品</h1>
           
-          {/* 搜尋框 */}
-          <div className="search-input-wrapper">
+          {/* 搜尋欄 */}
+          <div className="search-bar">
             <input
               type="text"
+              placeholder="搜尋作品、作者或標籤..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜尋作品、作者..."
               className="search-input"
             />
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M9 17A8 8 0 109 1a8 8 0 000 16z" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M15 15l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <button className="search-button">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM15 15l4 4" 
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* 篩選器 */}
+        {/* 篩選控制列 */}
         <div className="search-filters">
-          {/* 排序 */}
-          <select
-            value={sortBy}
+          <select 
+            value={sortBy} 
             onChange={(e) => setSortBy(e.target.value)}
             className="filter-select"
           >
-            <option value="newest">最新</option>
-            <option value="oldest">最舊</option>
-            <option value="random">隨機</option>
-            <option value="popular">熱門</option>
+            <option value="newest">最新作品</option>
+            <option value="oldest">最舊作品</option>
+            <option value="popular">熱門作品</option>
+            <option value="random">隨機排序</option>
           </select>
-
-          {/* 類別篩選 */}
-          <button
-            onClick={() => setShowCategoryFilters(!showCategoryFilters)}
-            className="filter-toggle"
-          >
-            類別篩選
-            {selectedCategories.length > 0 && (
-              <span className="filter-count">{selectedCategories.length}</span>
-            )}
-          </button>
-
-          {/* 標籤篩選 */}
+          
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="filter-toggle"
+            className={`filter-toggle ${showFilters ? 'active' : ''}`}
           >
-            標籤篩選
-            {selectedTags.length > 0 && (
-              <span className="filter-count">{selectedTags.length}</span>
-            )}
+            標籤篩選 {selectedTags.length > 0 && `(${selectedTags.length})`}
           </button>
-
-          {/* 專題篩選 */}
+          
+          <button
+            onClick={() => setShowCategoryFilters(!showCategoryFilters)}
+            className={`filter-toggle ${showCategoryFilters ? 'active' : ''}`}
+          >
+            類別篩選 {selectedCategories.length > 0 && `(${selectedCategories.length})`}
+          </button>
+          
           <button
             onClick={() => setShowProjectFilters(!showProjectFilters)}
-            className="filter-toggle"
+            className={`filter-toggle ${showProjectFilters ? 'active' : ''}`}
           >
-            專題篩選
-            {(selectedProjectYears.length + selectedProjectSemesters.length) > 0 && (
-              <span className="filter-count">{selectedProjectYears.length + selectedProjectSemesters.length}</span>
-            )}
+            年份篩選
           </button>
-
-          {/* 清除篩選 */}
-          {(searchTerm || selectedTags.length > 0 || selectedCategories.length > 0 || 
+          
+          {(selectedTags.length > 0 || selectedCategories.length > 0 || 
             selectedProjectYears.length > 0 || selectedProjectSemesters.length > 0) && (
             <button onClick={clearFilters} className="filter-clear">
-              清除
+              清除篩選
             </button>
           )}
         </div>
 
-        {/* 類別選擇器 */}
-        {showCategoryFilters && (
-          <div className="filter-selector categories-selector">
-            <h3 className="filter-selector-title">選擇類別</h3>
-            <div className="filter-buttons">
-              {availableCategories.map(category => (
-                <button
-                  key={category.id}
-                  onClick={() => toggleCategory(String(category.id))}
-                  className={`filter-button ${selectedCategories.includes(String(category.id)) ? 'active' : ''}`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 標籤選擇器 */}
-        {showFilters && (
-          <div className="filter-selector tags-selector">
-            <h3 className="filter-selector-title">選擇標籤</h3>
-            <div className="filter-buttons">
+        {/* 標籤篩選面板 */}
+        {showFilters && availableTags.length > 0 && (
+          <div className="filter-panel">
+            <h3>標籤篩選</h3>
+            <div className="filter-tags">
               {availableTags.map(tag => (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
-                  className={`filter-button ${selectedTags.includes(tag) ? 'active' : ''}`}
+                  className={`filter-tag ${selectedTags.includes(tag) ? 'active' : ''}`}
                 >
                   {tag}
                 </button>
@@ -481,9 +366,27 @@ const SearchPage = ({ location }) => {
           </div>
         )}
 
-        {/* 專題區選擇器 */}
+        {/* 類別篩選面板 */}
+        {showCategoryFilters && availableCategories.length > 0 && (
+          <div className="filter-panel">
+            <h3>類別篩選</h3>
+            <div className="filter-categories">
+              {availableCategories.map(category => (
+                <button
+                  key={category.id}
+                  onClick={() => toggleCategory(category.id)}
+                  className={`filter-category ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 年份篩選面板 */}
         {showProjectFilters && (
-          <div className="filter-selector project-selector">
+          <div className="filter-panel project-filters">
             <div className="project-filter-group">
               <h4 className="filter-group-title">創作年份</h4>
               <div className="filter-buttons">
@@ -522,59 +425,69 @@ const SearchPage = ({ location }) => {
         </div>
 
         {/* 搜尋結果 */}
-        {isLoading ? (
-          renderSkeleton()
+        {currentArtworks.length > 0 ? (
+          <div className="search-grid">
+            {currentArtworks.map(artwork => (
+              <Card
+                key={artwork.id}
+                artwork={artwork}
+                link={`/art/${artwork.id}`}
+              />
+            ))}
+          </div>
         ) : (
-          <>
-            {currentArtworks.length > 0 ? (
-              <div className="search-grid">
-                {currentArtworks.map(artwork => renderArtwork(artwork))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <p>沒有找到符合條件的作品</p>
-                <Button variant="ghost" onClick={clearFilters}>
-                  清除篩選條件
-                </Button>
-              </div>
+          <div className="empty-state">
+            <p>沒有找到符合條件的作品</p>
+            {(searchTerm || selectedTags.length > 0 || selectedCategories.length > 0) && (
+              <Button variant="ghost" onClick={clearFilters}>
+                清除篩選條件
+              </Button>
             )}
+          </div>
+        )}
 
-            {/* 分頁 */}
-            {totalPages > 1 && (
-              <div className="pagination">
+        {/* 分頁 */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+            >
+              ←
+            </button>
+            
+            {[...Array(Math.min(5, totalPages))].map((_, i) => {
+              let pageNum
+              if (totalPages <= 5) {
+                pageNum = i + 1
+              } else if (currentPage <= 3) {
+                pageNum = i + 1
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i
+              } else {
+                pageNum = currentPage - 2 + i
+              }
+              
+              return (
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`pagination-num ${currentPage === pageNum ? 'active' : ''}`}
                 >
-                  ←
+                  {pageNum}
                 </button>
-                
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const pageNum = i + 1
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`pagination-num ${currentPage === pageNum ? 'active' : ''}`}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                })}
-                
-                {totalPages > 5 && <span className="pagination-dots">...</span>}
-                
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  →
-                </button>
-              </div>
-            )}
-          </>
+              )
+            })}
+            
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+            >
+              →
+            </button>
+          </div>
         )}
       </div>
     </Layout>
