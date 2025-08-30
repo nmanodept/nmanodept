@@ -2,13 +2,13 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { navigate } from 'gatsby'
 import { useDropzone } from 'react-dropzone'
-import Layout from '../components/common/Layout'
-import Seo from '../components/common/Seo'
-import PrivateRoute from '../components/auth/PrivateRoute'
-import Button from '../components/common/Button'
-import Loading from '../components/common/Loading'
-import { useAuth } from '../components/auth/AuthContext'
-import './edit-artwork/edit-artwork.css'
+import Layout from '../../components/common/Layout'
+import Seo from '../../components/common/Seo'
+import PrivateRoute from '../../components/auth/PrivateRoute'
+import Button from '../../components/common/Button'
+import Loading from '../../components/common/Loading'
+import { useAuth } from '../../components/auth/AuthContext'
+import './edit-artwork.css'
 
 const EditArtworkPage = ({ location }) => {
   const { user } = useAuth()
