@@ -1,4 +1,4 @@
-// gatsby-node.js - 完整的路由配置
+// gatsby-node.js - 完整修復版
 const path = require('path');
 
 exports.createPages = async ({ graphql, actions }) => {
@@ -6,7 +6,8 @@ exports.createPages = async ({ graphql, actions }) => {
   
   try {
     // 從 API 獲取所有作品（包含內測作品）
-    const response = await fetch('https://artwork-submit-api.nmanodept.workers.dev/artworks');
+    const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
+    const response = await fetch(`${apiUrl}/artworks`);
     const artworks = await response.json();
     
     console.log(`開始建立 ${artworks.length} 個作品頁面...`);
@@ -24,15 +25,17 @@ exports.createPages = async ({ graphql, actions }) => {
     });
     
     // 獲取有作品的作者
-    const authorsResponse = await fetch('https://artwork-submit-api.nmanodept.workers.dev/authors');
+    const authorsResponse = await fetch(`${apiUrl}/authors`);
     const allAuthors = await authorsResponse.json();
     
     // 只為有作品的作者建立頁面
     const authorsWithArtworks = allAuthors.filter(author => {
       // 檢查是否有作品包含此作者
-      return artworks.some(artwork => 
-        artwork.authors && artwork.authors.includes(author.name)
-      );
+      return artworks.some(artwork => {
+        const authors = Array.isArray(artwork.authors) ? artwork.authors :
+                       typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : [];
+        return authors.includes(author.name);
+      });
     });
     
     console.log(`建立 ${authorsWithArtworks.length} 個作者頁面...`);
@@ -55,9 +58,9 @@ exports.createPages = async ({ graphql, actions }) => {
   }
 };
 
-// 處理客戶端路由
+// 處理客戶端路由 - 修復 edit-artwork 路由
 exports.onCreatePage = async ({ page, actions }) => {
-  const { createPage, deletePage } = actions
+  const { createPage, deletePage } = actions;
 
   // 處理 my-artworks 頁面
   if (page.path.match(/^\/my-artworks/)) {
@@ -68,12 +71,13 @@ exports.onCreatePage = async ({ page, actions }) => {
     });
   }
   
-  // 處理 edit-artwork 頁面 - 使用客戶端路由
-  if (page.path.match(/^\/edit-artwork/)) {
+  // 處理 edit-artwork 頁面 - 關鍵修復
+  if (page.path === '/edit-artwork/[id]/') {
     deletePage(page);
     createPage({
       ...page,
-      matchPath: "/edit-artwork/*"
+      path: '/edit-artwork/:id',
+      matchPath: '/edit-artwork/:id'
     });
   }
   
@@ -94,14 +98,49 @@ exports.onCreateWebpackConfig = ({ stage, actions, getConfig }) => {
       fallback: {
         fs: false,
         path: false,
+        crypto: false,
       },
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      }
     },
   });
+  
+  // 在生產環境中優化
+  if (stage === 'build-javascript') {
+    actions.setWebpackConfig({
+      optimization: {
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            vendor: {
+              name: 'vendor',
+              test: /[\\/]node_modules[\\/]/,
+              priority: 20,
+              chunks: 'all'
+            },
+            common: {
+              name: 'common',
+              minChunks: 2,
+              priority: 10,
+              reuseExistingChunk: true,
+              enforce: true
+            }
+          }
+        }
+      }
+    });
+  }
   
   // 在開發環境中禁用某些優化以提高穩定性
   if (stage === 'develop') {
     const config = getConfig();
     config.devtool = 'cheap-module-source-map';
+    config.cache = {
+      type: 'filesystem',
+    };
     actions.replaceWebpackConfig(config);
   }
 };
@@ -111,4 +150,24 @@ exports.onCreateBabelConfig = ({ actions }) => {
   actions.setBabelPlugin({
     name: '@babel/plugin-proposal-optional-chaining',
   });
+  
+  actions.setBabelPlugin({
+    name: '@babel/plugin-proposal-nullish-coalescing-operator',
+  });
+};
+
+// 處理 SSR 問題
+exports.onCreateWebpackConfig = ({ stage, loaders, actions }) => {
+  if (stage === "build-html" || stage === "develop-html") {
+    actions.setWebpackConfig({
+      module: {
+        rules: [
+          {
+            test: /bad-module/,
+            use: loaders.null(),
+          },
+        ],
+      },
+    });
+  }
 };
