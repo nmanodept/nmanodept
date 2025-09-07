@@ -92,7 +92,10 @@ exports.onCreatePage = async ({ page, actions }) => {
 };
 
 // 配置 webpack
-exports.onCreateWebpackConfig = ({ stage, actions, getConfig }) => {
+exports.onCreateWebpackConfig = ({ stage, actions, getConfig, loaders }) => {
+  const config = getConfig();
+  
+  // 基礎配置
   actions.setWebpackConfig({
     resolve: {
       fallback: {
@@ -105,6 +108,20 @@ exports.onCreateWebpackConfig = ({ stage, actions, getConfig }) => {
       }
     },
   });
+  
+  // 處理 SSR 問題
+  if (stage === "build-html" || stage === "develop-html") {
+    actions.setWebpackConfig({
+      module: {
+        rules: [
+          {
+            test: /bad-module/,
+            use: loaders.null(),
+          },
+        ],
+      },
+    });
+  }
   
   // 在生產環境中優化
   if (stage === 'build-javascript') {
@@ -134,13 +151,35 @@ exports.onCreateWebpackConfig = ({ stage, actions, getConfig }) => {
     });
   }
   
-  // 在開發環境中禁用某些優化以提高穩定性
+  // 在開發環境中優化快取配置
   if (stage === 'develop') {
-    const config = getConfig();
     config.devtool = 'cheap-module-source-map';
+    
+    // 優化快取配置以減少大型字串序列化問題
     config.cache = {
       type: 'filesystem',
+      buildDependencies: {
+        config: [__filename],
+      },
+      // 限制快取大小和序列化
+      maxMemoryGenerations: 1,
+      memoryCacheUnaffected: true,
+      // 使用更高效的序列化策略
+      compression: 'gzip',
+      // 分離大型資料的快取
+      store: 'pack',
+      version: '1.0.0'
     };
+    
+    // 優化快取策略
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      chunkIds: 'deterministic',
+      // 減少不必要的字串序列化
+      concatenateModules: false,
+    };
+    
     actions.replaceWebpackConfig(config);
   }
 };
@@ -156,18 +195,5 @@ exports.onCreateBabelConfig = ({ actions }) => {
   });
 };
 
-// 處理 SSR 問題
-exports.onCreateWebpackConfig = ({ stage, loaders, actions }) => {
-  if (stage === "build-html" || stage === "develop-html") {
-    actions.setWebpackConfig({
-      module: {
-        rules: [
-          {
-            test: /bad-module/,
-            use: loaders.null(),
-          },
-        ],
-      },
-    });
-  }
-};
+// 處理 SSR 問題 - 合併到主要的 webpack 配置中
+// 這個函數已經被上面的 onCreateWebpackConfig 取代

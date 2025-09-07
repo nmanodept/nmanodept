@@ -7,8 +7,12 @@ module.exports = {
     description: `新沒系館（NMANODEPT）是專為新媒體藝術系學生打造的虛擬系館，收錄、展示並保存各類創作，促進交流與合作。`,
     author: `@nmanodept`,
     siteUrl: `https://nmanodept.com`,
-  },  flags: {
-    DEV_SSR: true // 開發時啟用 SSR
+  },
+  flags: {
+    DEV_SSR: true, // 開發時啟用 SSR
+    FAST_DEV: true, // 啟用快速開發模式
+    PRESERVE_WEBPACK_CACHE: true, // 保留 webpack 快取
+    PRESERVE_FILE_DOWNLOAD_CACHE: true // 保留檔案下載快取
   },
   plugins: [
     // 圖片處理

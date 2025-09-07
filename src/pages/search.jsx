@@ -59,11 +59,7 @@ const SearchPage = ({ location }) => {
     setIsLoading(true)
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
-      const response = await fetch(`${apiUrl}/artworks`, {
-        headers: {
-          'Cache-Control': 'max-age=300'
-        }
-      })
+      const response = await fetch(`${apiUrl}/artworks`)
       
       if (response.ok) {
         const data = await response.json()
@@ -289,7 +285,7 @@ const SearchPage = ({ location }) => {
           <h1 className="search-title">探索作品</h1>
           
           {/* 搜尋欄 */}
-          <div className="search-bar">
+          <div className="search-input-wrapper">
             <input
               type="text"
               placeholder="搜尋作品、作者或標籤..."
@@ -297,12 +293,10 @@ const SearchPage = ({ location }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
             />
-            <button className="search-button">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM15 15l4 4" 
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM15 15l4 4" 
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           </div>
         </div>
 
@@ -350,14 +344,14 @@ const SearchPage = ({ location }) => {
 
         {/* 標籤篩選面板 */}
         {showFilters && availableTags.length > 0 && (
-          <div className="filter-panel">
-            <h3>標籤篩選</h3>
-            <div className="filter-tags">
+          <div className="filter-selector">
+            <h3 className="filter-selector-title">標籤篩選</h3>
+            <div className="filter-buttons">
               {availableTags.map(tag => (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
-                  className={`filter-tag ${selectedTags.includes(tag) ? 'active' : ''}`}
+                  className={`filter-button ${selectedTags.includes(tag) ? 'active' : ''}`}
                 >
                   {tag}
                 </button>
@@ -368,14 +362,14 @@ const SearchPage = ({ location }) => {
 
         {/* 類別篩選面板 */}
         {showCategoryFilters && availableCategories.length > 0 && (
-          <div className="filter-panel">
-            <h3>類別篩選</h3>
-            <div className="filter-categories">
+          <div className="filter-selector">
+            <h3 className="filter-selector-title">類別篩選</h3>
+            <div className="filter-buttons">
               {availableCategories.map(category => (
                 <button
                   key={category.id}
                   onClick={() => toggleCategory(category.id)}
-                  className={`filter-category ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+                  className={`filter-button ${selectedCategories.includes(category.id) ? 'active' : ''}`}
                 >
                   {category.name}
                 </button>
@@ -386,7 +380,7 @@ const SearchPage = ({ location }) => {
 
         {/* 年份篩選面板 */}
         {showProjectFilters && (
-          <div className="filter-panel project-filters">
+          <div className="filter-selector project-selector">
             <div className="project-filter-group">
               <h4 className="filter-group-title">創作年份</h4>
               <div className="filter-buttons">

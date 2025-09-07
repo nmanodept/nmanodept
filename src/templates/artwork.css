@@ -1,5 +1,36 @@
 /* /src/templates/artwork.css - 現代化作品頁面樣式 */
 
+/* CSS Variables - 確保變數可用 */
+:root {
+  --color-black: #000000;
+  --color-white: #ffffff;
+  --color-gray-100: rgba(255, 255, 255, 0.98);
+  --color-gray-200: rgba(255, 255, 255, 0.88);
+  --color-gray-300: rgba(255, 255, 255, 0.75);
+  --color-gray-400: rgba(255, 255, 255, 0.55);
+  --color-gray-500: rgba(255, 255, 255, 0.35);
+  --color-gray-600: rgba(255, 255, 255, 0.20);
+  --color-gray-700: rgba(255, 255, 255, 0.10);
+  --color-gray-800: rgba(255, 255, 255, 0.05);
+  
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+  --spacing-2xl: 4rem;
+  --spacing-3xl: 6rem;
+  
+  --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition-fast: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
 /* 載入狀態 */
 .artwork-loading {
   min-height: 60vh;
@@ -328,12 +359,12 @@
 }
 
 .artwork-title {
-  font-size: clamp(2rem, 3vw, 2.5rem);
-  font-weight: 300;
-  color: var(--color-gray-100);
-  margin-bottom: var(--spacing-lg);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: clamp(1.75rem, 2.8vw, 2.45rem) !important;
+  font-weight: 300 !important;
+  color: var(--color-gray-100) !important;
+  margin-bottom: var(--spacing-lg) !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
 }
 
 /* 標籤區塊 - 新位置 */
@@ -504,7 +535,7 @@
   }
   
   .artwork-title {
-    font-size: 1.75rem;
+    font-size: 1.4rem !important;
   }
   
   .nav-button {
