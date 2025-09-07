@@ -12,14 +12,28 @@ exports.createPages = async ({ graphql, actions }) => {
     
     console.log(`開始建立 ${artworks.length} 個作品頁面...`);
     
-    // 為每個作品建立靜態頁面
+    // 為每個作品建立靜態頁面 - 確保正確傳遞 artwork context
     artworks.forEach(artwork => {
+      // 處理資料格式，確保陣列格式正確
+      const processedArtwork = {
+        ...artwork,
+        tags: Array.isArray(artwork.tags) ? artwork.tags : 
+              typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [],
+        authors: Array.isArray(artwork.authors) ? artwork.authors :
+                 typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : 
+                 artwork.author ? [artwork.author] : [],
+        categories: Array.isArray(artwork.categories) ? artwork.categories :
+                    typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') :
+                    artwork.category_name && artwork.category_id ? 
+                    [{ id: artwork.category_id, name: artwork.category_name }] : []
+      };
+
       createPage({
         path: `/art/${artwork.id}`,
         component: path.resolve('./src/templates/artwork.jsx'),
         context: {
           id: artwork.id.toString(),
-          artwork: artwork // 傳遞完整的作品資料
+          artwork: processedArtwork // 傳遞處理過的完整作品資料
         },
       });
     });

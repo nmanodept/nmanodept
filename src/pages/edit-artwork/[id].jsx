@@ -1,4 +1,3 @@
-// /src/pages/edit-artwork/[id].jsx - 完整修復版
 import React, { useState, useCallback, useEffect } from 'react'
 import { navigate, Link } from 'gatsby'
 import { useDropzone } from 'react-dropzone'
@@ -36,34 +35,48 @@ const EditArtworkPage = ({ params, location }) => {
   const artworkId = getArtworkId()
   
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // 表單資料
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     video_url: '',
     authors: [],
-    categories: [],
+    categories: [], // 儲存類別ID
     tags: [],
     social_links: [''],
     gallery_video_urls: [''],
     project_year: '',
-    project_semester: ''
+    project_semester: '',
+    disclaimer_accepted: true
   })
   
+  // 圖片相關
   const [mainImage, setMainImage] = useState(null)
   const [mainImagePreview, setMainImagePreview] = useState('')
   const [galleryImages, setGalleryImages] = useState([])
   const [galleryPreviews, setGalleryPreviews] = useState([])
   const [deletedGalleryIds, setDeletedGalleryIds] = useState([])
   
-  const [availableAuthors, setAvailableAuthors] = useState([])
-  const [availableCategories, setAvailableCategories] = useState([])
-  const [availableTags, setAvailableTags] = useState([])
-  const [projectYears, setProjectYears] = useState([])
-  const [projectSemesters, setProjectSemesters] = useState([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  // 選項資料
+  const [availableAuthors, setAvailableAuthors] = useState(['王小明', '李小華', '張大同', '陳美美'])
+  const [availableCategories, setAvailableCategories] = useState([
+    { id: '1', name: '數位藝術', description: '數位媒體創作' },
+    { id: '2', name: '實驗影像', description: '影像實驗作品' },
+    { id: '3', name: '互動裝置', description: '互動科技藝術' },
+    { id: '4', name: '聲音藝術', description: '聲音創作' }
+  ])
+  const [availableTags, setAvailableTags] = useState(['數位藝術', '互動設計', '創意', '實驗', '影像', '聲音', '裝置藝術'])
+  const [projectYears, setProjectYears] = useState(['2020', '2021', '2022', '2023', '2024', '2025'])
+  const [projectSemesters, setProjectSemesters] = useState(['大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下', '碩士班'])
+  
+  // 輸入狀態
+  const [authorInput, setAuthorInput] = useState('')
+  const [tagInput, setTagInput] = useState('')
 
-  // 載入作品資料
+  // 載入作品資料和選項
   useEffect(() => {
     if (!artworkId) {
       setError('無效的作品ID')
@@ -110,7 +123,8 @@ const EditArtworkPage = ({ params, location }) => {
           social_links: data.social_links?.length > 0 ? data.social_links : [''],
           gallery_video_urls: data.gallery_videos?.map(v => v.video_url || v.url) || [''],
           project_year: data.project_year || '',
-          project_semester: data.project_semester || ''
+          project_semester: data.project_semester || '',
+          disclaimer_accepted: true
         }
         
         setFormData(processedData)
@@ -143,40 +157,56 @@ const EditArtworkPage = ({ params, location }) => {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       
       // 載入作者
-      const authorsRes = await fetch(`${apiUrl}/authors`)
-      if (authorsRes.ok) {
-        const authors = await authorsRes.json()
-        setAvailableAuthors(authors.map(a => a.name))
+      try {
+        const authorsRes = await fetch(`${apiUrl}/authors`)
+        if (authorsRes.ok) {
+          const authors = await authorsRes.json()
+          setAvailableAuthors(authors.map(a => a.name))
+        }
+      } catch (e) {
+        console.log('Using default authors')
       }
       
       // 載入類別
-      const categoriesRes = await fetch(`${apiUrl}/categories`)
-      if (categoriesRes.ok) {
-        const categories = await categoriesRes.json()
-        setAvailableCategories(categories)
+      try {
+        const categoriesRes = await fetch(`${apiUrl}/categories`)
+        if (categoriesRes.ok) {
+          const categories = await categoriesRes.json()
+          setAvailableCategories(categories)
+        }
+      } catch (e) {
+        console.log('Using default categories')
       }
       
       // 載入標籤
-      const tagsRes = await fetch(`${apiUrl}/tags`)
-      if (tagsRes.ok) {
-        const tags = await tagsRes.json()
-        setAvailableTags(tags.map(t => t.name))
+      try {
+        const tagsRes = await fetch(`${apiUrl}/tags`)
+        if (tagsRes.ok) {
+          const tags = await tagsRes.json()
+          setAvailableTags(tags.map(t => t.name))
+        }
+      } catch (e) {
+        console.log('Using default tags')
       }
       
       // 載入專題資訊
-      const projectRes = await fetch(`${apiUrl}/project-info`)
-      if (projectRes.ok) {
-        const projectInfo = await projectRes.json()
-        setProjectYears(projectInfo.years || [])
-        setProjectSemesters(projectInfo.semesters || [])
+      try {
+        const projectRes = await fetch(`${apiUrl}/project-info`)
+        if (projectRes.ok) {
+          const projectInfo = await projectRes.json()
+          setProjectYears(projectInfo.years || projectYears)
+          setProjectSemesters(projectInfo.semesters || projectSemesters)
+        }
+      } catch (e) {
+        console.log('Using default project info')
       }
     } catch (error) {
       console.error('Failed to fetch options:', error)
     }
   }
-
+  
   // 主圖片上傳
-  const onDropMainImage = useCallback((acceptedFiles) => {
+  const onDropMain = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0]
     if (file) {
       setMainImage(file)
@@ -185,37 +215,129 @@ const EditArtworkPage = ({ params, location }) => {
       reader.readAsDataURL(file)
     }
   }, [])
-
-  const { getRootProps: getMainProps, getInputProps: getMainInputProps } = useDropzone({
-    onDrop: onDropMainImage,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 1
+  
+  const { getRootProps: getMainProps, getInputProps: getMainInputProps, isDragActive: isMainDragActive } = useDropzone({
+    onDrop: onDropMain,
+    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.gif'] },
+    maxSize: 5 * 1024 * 1024,
+    multiple: false
   })
-
+  
   // Gallery 圖片上傳
-  const onDropGalleryImages = useCallback((acceptedFiles) => {
-    const newImages = acceptedFiles.slice(0, 10 - galleryImages.length)
-    setGalleryImages(prev => [...prev, ...newImages])
+  const onDropGallery = useCallback((acceptedFiles) => {
+    setGalleryImages(prev => [...prev, ...acceptedFiles])
     
-    newImages.forEach(file => {
+    acceptedFiles.forEach(file => {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setGalleryPreviews(prev => [...prev, { url: e.target.result, isNew: true }])
+        setGalleryPreviews(prev => [...prev, { 
+          url: e.target.result, 
+          name: file.name,
+          isNew: true 
+        }])
       }
       reader.readAsDataURL(file)
     })
-  }, [galleryImages])
-
-  const { getRootProps: getGalleryProps, getInputProps: getGalleryInputProps } = useDropzone({
-    onDrop: onDropGalleryImages,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    maxFiles: 10
+  }, [])
+  
+  const { getRootProps: getGalleryProps, getInputProps: getGalleryInputProps, isDragActive: isGalleryDragActive } = useDropzone({
+    onDrop: onDropGallery,
+    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.gif'] },
+    maxSize: 5 * 1024 * 1024,
+    multiple: true
   })
-
+  
+  // 作者管理
+  const addAuthor = () => {
+    if (authorInput && !formData.authors.includes(authorInput)) {
+      setFormData({ ...formData, authors: [...formData.authors, authorInput] })
+      setAuthorInput('')
+    }
+  }
+  
+  const removeAuthor = (index) => {
+    setFormData({
+      ...formData,
+      authors: formData.authors.filter((_, i) => i !== index)
+    })
+  }
+  
+  // 標籤管理
+  const addTag = () => {
+    if (tagInput && !formData.tags.includes(tagInput)) {
+      setFormData({ ...formData, tags: [...formData.tags, tagInput] })
+      setTagInput('')
+    }
+  }
+  
+  const removeTag = (index) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((_, i) => i !== index)
+    })
+  }
+  
+  // 類別管理
+  const toggleCategory = (categoryId) => {
+    setFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(categoryId)
+        ? prev.categories.filter(id => id !== categoryId)
+        : [...prev.categories, categoryId]
+    }))
+  }
+  
+  // 社群連結管理
+  const updateSocialLink = (index, value) => {
+    const newLinks = [...formData.social_links]
+    newLinks[index] = value
+    setFormData({ ...formData, social_links: newLinks })
+  }
+  
+  const addSocialLink = () => {
+    setFormData({ ...formData, social_links: [...formData.social_links, ''] })
+  }
+  
+  const removeSocialLink = (index) => {
+    setFormData({
+      ...formData,
+      social_links: formData.social_links.filter((_, i) => i !== index)
+    })
+  }
+  
+  // Gallery 影片連結管理
+  const updateVideoUrl = (index, value) => {
+    const newUrls = [...formData.gallery_video_urls]
+    newUrls[index] = value
+    setFormData({ ...formData, gallery_video_urls: newUrls })
+  }
+  
+  const addVideoUrl = () => {
+    setFormData({ ...formData, gallery_video_urls: [...formData.gallery_video_urls, ''] })
+  }
+  
+  const removeVideoUrl = (index) => {
+    setFormData({
+      ...formData,
+      gallery_video_urls: formData.gallery_video_urls.filter((_, i) => i !== index)
+    })
+  }
+  
+  // 刪除 gallery 圖片
+  const removeGalleryImage = (index) => {
+    const preview = galleryPreviews[index]
+    if (preview.id) {
+      setDeletedGalleryIds(prev => [...prev, preview.id])
+    }
+    setGalleryPreviews(prev => prev.filter((_, i) => i !== index))
+    
+    // 如果是新上傳的圖片，也從 galleryImages 中移除
+    if (preview.isNew) {
+      const newImageIndex = galleryPreviews.slice(0, index).filter(p => p.isNew).length
+      setGalleryImages(prev => prev.filter((_, i) => i !== newImageIndex))
+    }
+  }
+  
   // 提交表單
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -267,6 +389,7 @@ const EditArtworkPage = ({ params, location }) => {
       })
       
       if (response.ok) {
+        alert('作品已更新成功！')
         navigate('/my-artworks')
       } else {
         const errorData = await response.json()
@@ -277,21 +400,6 @@ const EditArtworkPage = ({ params, location }) => {
       setError('提交時發生錯誤，請稍後再試')
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  // 刪除 gallery 圖片
-  const removeGalleryImage = (index) => {
-    const preview = galleryPreviews[index]
-    if (preview.id) {
-      setDeletedGalleryIds(prev => [...prev, preview.id])
-    }
-    setGalleryPreviews(prev => prev.filter((_, i) => i !== index))
-    
-    // 如果是新上傳的圖片，也從 galleryImages 中移除
-    if (preview.isNew) {
-      const newImageIndex = galleryPreviews.slice(0, index).filter(p => p.isNew).length
-      setGalleryImages(prev => prev.filter((_, i) => i !== newImageIndex))
     }
   }
 
@@ -338,140 +446,388 @@ const EditArtworkPage = ({ params, location }) => {
       <Layout>
         <Seo title={`編輯 - ${formData.title || '作品'}`} />
         
-        <div className="edit-artwork-container">
-          <div className="edit-artwork-header">
-            <h1>編輯作品</h1>
-            <button 
-              onClick={() => navigate('/my-artworks')}
-              className="btn-back"
-            >
-              ← 返回
-            </button>
+        <div className="max-w-6xl mx-auto p-6">
+          <div className="mb-8">
+            <h1 className="text-3xl font-light mb-2">編輯作品</h1>
+            <p className="text-gray-500">修改您的作品資訊</p>
           </div>
-
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="edit-artwork-form">
-            {/* 作品標題 */}
-            <div className="form-group">
-              <label htmlFor="title">作品標題 *</label>
-              <input
-                type="text"
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                required
-                placeholder="輸入作品標題"
-              />
-            </div>
-
-            {/* 作品描述 */}
-            <div className="form-group">
-              <label htmlFor="description">作品說明</label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows="6"
-                placeholder="描述您的創作理念、技術或故事..."
-              />
-            </div>
-
-            {/* 主圖片上傳 */}
-            <div className="form-group">
-              <label>主要圖片</label>
-              <div {...getMainProps()} className="dropzone">
-                <input {...getMainInputProps()} />
-                {mainImagePreview ? (
-                  <div className="image-preview-container">
-                    <img src={mainImagePreview} alt="預覽" className="image-preview-full" />
-                    <p className="upload-hint">點擊或拖放新圖片來替換</p>
-                  </div>
-                ) : (
-                  <div className="upload-prompt">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                      <path d="M24 16v16m-8-8h16" stroke="currentColor" strokeWidth="2"/>
-                      <rect x="4" y="4" width="40" height="40" rx="8" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                    <p>點擊或拖放圖片到此處</p>
-                    <span>支援 JPG, PNG, GIF, WebP</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 影片連結 */}
-            <div className="form-group">
-              <label htmlFor="video_url">主要影片連結</label>
-              <input
-                type="url"
-                id="video_url"
-                value={formData.video_url}
-                onChange={(e) => setFormData({...formData, video_url: e.target.value})}
-                placeholder="YouTube 或 Vimeo 連結"
-              />
-            </div>
-
-            {/* 作者 */}
-            <div className="form-group">
-              <label>創作者</label>
-              <div className="tags-input">
-                {formData.authors.map((author, index) => (
-                  <span key={index} className="tag">
-                    {author}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({
-                          ...formData,
-                          authors: formData.authors.filter((_, i) => i !== index)
-                        })
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+          
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* 基本資訊區塊 */}
+            <div className="bg-gray-900 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-medium mb-4">基本資訊</h2>
+              
+              {/* 作品標題 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  作品標題 <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="輸入作者名稱後按 Enter"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.target.value) {
-                      e.preventDefault()
-                      setFormData({
-                        ...formData,
-                        authors: [...formData.authors, e.target.value]
-                      })
-                      e.target.value = ''
-                    }
-                  }}
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+              
+              {/* 作品說明 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  作品說明 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows="6"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                  required
+                />
+                <div className="text-right text-sm text-gray-500 mt-1">
+                  {formData.description.length}/2000
+                </div>
+              </div>
+              
+              {/* 影片連結 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">影片連結</label>
+                <input
+                  type="url"
+                  value={formData.video_url}
+                  onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                  placeholder="YouTube 或 Vimeo 連結"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
-
-            {/* 提交按鈕 */}
-            <div className="form-actions">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting || !formData.title}
-                loading={isSubmitting}
-              >
-                {isSubmitting ? '更新中...' : '儲存變更'}
-              </Button>
+            
+            {/* 創作者與分類區塊 */}
+            <div className="bg-gray-900 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-medium mb-4">創作者與分類</h2>
               
-              <Button
+              {/* 作者 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  作者 <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={authorInput}
+                    onChange={(e) => setAuthorInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAuthor())}
+                    placeholder="輸入作者姓名"
+                    list="authors-list"
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                  <datalist id="authors-list">
+                    {availableAuthors.map(author => (
+                      <option key={author} value={author} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={addAuthor}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    新增
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.authors.map((author, index) => (
+                    <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-sm">
+                      {author}
+                      <button
+                        type="button"
+                        onClick={() => removeAuthor(index)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {/* 作品類別 - 多選 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  作品類別 <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {availableCategories.map(category => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => toggleCategory(category.id)}
+                      className={`p-3 text-left border-2 rounded-lg transition-all relative ${
+                        formData.categories.includes(category.id)
+                          ? 'bg-gray-800 border-blue-500'
+                          : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="font-medium">{category.name}</div>
+                      <div className="text-xs text-gray-500">{category.description}</div>
+                      {formData.categories.includes(category.id) && (
+                        <span className="absolute top-2 right-2 text-blue-500">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* 標籤 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">標籤</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    placeholder="輸入標籤"
+                    list="tags-list"
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                  <datalist id="tags-list">
+                    {availableTags.map(tag => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={addTag}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    新增
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-sm">
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(index)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* 圖片與媒體區塊 */}
+            <div className="bg-gray-900 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-medium mb-4">圖片與媒體</h2>
+              
+              {/* 主要圖片 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  主要圖片 <span className="text-red-500">*</span>
+                </label>
+                <div {...getMainProps()} className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center cursor-pointer hover:border-gray-600">
+                  <input {...getMainInputProps()} />
+                  {mainImagePreview ? (
+                    <div>
+                      <img src={mainImagePreview} alt="預覽" className="max-h-64 mx-auto rounded" />
+                      <p className="text-sm text-gray-500 mt-2">點擊或拖曳以更換圖片</p>
+                    </div>
+                  ) : (
+                    <div>
+                      {isMainDragActive ? (
+                        <p>放開以上傳圖片...</p>
+                      ) : (
+                        <p>點擊或拖曳圖片到此處</p>
+                      )}
+                      <p className="text-sm text-gray-500 mt-2">支援 JPG, PNG, GIF，最大 5MB</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* 其他作品圖片 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">其他作品圖片</label>
+                <div {...getGalleryProps()} className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center cursor-pointer hover:border-gray-600">
+                  <input {...getGalleryInputProps()} />
+                  <p className="text-sm text-gray-500">點擊或拖曳圖片到此處（可多選）</p>
+                </div>
+                
+                {galleryPreviews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    {galleryPreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img src={preview.url} alt={`Gallery ${index + 1}`} className="w-full h-32 object-cover rounded" />
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(index)}
+                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Gallery 影片連結 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">其他作品影片</label>
+                {formData.gallery_video_urls.map((url, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => updateVideoUrl(index, e.target.value)}
+                      placeholder="YouTube 或 Vimeo 連結"
+                      className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                    />
+                    {formData.gallery_video_urls.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeVideoUrl(index)}
+                        className="px-3 py-2 text-red-400 hover:text-red-300"
+                      >
+                        刪除
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addVideoUrl}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  + 新增影片連結
+                </button>
+              </div>
+            </div>
+            
+            {/* 專題區收錄 */}
+            <div className="bg-gray-900 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-medium mb-4">專題區收錄</h2>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {/* 創作年份 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    創作年份 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.project_year}
+                    onChange={(e) => setFormData({ ...formData, project_year: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                    required
+                  >
+                    <option value="">請選擇</option>
+                    {projectYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* 年級學期 */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    年級學期 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.project_semester}
+                    onChange={(e) => setFormData({ ...formData, project_semester: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                    required
+                  >
+                    <option value="">請選擇</option>
+                    {projectSemesters.map(semester => (
+                      <option key={semester} value={semester}>{semester}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            {/* 社群連結區塊 */}
+            <div className="bg-gray-900 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-medium mb-4">社群連結</h2>
+              
+              {formData.social_links.map((link, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="url"
+                    value={link}
+                    onChange={(e) => updateSocialLink(index, e.target.value)}
+                    placeholder="Instagram, Facebook, 個人網站等"
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                  {formData.social_links.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSocialLink(index)}
+                      className="px-3 py-2 text-red-400 hover:text-red-300"
+                    >
+                      刪除
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
                 type="button"
-                variant="outline"
+                onClick={addSocialLink}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                + 新增社群連結
+              </button>
+            </div>
+            
+            {/* 免責聲明 */}
+            <div className="bg-gray-900 rounded-lg p-6">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={formData.disclaimer_accepted}
+                  onChange={(e) => setFormData({ ...formData, disclaimer_accepted: e.target.checked })}
+                  className="mt-1"
+                  required
+                />
+                <div>
+                  <span className="font-medium">我已閱讀並同意免責聲明</span>
+                  <ul className="text-sm text-gray-500 mt-2 space-y-1">
+                    <li>• 我確認擁有此作品的著作權或已獲得合法授權</li>
+                    <li>• 我同意將作品展示於新沒系館網站</li>
+                    <li>• 我理解作品將公開展示，並可能被分享或評論</li>
+                  </ul>
+                </div>
+              </label>
+            </div>
+            
+            {/* 錯誤訊息 */}
+            {error && (
+              <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-4">
+                <p className="text-red-400">{error}</p>
+              </div>
+            )}
+            
+            {/* 提交按鈕 */}
+            <div className="flex gap-4 justify-end">
+              <button
+                type="button"
                 onClick={() => navigate('/my-artworks')}
+                className="px-6 py-2 border border-gray-700 rounded-lg hover:bg-gray-800"
                 disabled={isSubmitting}
               >
                 取消
-              </Button>
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !formData.disclaimer_accepted}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? '更新中...' : '更新作品'}
+              </button>
             </div>
           </form>
         </div>

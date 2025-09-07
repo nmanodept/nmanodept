@@ -371,22 +371,26 @@ const ArtworkTemplate = ({ pageContext }) => {
             <div className="artwork-header">
               <h1 className="artwork-title">{artwork.title}</h1>
               
-              {/* 標籤 - 移到標題下方 */}
-              {artwork.tags && artwork.tags.length > 0 && (
-                <div className="tags-section">
-                  <div className="tags-list">
-                    {artwork.tags.map((tag, index) => (
-                      <Link
-                        key={index}
-                        to={`/search?tags=${encodeURIComponent(tag)}`}
-                        className="tag-link"
-                      >
-                        {tag}
-                      </Link>
-                    ))}
+              {/* 標籤 - 移到標題下方，確保正確解析陣列格式 */}
+              {(() => {
+                const tags = Array.isArray(artwork.tags) ? artwork.tags : 
+                           typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [];
+                return tags.length > 0 && (
+                  <div className="tags-section">
+                    <div className="tags-list">
+                      {tags.map((tag, index) => (
+                        <Link
+                          key={index}
+                          to={`/search?tags=${encodeURIComponent(tag)}`}
+                          className="tag-link"
+                        >
+                          {tag}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               
               {/* 元數據 */}
               <div className="artwork-metadata">

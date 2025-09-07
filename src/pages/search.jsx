@@ -64,16 +64,60 @@ const SearchPage = ({ location }) => {
       if (response.ok) {
         const data = await response.json()
         
-        // 處理資料格式
-        const processedData = data.map(artwork => ({
-          ...artwork,
-          tags: Array.isArray(artwork.tags) ? artwork.tags : 
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [],
-          authors: Array.isArray(artwork.authors) ? artwork.authors :
-                   typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : [],
-          categories: Array.isArray(artwork.categories) ? artwork.categories :
-                      typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') : []
-        }))
+        // 處理資料格式 - 強化 categories 和 tags 格式轉換
+        const processedData = data.map(artwork => {
+          // 處理標籤
+          let tags = [];
+          if (Array.isArray(artwork.tags)) {
+            tags = artwork.tags;
+          } else if (typeof artwork.tags === 'string') {
+            try {
+              tags = JSON.parse(artwork.tags || '[]');
+            } catch (e) {
+              // 如果解析失敗，嘗試將字串分割
+              tags = artwork.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+            }
+          }
+
+          // 處理作者
+          let authors = [];
+          if (Array.isArray(artwork.authors)) {
+            authors = artwork.authors;
+          } else if (typeof artwork.authors === 'string') {
+            try {
+              authors = JSON.parse(artwork.authors || '[]');
+            } catch (e) {
+              // 如果解析失敗，使用單一作者
+              authors = artwork.author ? [artwork.author] : [];
+            }
+          } else if (artwork.author) {
+            authors = [artwork.author];
+          }
+
+          // 處理類別
+          let categories = [];
+          if (Array.isArray(artwork.categories)) {
+            categories = artwork.categories;
+          } else if (typeof artwork.categories === 'string') {
+            try {
+              categories = JSON.parse(artwork.categories || '[]');
+            } catch (e) {
+              // 如果解析失敗，使用單一類別
+              if (artwork.category_name && artwork.category_id) {
+                categories = [{ id: artwork.category_id, name: artwork.category_name }];
+              }
+            }
+          } else if (artwork.category_name && artwork.category_id) {
+            categories = [{ id: artwork.category_id, name: artwork.category_name }];
+          }
+
+          return {
+            ...artwork,
+            tags: tags,
+            authors: authors,
+            categories: categories
+          };
+        })
         
         setAllArtworks(processedData)
         
