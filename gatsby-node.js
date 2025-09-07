@@ -86,12 +86,11 @@ exports.onCreatePage = async ({ page, actions }) => {
   }
   
   // 處理 edit-artwork 頁面 - 關鍵修復
-  if (page.path === '/edit-artwork/[id]/') {
+  if (page.path === '/edit-artwork/') {
     deletePage(page);
     createPage({
       ...page,
-      path: '/edit-artwork/:id',
-      matchPath: '/edit-artwork/:id'
+      matchPath: '/edit-artwork/*'
     });
   }
   

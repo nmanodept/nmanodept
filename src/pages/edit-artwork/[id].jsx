@@ -16,7 +16,7 @@ const EditArtworkPage = ({ params, location }) => {
   const getArtworkId = () => {
     // 優先使用 params.id (Gatsby 動態路由)
     if (params && params.id) {
-      return params.id
+      return params.id.toString()
     }
     
     // 備用方案：從 pathname 解析
@@ -25,7 +25,7 @@ const EditArtworkPage = ({ params, location }) => {
       const lastPart = pathParts[pathParts.length - 1]
       // 確保是數字ID
       if (lastPart && !isNaN(lastPart)) {
-        return lastPart
+        return lastPart.toString()
       }
     }
     
@@ -342,8 +342,8 @@ const EditArtworkPage = ({ params, location }) => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!artworkId) {
-      setError('無效的作品ID')
+    if (!formData.title || formData.authors.length === 0 || formData.categories.length === 0) {
+      setError('請填寫必填欄位')
       return
     }
     
@@ -354,17 +354,25 @@ const EditArtworkPage = ({ params, location }) => {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       const token = localStorage.getItem('authToken')
       
+      if (!token) {
+        setError('請先登入')
+        navigate('/login')
+        return
+      }
+      
       const formDataToSend = new FormData()
+      
+      // 基本資料
       formDataToSend.append('title', formData.title)
-      formDataToSend.append('description', formData.description)
-      formDataToSend.append('video_url', formData.video_url)
+      formDataToSend.append('description', formData.description || '')
+      formDataToSend.append('video_url', formData.video_url || '')
       formDataToSend.append('authors', JSON.stringify(formData.authors))
       formDataToSend.append('categories', JSON.stringify(formData.categories))
       formDataToSend.append('tags', JSON.stringify(formData.tags))
       formDataToSend.append('social_links', JSON.stringify(formData.social_links.filter(l => l)))
       formDataToSend.append('gallery_video_urls', JSON.stringify(formData.gallery_video_urls.filter(v => v)))
-      formDataToSend.append('project_year', formData.project_year)
-      formDataToSend.append('project_semester', formData.project_semester)
+      formDataToSend.append('project_year', formData.project_year || '')
+      formDataToSend.append('project_semester', formData.project_semester || '')
       
       // 新的主圖片
       if (mainImage) {
@@ -378,8 +386,9 @@ const EditArtworkPage = ({ params, location }) => {
       galleryImages.forEach((img, index) => {
         formDataToSend.append(`new_gallery_${index}`, img)
       })
-      formDataToSend.append('new_gallery_count', galleryImages.length)
+      formDataToSend.append('new_gallery_count', galleryImages.length.toString())
       
+      // 使用正確的 API endpoint
       const response = await fetch(`${apiUrl}/artwork/${artworkId}`, {
         method: 'PUT',
         headers: {
@@ -389,7 +398,8 @@ const EditArtworkPage = ({ params, location }) => {
       })
       
       if (response.ok) {
-        alert('作品已更新成功！')
+        const data = await response.json()
+        alert('作品更新成功！')
         navigate('/my-artworks')
       } else {
         const errorData = await response.json()

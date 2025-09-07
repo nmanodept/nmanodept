@@ -144,6 +144,13 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUser = (userData) => {
+    setUser(prev => ({ ...prev, ...userData }))
+    if (userData.email) {
+      localStorage.setItem('userEmail', userData.email)
+    }
+  }
+
   const value = {
     user,
     loading,
@@ -152,6 +159,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    updateUser,
     isAuthenticated: !!user
   }
 
