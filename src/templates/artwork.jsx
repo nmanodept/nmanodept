@@ -243,7 +243,7 @@ const ArtworkTemplate = ({ pageContext }) => {
     <Layout>
       <Seo 
         title={`${artwork.title} | 新沒系館 NMANODEPT`}
-        description={artwork.description || `新沒系館收錄的 ${artwork.title}，作者：${(artwork.authors && artwork.authors.length > 0 ? artwork.authors.join('、') : artwork.author)}。`}
+        description={artwork.description || `新沒系館收錄的 ${artwork.title}，作者：${(artwork.authors && artwork.authors.length > 0 ? artwork.authors.map(author => typeof author === 'object' ? author.name : author).join('、') : artwork.author)}。`}
         image={artwork.main_image_url}
       />
       
@@ -404,14 +404,18 @@ const ArtworkTemplate = ({ pageContext }) => {
                   <span className="meta-label">作者</span>
                   <span className="meta-value">
                     {artwork.authors && artwork.authors.length > 0 ? (
-                      artwork.authors.map((author, index) => (
-                        <span key={index}>
-                          <Link to={`/author/${encodeURIComponent(author)}`} className="author-link">
-                            {author}
-                          </Link>
-                          {index < artwork.authors.length - 1 && '、'}
-                        </span>
-                      ))
+                      artwork.authors.map((author, index) => {
+                        // 處理新的對象格式 {id, name} 和舊的字符串格式
+                        const authorName = typeof author === 'object' ? author.name : author;
+                        return (
+                          <span key={index}>
+                            <Link to={`/author/${encodeURIComponent(authorName)}`} className="author-link">
+                              {authorName}
+                            </Link>
+                            {index < artwork.authors.length - 1 && '、'}
+                          </span>
+                        );
+                      })
                     ) : (
                       <Link to={`/author/${encodeURIComponent(artwork.author)}`} className="author-link">
                         {artwork.author}

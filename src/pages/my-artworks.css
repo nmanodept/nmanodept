@@ -87,12 +87,13 @@
 /* 作品網格 */
 .artworks-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--spacing-xl);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
 }
 
 /* 作品卡片 */
 .artwork-card {
+  position: relative;
   background-color: var(--color-gray-800);
   border: 1px solid var(--color-gray-700);
   border-radius: 12px;
@@ -106,23 +107,26 @@
   border-color: var(--color-gray-600);
 }
 
-/* 作品圖片 */
-.artwork-image {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background-color: var(--color-gray-900);
+/* 作品圖片 - 使用更具體的選擇器 */
+.my-artworks-container .artwork-card .artwork-image {
+  position: relative !important;
+  aspect-ratio: 16 / 9 !important;
+  width: 100% !important;
+  height: auto !important;
+  overflow: hidden !important;
+  background-color: var(--color-gray-900) !important;
 }
 
-.artwork-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: var(--transition-medium);
+.my-artworks-container .artwork-card .artwork-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  transition: var(--transition-medium) !important;
+  display: block !important;
 }
 
-.artwork-card:hover .artwork-image img {
-  transform: scale(1.05);
+.my-artworks-container .artwork-card:hover .artwork-image img {
+  transform: scale(1.05) !important;
 }
 
 /* 狀態徽章 */
@@ -176,71 +180,114 @@
 }
 
 /* 類別標籤 */
-.artwork-categories {
+.categories {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
   margin-bottom: var(--spacing-md);
 }
 
-.category-tag {
-  padding: 2px 8px;
-  background-color: var(--color-gray-700);
-  color: var(--color-gray-300);
+.category-badge {
+  padding: 4px 12px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-gray-600);
+  color: var(--color-gray-200);
   font-size: var(--font-size-xs);
-  border-radius: 4px;
+  border-radius: 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.category-badge:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-gray-500);
+  color: var(--color-gray-100);
+  transform: translateY(-1px);
 }
 
 /* 作品操作按鈕 */
 .artwork-actions {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
   display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
+  gap: 8px;
+  z-index: 10;
 }
 
-.artwork-actions .btn {
-  flex: 1;
+.btn-edit,
+.btn-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* 小按鈕樣式 */
-.btn-sm {
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
+.btn-edit {
+  background-color: rgba(107, 114, 128, 0.9);
+  border: 1px solid rgba(107, 114, 128, 0.3);
 }
 
-.btn-outline {
-  background-color: transparent;
-  border: 1px solid var(--color-gray-600);
-  color: var(--color-gray-300);
+.btn-edit:hover {
+  background-color: rgba(107, 114, 128, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
 }
 
-.btn-outline:hover {
-  background-color: var(--color-gray-700);
-  border-color: var(--color-gray-500);
-  color: var(--color-gray-100);
+.btn-delete {
+  background-color: rgba(107, 114, 128, 0.9);
+  border: 1px solid rgba(107, 114, 128, 0.3);
 }
 
-.btn-danger {
-  background-color: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  color: rgba(239, 68, 68, 0.8);
+.btn-delete:hover {
+  background-color: rgba(107, 114, 128, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
 }
 
-.btn-danger:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.8);
-  color: rgb(239, 68, 68);
+.btn-edit svg {
+  width: 16px;
+  height: 16px;
 }
 
+.btn-delete svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 通用按鈕樣式 */
 .btn-primary {
   background-color: var(--color-primary);
   border: 1px solid var(--color-primary);
   color: var(--color-gray-900);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-primary:hover {
   background-color: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
+  transform: translateY(-1px);
 }
 
 .btn-primary:disabled {
@@ -292,10 +339,65 @@
   animation: fadeIn 0.6s ease-out;
 }
 
+/* 刪除確認對話框 */
+.delete-confirm {
+  position: absolute;
+  bottom: 60px;
+  right: 12px;
+  background-color: var(--color-gray-800);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  min-width: 200px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.delete-confirm p {
+  color: var(--color-gray-200);
+  font-size: 14px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-actions .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-actions .btn-danger {
+  background-color: rgb(239, 68, 68);
+  color: white;
+  border: none;
+}
+
+.confirm-actions .btn-outline {
+  background-color: transparent;
+  color: var(--color-gray-400);
+  border: 1px solid var(--color-gray-600);
+}
+
+.confirm-actions .btn:hover {
+  transform: translateY(-1px);
+}
+
 /* 響應式設計 */
 @media (max-width: 1024px) {
   .artworks-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
   }
 }
 
@@ -311,20 +413,19 @@
   }
   
   .artworks-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
   }
   
   .disclaimer-notice {
     padding: var(--spacing-lg);
   }
   
-  .artwork-actions {
-    flex-direction: column;
-  }
-  
-  .artwork-actions .btn {
-    width: 100%;
+  .delete-confirm {
+    bottom: 50px;
+    right: 8px;
+    left: 8px;
+    min-width: auto;
   }
 }
 
@@ -335,5 +436,22 @@
   
   .artworks-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .artwork-actions {
+    bottom: 8px;
+    right: 8px;
+  }
+  
+  .btn-edit,
+  .btn-delete {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .btn-edit svg,
+  .btn-delete svg {
+    width: 14px;
+    height: 14px;
   }
 }

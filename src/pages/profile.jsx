@@ -194,251 +194,372 @@ const ProfilePage = () => {
       <Layout>
         <Seo title="個人資料" />
         <div className="profile-container">
+          {/* 頁面標題 */}
           <div className="profile-header">
-            <h1>個人資料</h1>
+            <h1 className="profile-title">個人資料</h1>
+            <p className="profile-subtitle">管理您的個人資訊和帳戶設定</p>
           </div>
           
+          {/* 成功/錯誤訊息 */}
           {message && (
             <div className="alert alert-success">
-              {message}
+              <div className="alert-icon">✓</div>
+              <div>
+                <p className="alert-title">更新成功！</p>
+                <p className="alert-message">{message}</p>
+              </div>
             </div>
           )}
           
           {error && (
             <div className="alert alert-error">
-              {error}
+              <div className="alert-icon">!</div>
+              <div>
+                <p className="alert-title">更新失敗</p>
+                <p className="alert-message">{error}</p>
+              </div>
             </div>
           )}
           
           <div className="profile-content">
             {!isEditing ? (
-              // 檢視模式
+              // 檢視模式 - 全新現代化設計
               <div className="profile-view">
-                <div className="profile-section">
-                  <h2>個人資訊</h2>
+                {/* 個人資訊卡片 */}
+                <div className="profile-card profile-main-card">
+                  <div className="card-header">
+                    <h2 className="card-title">個人資訊</h2>
+                    <Button
+                      variant="primary"
+                      onClick={() => setIsEditing(true)}
+                      className="edit-btn"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M11.5 1.5a2.121 2.121 0 013 3L5 14l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      編輯資料
+                    </Button>
+                  </div>
                   
-                  {/* 頭像顯示 */}
-                  <div className="profile-avatar-section">
-                    <div className="avatar-container">
-                      {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.username} className="avatar-image" />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {user?.username?.charAt(0).toUpperCase()}
+                  <div className="profile-main-content">
+                    {/* 頭像區域 */}
+                    <div className="profile-avatar-section">
+                      <div className="avatar-wrapper">
+                        {user?.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.username} className="avatar-image" />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            <span className="avatar-initial">
+                              {user?.username?.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="avatar-ring"></div>
+                      </div>
+                    </div>
+                    
+                    {/* 個人資訊 */}
+                    <div className="profile-info-section">
+                      <div className="info-grid">
+                        <div className="info-item">
+                          <span className="info-label">用戶名稱</span>
+                          <span className="info-value">{user.username}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">電子郵件</span>
+                          <span className="info-value">{user.email}</span>
+                        </div>
+                        {user.authorName && (
+                          <div className="info-item">
+                            <span className="info-label">作者名稱</span>
+                            <span className="info-value">{user.authorName}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {user.bio && (
+                        <div className="bio-section">
+                          <span className="info-label">自我介紹</span>
+                          <p className="bio-text">{user.bio}</p>
                         </div>
                       )}
                     </div>
                   </div>
-                  
-                  <div className="profile-info">
-                    <div className="info-row">
-                      <span className="info-label">用戶名稱：</span>
-                      <span className="info-value">{user.username}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">電子郵件：</span>
-                      <span className="info-value">{user.email}</span>
-                    </div>
-                    {user.authorName && (
-                      <div className="info-row">
-                        <span className="info-label">作者名稱：</span>
-                        <span className="info-value">{user.authorName}</span>
-                      </div>
-                    )}
-                    {user.bio && (
-                      <div className="info-row bio-row">
-                        <span className="info-label">自我介紹：</span>
-                        <p className="info-value bio-text">{user.bio}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="profile-actions">
-                    <Button
-                      variant="primary"
-                      onClick={() => setIsEditing(true)}
-                    >
-                      編輯資料
-                    </Button>
-                  </div>
                 </div>
                 
-                <div className="profile-section">
-                  <h2>快速連結</h2>
-                  <div className="quick-links">
-                    <Link to="/my-artworks" className="link-card">
-                      <span className="link-icon">🎨</span>
-                      <span>我的作品</span>
+                {/* 快速連結卡片 */}
+                <div className="profile-card quick-actions-card">
+                  <div className="card-header">
+                    <h2 className="card-title">快速操作</h2>
+                  </div>
+                  
+                  <div className="quick-actions-grid">
+                    <Link to="/my-artworks" className="action-card">
+                      <div className="action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                      </div>
+                      <div className="action-content">
+                        <h3>我的作品</h3>
+                        <p>查看和管理您的作品集</p>
+                      </div>
+                      <div className="action-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M6 4L10 8L6 12"/>
+                        </svg>
+                      </div>
                     </Link>
-                    <Link to="/submit" className="link-card">
-                      <span className="link-icon">📤</span>
-                      <span>投稿作品</span>
+                    
+                    <Link to="/submit" className="action-card">
+                      <div className="action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                          <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2"/>
+                          <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/>
+                          <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/>
+                          <polyline points="10,9 9,9 8,9" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                      </div>
+                      <div className="action-content">
+                        <h3>投稿作品</h3>
+                        <p>上傳新的作品到平台</p>
+                      </div>
+                      <div className="action-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M6 4L10 8L6 12"/>
+                        </svg>
+                      </div>
                     </Link>
+                    
                     {user.authorName && (
-                      <Link to={`/author/${encodeURIComponent(user.authorName)}`} className="link-card">
-                        <span className="link-icon">👤</span>
-                        <span>作者頁面</span>
+                      <Link to={`/author/${encodeURIComponent(user.authorName)}`} className="action-card">
+                        <div className="action-icon">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2"/>
+                            <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                          </svg>
+                        </div>
+                        <div className="action-content">
+                          <h3>作者頁面</h3>
+                          <p>查看您的公開作者頁面</p>
+                        </div>
+                        <div className="action-arrow">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M6 4L10 8L6 12"/>
+                          </svg>
+                        </div>
                       </Link>
                     )}
                   </div>
                 </div>
                 
-                <div className="profile-section">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (window.confirm('確定要登出嗎？')) {
-                        logout()
-                        navigate('/')
-                      }
-                    }}
-                  >
-                    登出
-                  </Button>
+                {/* 帳戶操作卡片 */}
+                <div className="profile-card account-actions-card">
+                  <div className="card-header">
+                    <h2 className="card-title">帳戶操作</h2>
+                  </div>
+                  
+                  <div className="account-actions">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (window.confirm('確定要登出嗎？')) {
+                          logout()
+                          navigate('/')
+                        }
+                      }}
+                      className="logout-btn"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M6 12l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0z"/>
+                      </svg>
+                      登出帳戶
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
-              // 編輯模式
-              <form onSubmit={handleSubmit} className="profile-form">
-                <div className="profile-section">
-                  <h2>編輯資料</h2>
-                  
-                  {/* 頭像編輯 */}
-                  <div className="avatar-edit-section">
-                    <label>頭像</label>
-                    <div className="avatar-edit-container">
-                      <div className="avatar-preview">
-                        {avatarPreview ? (
-                          <img src={avatarPreview} alt="頭像預覽" />
-                        ) : (
-                          <div className="avatar-placeholder">
-                            {user?.username?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="avatar-controls">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarChange}
-                          style={{ display: 'none' }}
-                        />
-                        <button
+              // 編輯模式 - 現代化表單設計
+              <div className="profile-edit-mode">
+                <form onSubmit={handleSubmit} className="profile-form">
+                  {/* 編輯表單卡片 */}
+                  <div className="profile-card edit-form-card">
+                    <div className="card-header">
+                      <h2 className="card-title">編輯資料</h2>
+                      <div className="form-actions-header">
+                        <Button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="btn btn-outline btn-sm"
+                          variant="outline"
+                          onClick={handleCancel}
+                          disabled={loading}
                         >
-                          選擇圖片
-                        </button>
-                        <span className="hint">最大 5MB，建議 200x200px</span>
+                          取消
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          disabled={loading}
+                        >
+                          {loading ? '更新中...' : '儲存變更'}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="form-content">
+                      {/* 頭像編輯區域 */}
+                      <div className="form-section avatar-section">
+                        <label className="section-label">頭像</label>
+                        <div className="avatar-edit-container">
+                          <div className="avatar-preview-large">
+                            {avatarPreview ? (
+                              <img src={avatarPreview} alt="頭像預覽" />
+                            ) : (
+                              <div className="avatar-placeholder">
+                                <span className="avatar-initial">
+                                  {user?.username?.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="avatar-controls">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleAvatarChange}
+                              style={{ display: 'none' }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="upload-btn"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8.5 2a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 8.293V2.5a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M2 12.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                              </svg>
+                              選擇圖片
+                            </Button>
+                            <p className="upload-hint">最大 5MB，建議 200x200px</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 基本資訊區域 */}
+                      <div className="form-section basic-info-section">
+                        <label className="section-label">基本資訊</label>
+                        <div className="form-grid">
+                          <div className="form-group">
+                            <label htmlFor="username">用戶名稱</label>
+                            <input
+                              type="text"
+                              id="username"
+                              value={formData.username}
+                              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                              required
+                              className="form-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label htmlFor="email">電子郵件</label>
+                            <input
+                              type="email"
+                              id="email"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              required
+                              className="form-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label htmlFor="authorName">作者名稱（本名）</label>
+                            <input
+                              type="text"
+                              id="authorName"
+                              value={formData.authorName}
+                              onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
+                              placeholder="請輸入您的本名"
+                              className="form-input"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 自我介紹區域 */}
+                      <div className="form-section bio-section">
+                        <label className="section-label">自我介紹</label>
+                        <div className="form-group">
+                          <textarea
+                            id="bio"
+                            value={formData.bio}
+                            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                            rows="4"
+                            placeholder="介紹一下自己吧..."
+                            maxLength="500"
+                            className="form-textarea"
+                          />
+                          <div className="form-footer">
+                            <span className="char-count">{formData.bio.length}/500</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 密碼更改區域 */}
+                      <div className="form-section password-section">
+                        <div className="section-divider">
+                          <span className="divider-text">更改密碼（選填）</span>
+                        </div>
+                        
+                        <div className="form-grid">
+                          <div className="form-group">
+                            <label htmlFor="currentPassword">當前密碼</label>
+                            <input
+                              type="password"
+                              id="currentPassword"
+                              value={formData.currentPassword}
+                              onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+                              placeholder="如要更改密碼請填寫"
+                              className="form-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label htmlFor="newPassword">新密碼</label>
+                            <input
+                              type="password"
+                              id="newPassword"
+                              value={formData.newPassword}
+                              onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                              placeholder="留空表示不更改"
+                              minLength="6"
+                              className="form-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label htmlFor="confirmPassword">確認新密碼</label>
+                            <input
+                              type="password"
+                              id="confirmPassword"
+                              value={formData.confirmPassword}
+                              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                              placeholder="再次輸入新密碼"
+                              className="form-input"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="username">用戶名稱</label>
-                    <input
-                      type="text"
-                      id="username"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="email">電子郵件</label>
-                    <input
-                      type="email"
-                      id="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="authorName">作者名稱（本名）</label>
-                    <input
-                      type="text"
-                      id="authorName"
-                      value={formData.authorName}
-                      onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
-                      placeholder="請輸入您的本名"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="bio">自我介紹</label>
-                    <textarea
-                      id="bio"
-                      value={formData.bio}
-                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                      rows="4"
-                      placeholder="介紹一下自己吧..."
-                      maxLength="500"
-                    />
-                    <span className="char-count">{formData.bio.length}/500</span>
-                  </div>
-                  
-                  <div className="form-divider">
-                    <span>更改密碼（選填）</span>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="currentPassword">當前密碼</label>
-                    <input
-                      type="password"
-                      id="currentPassword"
-                      value={formData.currentPassword}
-                      onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                      placeholder="如要更改密碼請填寫"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="newPassword">新密碼</label>
-                    <input
-                      type="password"
-                      id="newPassword"
-                      value={formData.newPassword}
-                      onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                      placeholder="留空表示不更改"
-                      minLength="6"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="confirmPassword">確認新密碼</label>
-                    <input
-                      type="password"
-                      id="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      placeholder="再次輸入新密碼"
-                    />
-                  </div>
-                  
-                  <div className="form-actions">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancel}
-                      disabled={loading}
-                    >
-                      取消
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      disabled={loading}
-                    >
-                      {loading ? '更新中...' : '儲存變更'}
-                    </Button>
-                  </div>
-                </div>
-              </form>
+                </form>
+              </div>
             )}
           </div>
         </div>

@@ -31,10 +31,7 @@ const Button = ({
       {...props}
     >
       {loading ? (
-        <>
-          <span className="btn-spinner"></span>
-          <span>{children}</span>
-        </>
+        <span className="btn-spinner"></span>
       ) : (
         children
       )}

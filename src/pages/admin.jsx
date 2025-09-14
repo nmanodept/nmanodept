@@ -559,55 +559,57 @@ const AdminPage = () => {
                 )}
               </Button>
               
-              {isPending ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleApprove(artwork.id)}
-                    disabled={actionLoading[artwork.id] !== undefined}
-                    loading={actionLoading[artwork.id] === 'approve'}
-                  >
-                    <CheckCircleIcon className="w-4 h-4 mr-1" />
-                    通過
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleReject(artwork.id)}
-                    disabled={actionLoading[artwork.id] !== undefined}
-                    loading={actionLoading[artwork.id] === 'reject'}
-                  >
-                    <XCircleIcon className="w-4 h-4 mr-1" />
-                    駁回
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleRevertToDraft(artwork.id)}
-                    disabled={actionLoading[artwork.id] !== undefined}
-                    loading={actionLoading[artwork.id] === 'revert'}
-                  >
-                    <ArrowUturnLeftIcon className="w-4 h-4 mr-1" />
-                    退回草稿
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleDelete(artwork.id)}
-                    disabled={actionLoading[artwork.id] !== undefined}
-                    loading={actionLoading[artwork.id] === 'delete'}
-                  >
-                    <TrashIcon className="w-4 h-4 mr-1" />
-                    刪除
-                  </Button>
-                </>
-              )}
+              <div className="button-group">
+                {isPending ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => handleApprove(artwork.id)}
+                      disabled={actionLoading[artwork.id] !== undefined}
+                      loading={actionLoading[artwork.id] === 'approve'}
+                    >
+                      <CheckCircleIcon className="w-4 h-4 mr-1" />
+                      通過
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleReject(artwork.id)}
+                      disabled={actionLoading[artwork.id] !== undefined}
+                      loading={actionLoading[artwork.id] === 'reject'}
+                    >
+                      <XCircleIcon className="w-4 h-4 mr-1" />
+                      駁回
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRevertToDraft(artwork.id)}
+                      disabled={actionLoading[artwork.id] !== undefined}
+                      loading={actionLoading[artwork.id] === 'revert'}
+                    >
+                      <ArrowUturnLeftIcon className="w-4 h-4 mr-1" />
+                      退回草稿
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleDelete(artwork.id)}
+                      disabled={actionLoading[artwork.id] !== undefined}
+                      loading={actionLoading[artwork.id] === 'delete'}
+                    >
+                      <TrashIcon className="w-4 h-4 mr-1" />
+                      刪除
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -731,7 +733,7 @@ const AdminPage = () => {
             />
           ) : (
             <div className="avatar-placeholder">
-              <UserCircleIcon className="w-12 h-12" />
+              <UserCircleIcon className="w-6 h-6" />
             </div>
           )}
         </div>
@@ -770,6 +772,7 @@ const AdminPage = () => {
           <div className="artwork-actions">
             <Button
               size="sm"
+              variant="secondary"
               onClick={() => handleApproveProfile(profile.id)}
               disabled={actionLoading[`profile-${profile.id}`] !== undefined}
               loading={actionLoading[`profile-${profile.id}`] === 'approve'}
@@ -800,7 +803,7 @@ const AdminPage = () => {
       <div className="profile-content">
         <div className="profile-avatar">
           <div className="avatar-placeholder">
-            <UserCircleIcon className="w-12 h-12" />
+            <UserCircleIcon className="w-6 h-6" />
           </div>
         </div>
         
@@ -827,6 +830,7 @@ const AdminPage = () => {
           <div className="artwork-actions">
             <Button
               size="sm"
+              variant="secondary"
               onClick={() => handleApproveUser(user.id)}
               disabled={actionLoading[`user-${user.id}`] !== undefined}
               loading={actionLoading[`user-${user.id}`] === 'approve'}

@@ -1,127 +1,339 @@
-/* /src/templates/author.css - 作者詳細頁面樣式 */
+/* /src/templates/author.css - 現代化作者頁面樣式 */
 
 .author-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--spacing-2xl) var(--spacing-xl);
+  padding: 0;
 }
 
-/* 作者資訊區 */
-.author-header {
+/* ========== 全新作者資訊區域 ========== */
+.author-profile-hero {
+  position: relative;
+  min-height: 56vh; /* 70% of 80vh */
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: var(--spacing-2xl);
-  margin-bottom: var(--spacing-3xl);
-  text-align: left;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
+  overflow: hidden;
+  margin-bottom: var(--spacing-3xl); /* 減少間距 */
 }
 
-.author-avatar {
-  flex-shrink: 0;
+/* 背景層 */
+.hero-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
 }
 
-.author-avatar img {
-  width: 250px;
-  height: 250px;
-  border-radius: 12px;
-  object-fit: contain;
+.hero-gradient {
+  display: none; /* 移除背景漸層 */
 }
 
-.author-avatar-placeholder {
-  width: 250px;
-  height: 250px;
-  border-radius: 12px;
+.hero-pattern {
+  display: none; /* 移除背景圖案 */
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(-20px, -10px) rotate(1deg); }
+  66% { transform: translate(10px, -20px) rotate(-1deg); }
+}
+
+/* 主要卡片容器 */
+.author-profile-card {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+.profile-main {
+  background: transparent; /* 移除背景 */
+  backdrop-filter: none; /* 移除模糊效果 */
+  border: none; /* 移除邊框 */
+  border-radius: 16px; /* 縮小圓角 */
+  padding: var(--spacing-3xl); /* 縮小內邊距 */
+  box-shadow: none; /* 移除陰影 */
+  display: grid;
+  grid-template-columns: 240px 1fr; /* 增大頭像區域寬度 */
+  gap: calc(var(--spacing-3xl) * 1.1); /* 增加 10% 間距 */
+  align-items: start;
+}
+
+/* ========== 頭像區域 ========== */
+.author-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.avatar-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.author-avatar-placeholder span {
-  font-size: 5rem;
-  font-weight: 500;
-  color: var(--color-gray-300);
-  text-transform: uppercase;
+.author-avatar-img,
+.author-avatar-placeholder {
+  width: 200px; /* 增大頭像尺寸 */
+  height: 200px; /* 增大頭像尺寸 */
+  border-radius: 50%;
+  position: relative;
+  z-index: 2;
 }
 
-.author-info {
-  flex: 1;
+.author-avatar-img {
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 5px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.author-avatar-img:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.author-avatar-placeholder {
+  background: linear-gradient(135deg, #454545, #2e2e2e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid rgba(142, 142, 142, 0.2);
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 5px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.author-avatar-placeholder:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.avatar-initial {
+  font-size: 4rem; /* 增大文字尺寸以匹配更大的頭像 */
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.avatar-ring {
+  display: none; /* 移除紫色邊框 */
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========== 作者詳細資訊 ========== */
+.author-details {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
-  min-height: 250px;
-  justify-content: flex-start;
-  padding-top: var(--spacing-md);
-}
-
-.author-name {
-  font-size: 4rem;
-  font-weight: 300;
-  color: var(--color-gray-100);
-  margin: 0;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-
-.author-bio {
-  color: var(--color-gray-400);
-  font-size: var(--font-size-lg);
-  margin: 0;
-  line-height: 1.6;
-}
-
-.author-stats {
-  display: flex;
   gap: var(--spacing-2xl);
-  margin-top: var(--spacing-lg);
+  height: 100%;
 }
 
-.stat-item {
+.author-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.author-name-hero {
+  font-size: 3.15rem; /* 70% of 4.5rem */
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff, #e5e7eb);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.author-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.meta-stats {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.stat-badge:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.stat-text {
+  font-size: 0.875rem;
+  color: var(--color-gray-400);
+  margin-top: 4px;
+}
+
+/* 作品數量 - 右上角 */
+.artworks-count-top-right {
+  position: absolute;
+  top: 0;
+  right: 80px;
+  z-index: 10;
+}
+
+.artworks-count {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
+  transition: all 0.3s ease;
 }
 
-.stat-value {
-  font-size: 1.5rem;
+.artworks-count:hover {
+  transform: translateY(-2px);
+}
+
+.count-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.count-text {
+  font-size: 0.875rem;
+  color: var(--color-gray-400);
   font-weight: 500;
-  color: var(--color-gray-100);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.stat-label {
-  font-size: var(--font-size-sm);
+/* ========== 簡介區域 ========== */
+.author-bio-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+  padding-right: 80px; /* 為右上角作品數量留出空間 */
+  position: relative;
+}
+
+.author-bio-section::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  left: 0;
+  right: 80px; /* 與 padding-right 保持一致 */
+  height: 1px;
+  background: #333333;
+}
+
+.author-bio-section::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 80px; /* 與 padding-right 保持一致 */
+  height: 1px;
+  background: #333333;
+}
+
+.bio-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.bio-icon {
   color: var(--color-gray-400);
 }
 
-/* 社交媒體連結 */
-.author-social-links {
-  display: flex;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
+.bio-text {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--color-gray-300);
+  margin: 0;
+  max-width: 600px;
 }
 
-.social-link-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-gray-700);
+/* ========== 社交連結圖標區域 ========== */
+.social-icons-section {
+  margin-top: var(--spacing-xl);
+}
+
+.social-icons-container {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.social-icon-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-gray-400);
-  transition: all 0.2s ease;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  color: var(--color-gray-300);
   text-decoration: none;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
-.social-link-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--color-gray-500);
-  color: var(--color-gray-100);
+.social-icon-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+}
+
+.social-icon-link svg {
+  width: 28px;
+  height: 28px;
 }
 
 /* 作品控制區 */
@@ -383,8 +595,8 @@
   top: 25px;
   width: 16px;
   height: 16px;
-  background: var(--color-gray-400);
-  border: 3px solid var(--color-gray-800);
+  background: #6b7280;
+  border: 3px solid #374151;
   border-radius: 50%;
   z-index: 5;
   transition: all 0.3s ease;
@@ -400,6 +612,7 @@
   text-decoration: none;
   transition: all 0.3s ease;
   position: relative;
+  margin-top: 80px;
 }
 
 .timeline-work-card:hover {
@@ -409,8 +622,8 @@
 }
 
 .timeline-work-card:hover .timeline-dot {
-  background: var(--color-gray-200);
-  border-color: var(--color-gray-600);
+  background: #e5e7eb;
+  border-color: #4b5563;
   transform: scale(1.2);
 }
 
@@ -504,29 +717,99 @@
   margin-bottom: var(--spacing-2xl);
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .author-header {
-    flex-direction: column;
-    align-items: center;
+/* ========== 響應式設計 ========== */
+@media (max-width: 1024px) {
+  .author-profile-hero {
+    min-height: 49vh; /* 70% of 70vh */
+  }
+  
+  .profile-main {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2xl); /* 縮小間距 */
     text-align: center;
-    gap: var(--spacing-lg);
-    max-width: 600px;
+    padding: var(--spacing-2xl); /* 縮小內邊距 */
   }
   
-  .author-info {
-    min-height: auto;
-    padding-top: 0;
+  .author-avatar-section {
+    justify-self: center;
   }
   
-  .author-name {
-    font-size: 3.5rem;
+  .author-name-hero {
+    font-size: 2.45rem; /* 70% of 3.5rem */
   }
   
-  .author-stats {
+  .meta-stats {
     justify-content: center;
-    flex-direction: row;
-    gap: var(--spacing-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .author-profile-hero {
+    min-height: 42vh; /* 70% of 60vh */
+    padding: var(--spacing-lg) 0; /* 縮小內邊距 */
+  }
+  
+  .author-profile-card {
+    padding: var(--spacing-md); /* 縮小內邊距 */
+  }
+  
+  .profile-main {
+    padding: var(--spacing-xl); /* 縮小內邊距 */
+    border-radius: 14px; /* 縮小圓角 */
+  }
+  
+  .author-avatar-img,
+  .author-avatar-placeholder {
+    width: 160px; /* 響應式頭像尺寸 */
+    height: 160px; /* 響應式頭像尺寸 */
+  }
+  
+  .avatar-initial {
+    font-size: 3.2rem; /* 響應式文字尺寸 */
+  }
+  
+  .author-name-hero {
+    font-size: 2.1rem; /* 70% of 3rem */
+  }
+  
+  .stat-badge {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .stat-number {
+    font-size: 1.5rem;
+  }
+  
+  .artworks-count-top-right {
+    position: static;
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .author-bio-section {
+    text-align: center;
+    padding-right: 0;
+  }
+  
+  .author-bio-section::before {
+    top: -50px;
+    right: 0; /* 在響應式模式下使用全寬 */
+    background: #4b5563;
+  }
+  
+  .author-bio-section::after {
+    bottom: -30px;
+    right: 0; /* 在響應式模式下使用全寬 */
+    background: #4b5563;
+  }
+  
+  .bio-text {
+    max-width: none;
+  }
+  
+  .social-icons-container {
+    justify-content: center;
   }
   
   .works-controls {
@@ -540,7 +823,7 @@
   }
   
   .works-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
   
   .work-list-item {
@@ -595,21 +878,56 @@
 }
 
 @media (max-width: 480px) {
-  .author-avatar img,
+  .author-profile-hero {
+    min-height: 35vh; /* 70% of 50vh */
+  }
+  
+  .author-profile-card {
+    padding: var(--spacing-sm); /* 更小的內邊距 */
+  }
+  
+  .profile-main {
+    padding: var(--spacing-lg); /* 縮小內邊距 */
+    border-radius: 12px; /* 縮小圓角 */
+  }
+  
+  .author-avatar-img,
   .author-avatar-placeholder {
-    width: 180px;
-    height: 180px;
+    width: 130px; /* 小螢幕頭像尺寸 */
+    height: 130px; /* 小螢幕頭像尺寸 */
   }
   
-  .author-avatar-placeholder span {
-    font-size: 3.5rem;
+  .avatar-initial {
+    font-size: 2.5rem; /* 小螢幕文字尺寸 */
   }
   
-  .author-name {
-    font-size: 3rem;
+  .author-name-hero {
+    font-size: 1.75rem; /* 70% of 2.5rem */
+  }
+  
+  .meta-stats {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    width: 100%;
+  }
+  
+  .stat-badge {
+    width: 100%;
+    padding: var(--spacing-md);
   }
   
   .works-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .hero-gradient {
+    background: linear-gradient(
+      180deg,
+      rgba(88, 28, 135, 0.15) 0%,
+      rgba(109, 40, 217, 0.12) 25%,
+      rgba(147, 51, 234, 0.1) 50%,
+      rgba(79, 70, 229, 0.12) 75%,
+      rgba(99, 102, 241, 0.15) 100%
+    );
   }
 }

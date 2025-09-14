@@ -63,6 +63,31 @@ const AuthorsPage = () => {
       }
       
       if (authorsData.length > 0) {
+        // 獲取作者詳細資料包括頭像
+        const authorsWithDetails = await Promise.all(
+          authorsData.map(async (author) => {
+            try {
+              // 嘗試獲取作者詳細資料
+              if (author.id) {
+                const profileResponse = await fetch(`${apiUrl}/author-profiles/${author.id}`)
+                if (profileResponse.ok) {
+                  const profileData = await profileResponse.json()
+                  return {
+                    ...author,
+                    avatar_url: profileData.avatar_url,
+                    bio: profileData.bio,
+                    social_links: profileData.social_links || []
+                  }
+                }
+              }
+              return author
+            } catch (error) {
+              console.log(`無法獲取作者 ${author.name} 的詳細資料:`, error.message)
+              return author
+            }
+          })
+        )
+        
         // 如果作者數據沒有 artwork_count，嘗試從作品數據計算
         if (!authorsData[0].artwork_count) {
           console.log('作者數據沒有 artwork_count，嘗試從作品數據計算...')
@@ -73,7 +98,7 @@ const AuthorsPage = () => {
               console.log(`獲取到 ${artworks.length} 件作品`)
               
               // 為每個作者計算作品數量
-              const authorsWithCounts = authorsData.map(author => {
+              const authorsWithCounts = authorsWithDetails.map(author => {
                 const count = artworks.filter(artwork => {
                   const authors = Array.isArray(artwork.authors) ? artwork.authors :
                                  typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : []
@@ -90,14 +115,14 @@ const AuthorsPage = () => {
               setAuthors(authorsWithCounts)
             } else {
               console.log('無法獲取作品數據，使用原始作者數據')
-              setAuthors(authorsData)
+              setAuthors(authorsWithDetails)
             }
           } catch (artworkError) {
             console.log('獲取作品數據失敗，使用原始作者數據:', artworkError.message)
-            setAuthors(authorsData)
+            setAuthors(authorsWithDetails)
           }
         } else {
-          setAuthors(authorsData)
+          setAuthors(authorsWithDetails)
         }
       } else {
         setError(`所有端點都失敗了。最後錯誤: ${lastError}`)
@@ -168,7 +193,17 @@ const AuthorsPage = () => {
                   className="author-card featured"
                 >
                   <div className="author-avatar">
-                    {author.name.charAt(0)}
+                    {author.avatar_url ? (
+                      <img 
+                        src={author.avatar_url} 
+                        alt={author.name}
+                        className="author-avatar-img"
+                      />
+                    ) : (
+                      <span className="author-avatar-initial">
+                        {author.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <h3>{author.name}</h3>
                   <p className="artwork-count">共 {author.artwork_count} 件作品</p>
@@ -189,7 +224,17 @@ const AuthorsPage = () => {
                   className="author-card"
                 >
                   <div className="author-avatar">
-                    {author.name.charAt(0)}
+                    {author.avatar_url ? (
+                      <img 
+                        src={author.avatar_url} 
+                        alt={author.name}
+                        className="author-avatar-img"
+                      />
+                    ) : (
+                      <span className="author-avatar-initial">
+                        {author.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <h3>{author.name}</h3>
                   <p className="artwork-count">共 {author.artwork_count} 件作品</p>

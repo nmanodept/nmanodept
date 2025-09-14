@@ -197,67 +197,91 @@ const AuthorTemplate = ({ pageContext }) => {
       />
       
       <div className="author-container">
-        {/* 作者資訊區 */}
-        <div className="author-header">
-          {/* 作者頭像 */}
-          <div className="author-avatar">
-            {author?.avatar_url ? (
-              <img src={author.avatar_url} alt={author.name} />
-            ) : (
-              <div className="author-avatar-placeholder">
-                {author?.name?.charAt(0).toUpperCase()}
-              </div>
-            )}
+        {/* 作者資訊區 - 全新現代化設計 */}
+        <div className="author-profile-hero">
+          <div className="hero-background">
+            <div className="hero-gradient"></div>
+            <div className="hero-pattern"></div>
           </div>
           
-          <div className="author-info">
-            <h1 className="author-name">{authorName}</h1>
-            
-            {/* 作者簡介 */}
-            <div className="author-bio-section">
-              <h2>關於作者</h2>
-              <p>{author?.bio || '該作者尚未提供個人簡介。'}</p>
-            </div>
-            
-            <div className="author-stats">
-              <div className="stat-item">
-                <span className="stat-value">{artworks.length}</span>
-                <span className="stat-label">作品</span>
+          <div className="author-profile-card">
+            <div className="profile-main">
+              {/* 頭像區域 */}
+              <div className="author-avatar-section">
+                <div className="avatar-wrapper">
+                  {author?.avatar_url ? (
+                    <img 
+                      src={author.avatar_url} 
+                      alt={author.name}
+                      className="author-avatar-img"
+                    />
+                  ) : (
+                    <div className="author-avatar-placeholder">
+                      <span className="avatar-initial">
+                        {author?.name?.charAt(0).toUpperCase() || authorName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="avatar-ring"></div>
+                </div>
               </div>
               
-              {(author?.graduation_year || author?.graduationYear) && (
-                <div className="stat-item">
-                  <span className="stat-value">{author.graduation_year || author.graduationYear}</span>
-                  <span className="stat-label">畢業年份</span>
+              {/* 作者資訊 */}
+              <div className="author-details">
+                {/* 作品數量 - 右上角 */}
+                <div className="artworks-count-top-right">
+                  <div className="artworks-count">
+                    <span className="count-number">{artworks.length}</span>
+                    <span className="count-text">作品</span>
+                  </div>
                 </div>
-              )}
+                
+                <div className="author-header-info">
+                  <h1 className="author-name-hero">{authorName}</h1>
+                  
+                  {(author?.graduation_year || author?.graduationYear) && (
+                    <div className="author-meta">
+                      <div className="meta-stats">
+                        <div className="stat-badge">
+                          <span className="stat-number">{author.graduation_year || author.graduationYear}</span>
+                          <span className="stat-text">畢業</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 簡介區域 */}
+                <div className="author-bio-section">
+                  <h3 className="bio-title">
+                  個人簡介
+                  </h3>
+                  <p className="bio-text">
+                    {author?.bio || '該作者尚未提供個人簡介。'}
+                  </p>
+                </div>
+                
+                {/* 社交連結圖標 */}
+                {author?.social_links && author.social_links.length > 0 && (
+                  <div className="social-icons-section">
+                    <div className="social-icons-container">
+                      {author.social_links.map((link, index) => (
+                        <a 
+                          key={index}
+                          href={link.includes('http') ? link : `https://${link}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="social-icon-link"
+                          title={getSocialName(link)}
+                        >
+                          {getSocialIcon(link)}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            
-            {/* 社交連結 */}
-            {author?.social_links && author.social_links.length > 0 ? (
-              <div className="author-social">
-                <h3>社交連結</h3>
-                <div className="social-links">
-                  {author.social_links.map((link, index) => (
-                    <a 
-                      key={index}
-                      href={link.includes('http') ? link : `https://${link}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="social-link"
-                      aria-label={getSocialName(link)}
-                    >
-                      {getSocialIcon(link)}
-                      <span>連結 {index + 1}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="author-social empty">
-                <p>該作者尚未提供社交連結。</p>
-              </div>
-            )}
           </div>
         </div>
         
@@ -303,8 +327,7 @@ const AuthorTemplate = ({ pageContext }) => {
         
         {/* 作品展示區 */}
         <section className="works-section">
-          <h2>作品集</h2>
-          
+
           {artworks.length > 0 ? (
             activeTab === 'grid' ? (
               <div className="works-grid">

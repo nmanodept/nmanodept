@@ -111,10 +111,11 @@
 }
 
 .author-avatar {
-  width: 60px;
-  height: 60px;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,11 +123,30 @@
   font-weight: 500;
   color: var(--color-gray-300);
   margin-bottom: var(--spacing-md);
+  overflow: hidden;
+}
+
+.author-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.author-avatar-initial {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--color-gray-300);
 }
 
 .author-card.featured .author-avatar {
-  width: 70px;
-  height: 70px;
+  width: 77px;
+  height: 77px;
+  font-size: 1.8rem;
+}
+
+.author-card.featured .author-avatar-initial {
   font-size: 1.8rem;
 }
 
@@ -244,14 +264,22 @@
   }
   
   .author-avatar {
-    width: 50px;
-    height: 50px;
+    width: 110px;
+    height: 110px;
+    font-size: 1.2rem;
+  }
+  
+  .author-avatar-initial {
     font-size: 1.2rem;
   }
   
   .author-card.featured .author-avatar {
-    width: 55px;
-    height: 55px;
+    width: 60px;
+    height: 60px;
+    font-size: 1.4rem;
+  }
+  
+  .author-card.featured .author-avatar-initial {
     font-size: 1.4rem;
   }
 }
