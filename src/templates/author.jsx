@@ -13,8 +13,13 @@ const AuthorTemplate = ({ pageContext }) => {
   const [artworks, setArtworks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('grid')
-  const [sortBy, setSortBy] = useState('newest')
+  const [activeTab, setActiveTab] = useState('timeline')
+  const [sortBy, setSortBy] = useState('year')
+  
+  // 切換視圖時的處理
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+  }
   
   useEffect(() => {
     fetchAuthorData()
@@ -30,7 +35,26 @@ const AuthorTemplate = ({ pageContext }) => {
       if (authorsResponse.ok) {
         const authorsData = await authorsResponse.json()
         const authorInfo = authorsData.find(a => a.name === authorName)
-        setAuthor(authorInfo)
+        console.log('Author data:', authorInfo) // 調試用
+        
+        // 如果有 author_id，嘗試獲取詳細資料
+        if (authorInfo && authorInfo.id) {
+          try {
+            const profileResponse = await fetch(`${apiUrl}/author-profiles/${authorInfo.id}`)
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json()
+              console.log('Author profile data:', profileData) // 調試用
+              setAuthor({ ...authorInfo, ...profileData })
+            } else {
+              setAuthor(authorInfo)
+            }
+          } catch (error) {
+            console.log('Profile fetch failed, using basic author info')
+            setAuthor(authorInfo)
+          }
+        } else {
+          setAuthor(authorInfo)
+        }
       }
       
       // 獲取所有作品並篩選該作者的作品
@@ -53,8 +77,12 @@ const AuthorTemplate = ({ pageContext }) => {
                       typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') : []
         }))
         
-        // 預設按最新排序
-        authorArtworks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        // 預設按年份排序（時間軸視圖）
+        authorArtworks.sort((a, b) => {
+          const yearA = a.project_year || new Date(a.created_at).getFullYear()
+          const yearB = b.project_year || new Date(b.created_at).getFullYear()
+          return yearB - yearA // 最新年份在前
+        })
         
         setArtworks(authorArtworks)
       }
@@ -79,7 +107,12 @@ const AuthorTemplate = ({ pageContext }) => {
         sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
         break
       case 'year':
-        sorted.sort((a, b) => (b.project_year || 0) - (a.project_year || 0))
+        // 按創作年份排序，如果沒有年份則使用創建日期
+        sorted.sort((a, b) => {
+          const yearA = a.project_year || new Date(a.created_at).getFullYear()
+          const yearB = b.project_year || new Date(b.created_at).getFullYear()
+          return yearB - yearA // 最新年份在前
+        })
         break
       case 'title':
         sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh-TW'))
@@ -159,118 +192,148 @@ const AuthorTemplate = ({ pageContext }) => {
         description={author?.bio || `查看 ${authorName} 的作品集`}
       />
       
-      <div className="author-page-container">
+      <div className="author-container">
         {/* 作者資訊區 */}
-        <div className="author-hero">
-          <div className="author-hero-content">
-            <div className="author-avatar-large">
-              {author?.avatar_url ? (
-                <img src={author.avatar_url} alt={authorName} />
-              ) : (
-                <div className="avatar-placeholder-large">
-                  <span>{authorName.charAt(0)}</span>
+        <div className="author-header">
+          <div className="author-avatar">
+            {author?.avatarurl || author?.avatar_url ? (
+              <img src={author.avatarurl || author.avatar_url} alt={authorName} />
+            ) : (
+              <div className="author-avatar-placeholder">
+                <span>{authorName.charAt(0)}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="author-info">
+            <h1 className="author-name">{authorName}</h1>
+            
+            {(author?.bio || author?.description) && (
+              <p className="author-bio">{author.bio || author.description}</p>
+            )}
+            
+            <div className="author-stats">
+              <div className="stat-item">
+                <span className="stat-value">{artworks.length}</span>
+                <span className="stat-label">作品</span>
+              </div>
+              
+              {(author?.graduation_year || author?.graduationYear) && (
+                <div className="stat-item">
+                  <span className="stat-value">{author.graduation_year || author.graduationYear}</span>
+                  <span className="stat-label">畢業年份</span>
                 </div>
               )}
             </div>
             
-            <div className="author-details">
-              <h1 className="author-name-large">{authorName}</h1>
-              
-              {author?.bio && (
-                <p className="author-bio-large">{author.bio}</p>
-              )}
-              
-              <div className="author-stats-large">
-                <div className="stat-item">
-                  <span className="stat-value">{artworks.length}</span>
-                  <span className="stat-label">作品</span>
-                </div>
-                
-                {author?.graduation_year && (
-                  <div className="stat-item">
-                    <span className="stat-value">{author.graduation_year}</span>
-                    <span className="stat-label">畢業年份</span>
-                  </div>
-                )}
+            {(author?.social_links || author?.socialLinks) && (author.social_links || author.socialLinks).length > 0 && (
+              <div className="author-social-links">
+                {(author.social_links || author.socialLinks).map((link, index) => (
+                  <a
+                    key={index}
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="social-link-btn"
+                    aria-label={getSocialName(link)}
+                  >
+                    {getSocialIcon(link)}
+                  </a>
+                ))}
               </div>
-              
-              {author?.social_links && author.social_links.length > 0 && (
-                <div className="author-social-links">
-                  {author.social_links.map((link, index) => (
-                    <a
-                      key={index}
-                      href={link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="social-link-btn"
-                      aria-label={getSocialName(link)}
-                    >
-                      {getSocialIcon(link)}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
         
-        {/* 作品區 */}
-        <div className="author-works">
-          <div className="works-header">
-            <h2>作品集</h2>
-            
-            <div className="works-controls">
-              <select 
-                value={sortBy}
-                onChange={(e) => sortArtworks(e.target.value)}
-                className="sort-select"
-              >
-                <option value="newest">最新作品</option>
-                <option value="oldest">最舊作品</option>
-                <option value="year">創作年份</option>
-                <option value="title">作品名稱</option>
-              </select>
-              
-              <div className="view-tabs">
-                <button
-                  className={`tab-btn ${activeTab === 'grid' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('grid')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <rect x="1" y="1" width="6" height="6"/>
-                    <rect x="9" y="1" width="6" height="6"/>
-                    <rect x="1" y="9" width="6" height="6"/>
-                    <rect x="9" y="9" width="6" height="6"/>
-                  </svg>
-                  網格
-                </button>
-                <button
-                  className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('list')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <rect x="1" y="2" width="14" height="2"/>
-                    <rect x="1" y="7" width="14" height="2"/>
-                    <rect x="1" y="12" width="14" height="2"/>
-                  </svg>
-                  列表
-                </button>
-              </div>
-            </div>
+        {/* 作品控制區 */}
+        <div className="works-controls">
+          <div className="view-tabs">
+            <button
+              className={`tab-btn ${activeTab === 'grid' ? 'active' : ''}`}
+              onClick={() => handleTabChange('grid')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="1" width="6" height="6"/>
+                <rect x="9" y="1" width="6" height="6"/>
+                <rect x="1" y="9" width="6" height="6"/>
+                <rect x="9" y="9" width="6" height="6"/>
+              </svg>
+              網格
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
+              onClick={() => handleTabChange('list')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="2" width="14" height="2"/>
+                <rect x="1" y="7" width="14" height="2"/>
+                <rect x="1" y="12" width="14" height="2"/>
+              </svg>
+              列表
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'timeline' ? 'active' : ''}`}
+              onClick={() => handleTabChange('timeline')}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="8" cy="2" r="1.5"/>
+                <line x1="8" y1="3.5" x2="8" y2="12.5" stroke="currentColor" strokeWidth="1"/>
+                <circle cx="8" cy="14" r="1.5"/>
+              </svg>
+              時間軸
+            </button>
           </div>
+        </div>
+        
+        {/* 作品展示區 */}
+        <section className="works-section">
+          <h2>作品集</h2>
           
           {artworks.length > 0 ? (
             activeTab === 'grid' ? (
               <div className="works-grid">
                 {artworks.map(artwork => (
-                  <Card
+                  <Link
                     key={artwork.id}
-                    artwork={artwork}
-                    link={`/art/${artwork.id}`}
-                  />
+                    to={`/art/${artwork.id}`}
+                    className="work-card"
+                  >
+                    <div className="work-image">
+                      <img 
+                        src={artwork.main_image_url || '/images/placeholder.jpg'} 
+                        alt={artwork.title}
+                      />
+                    </div>
+                    
+                    <div className="work-info">
+                      <h3>{artwork.title}</h3>
+                      
+                      <div className="work-meta">
+                        {artwork.project_year && (
+                          <span className="work-year">{artwork.project_year}</span>
+                        )}
+                        
+                        {artwork.categories && artwork.categories.length > 0 && (
+                          <span className="work-category">
+                            {typeof artwork.categories[0] === 'object' 
+                              ? artwork.categories[0].name 
+                              : artwork.categories[0]}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {artwork.description && (
+                        <p className="work-description">
+                          {artwork.description.length > 100 
+                            ? `${artwork.description.substring(0, 100)}...`
+                            : artwork.description}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
                 ))}
               </div>
-            ) : (
+            ) : activeTab === 'list' ? (
               <div className="works-list">
                 {artworks.map(artwork => (
                   <Link
@@ -323,13 +386,83 @@ const AuthorTemplate = ({ pageContext }) => {
                   </Link>
                 ))}
               </div>
+            ) : (
+              <div className="works-timeline">
+                {artworks.map((artwork, index) => {
+                  const currentYear = artwork.project_year || new Date(artwork.created_at).getFullYear()
+                  const prevYear = index > 0 ? (artworks[index - 1].project_year || new Date(artworks[index - 1].created_at).getFullYear()) : null
+                  const showYear = prevYear !== currentYear
+                  
+                  return (
+                    <div key={artwork.id} className="timeline-item">
+                      {showYear && (
+                        <div className="timeline-year">
+                          <span className="year-label">{currentYear}</span>
+                        </div>
+                      )}
+                      
+                      <div className="timeline-content">
+                        <div className="timeline-dot"></div>
+                        
+                        <Link
+                          to={`/art/${artwork.id}`}
+                          className="timeline-work-card"
+                        >
+                          <div className="timeline-work-image">
+                            <img 
+                              src={artwork.main_image_url || '/images/placeholder.jpg'} 
+                              alt={artwork.title}
+                            />
+                          </div>
+                          
+                          <div className="timeline-work-info">
+                            <h3>{artwork.title}</h3>
+                            
+                            <div className="timeline-work-meta">
+                              {artwork.project_year && (
+                                <span className="work-year">{artwork.project_year}</span>
+                              )}
+                              
+                              {artwork.categories && artwork.categories.length > 0 && (
+                                <span className="work-category">
+                                  {typeof artwork.categories[0] === 'object' 
+                                    ? artwork.categories[0].name 
+                                    : artwork.categories[0]}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {artwork.description && (
+                              <p className="timeline-work-description">
+                                {artwork.description.length > 200 
+                                  ? `${artwork.description.substring(0, 200)}...`
+                                  : artwork.description}
+                              </p>
+                            )}
+                            
+                            {artwork.tags && artwork.tags.length > 0 && (
+                              <div className="timeline-work-tags">
+                                {artwork.tags.slice(0, 8).map((tag, tagIndex) => (
+                                  <span key={tagIndex} className="work-tag">
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )
           ) : (
             <div className="empty-works">
               <p>尚無作品</p>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </Layout>
   )

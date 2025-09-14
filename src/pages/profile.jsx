@@ -1,5 +1,5 @@
 // ========== /src/pages/profile.jsx - 完整修復版 ==========
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, navigate } from 'gatsby'
 import Layout from '../components/common/Layout'
 import Seo from '../components/common/Seo'
@@ -17,21 +17,51 @@ const ProfilePage = () => {
   
   // 表單資料
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
+    authorName: '',
+    bio: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
+  
+  // 頭像相關
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState('')
+  const fileInputRef = useRef(null)
   
   // 載入用戶資料
   useEffect(() => {
     if (user) {
       setFormData(prev => ({
         ...prev,
-        email: user.email || ''
+        username: user.username || '',
+        email: user.email || '',
+        authorName: user.authorName || '',
+        bio: user.bio || ''
       }))
+      setAvatarPreview(user.avatarUrl || '')
     }
   }, [user])
+  
+  // 處理頭像上傳
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('圖片大小不能超過 5MB')
+        return
+      }
+      
+      setAvatarFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setAvatarPreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
   
   // 處理表單提交
   const handleSubmit = async (e) => {
@@ -51,8 +81,32 @@ const ProfilePage = () => {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       const token = localStorage.getItem('authToken')
       
+      // 如果有新頭像，先上傳
+      let newAvatarUrl = user?.avatarUrl || ''
+      if (avatarFile) {
+        const uploadFormData = new FormData()
+        uploadFormData.append('avatar', avatarFile)
+        
+        const uploadResponse = await fetch(`${apiUrl}/auth/upload-avatar`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: uploadFormData
+        })
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json()
+          newAvatarUrl = uploadData.avatarUrl
+        }
+      }
+      
       const updateData = {
-        email: formData.email
+        username: formData.username,
+        email: formData.email,
+        authorName: formData.authorName,
+        bio: formData.bio,
+        avatarUrl: newAvatarUrl
       }
       
       // 只有在要更改密碼時才發送密碼資料
@@ -76,13 +130,14 @@ const ProfilePage = () => {
         setMessage('資料更新成功！')
         setIsEditing(false)
         
-        // 清除密碼欄位
+        // 清除密碼欄位和頭像檔案
         setFormData(prev => ({
           ...prev,
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
         }))
+        setAvatarFile(null)
         
         // 更新本地用戶資料
         if (data.user) {
@@ -103,11 +158,16 @@ const ProfilePage = () => {
   const handleCancel = () => {
     setIsEditing(false)
     setFormData({
+      username: user?.username || '',
       email: user?.email || '',
+      authorName: user?.authorName || '',
+      bio: user?.bio || '',
       currentPassword: '',
       newPassword: '',
       confirmPassword: ''
     })
+    setAvatarPreview(user?.avatarUrl || '')
+    setAvatarFile(null)
     setError('')
     setMessage('')
   }
@@ -154,7 +214,21 @@ const ProfilePage = () => {
               // 檢視模式
               <div className="profile-view">
                 <div className="profile-section">
-                  <h2>帳號資訊</h2>
+                  <h2>個人資訊</h2>
+                  
+                  {/* 頭像顯示 */}
+                  <div className="profile-avatar-section">
+                    <div className="avatar-container">
+                      {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt={user.username} className="avatar-image" />
+                      ) : (
+                        <div className="avatar-placeholder">
+                          {user?.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="profile-info">
                     <div className="info-row">
                       <span className="info-label">用戶名稱：</span>
@@ -168,6 +242,12 @@ const ProfilePage = () => {
                       <div className="info-row">
                         <span className="info-label">作者名稱：</span>
                         <span className="info-value">{user.authorName}</span>
+                      </div>
+                    )}
+                    {user.bio && (
+                      <div className="info-row bio-row">
+                        <span className="info-label">自我介紹：</span>
+                        <p className="info-value bio-text">{user.bio}</p>
                       </div>
                     )}
                   </div>
@@ -222,6 +302,50 @@ const ProfilePage = () => {
                 <div className="profile-section">
                   <h2>編輯資料</h2>
                   
+                  {/* 頭像編輯 */}
+                  <div className="avatar-edit-section">
+                    <label>頭像</label>
+                    <div className="avatar-edit-container">
+                      <div className="avatar-preview">
+                        {avatarPreview ? (
+                          <img src={avatarPreview} alt="頭像預覽" />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            {user?.username?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="avatar-controls">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="btn btn-outline btn-sm"
+                        >
+                          選擇圖片
+                        </button>
+                        <span className="hint">最大 5MB，建議 200x200px</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="username">用戶名稱</label>
+                    <input
+                      type="text"
+                      id="username"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
                   <div className="form-group">
                     <label htmlFor="email">電子郵件</label>
                     <input
@@ -231,6 +355,30 @@ const ProfilePage = () => {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
                     />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="authorName">作者名稱（本名）</label>
+                    <input
+                      type="text"
+                      id="authorName"
+                      value={formData.authorName}
+                      onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
+                      placeholder="請輸入您的本名"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="bio">自我介紹</label>
+                    <textarea
+                      id="bio"
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      rows="4"
+                      placeholder="介紹一下自己吧..."
+                      maxLength="500"
+                    />
+                    <span className="char-count">{formData.bio.length}/500</span>
                   </div>
                   
                   <div className="form-divider">
