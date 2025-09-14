@@ -78,13 +78,19 @@ const ArtworkTemplate = ({ pageContext }) => {
       })
     }
     
+    // 修復：正確處理 gallery_images 數據格式
     if (data.gallery_images && Array.isArray(data.gallery_images)) {
-      data.gallery_images.forEach((url, index) => {
-        media.push({
-          type: 'image',
-          url: url,
-          title: `展示圖片 ${index + 1}`
-        })
+      data.gallery_images.forEach((image, index) => {
+        // 處理不同格式的圖片數據
+        const imageUrl = typeof image === 'string' ? image : 
+                        (image.url || image.image_url)
+        if (imageUrl) {
+          media.push({
+            type: 'image',
+            url: imageUrl,
+            title: `展示圖片 ${index + 1}`
+          })
+        }
       })
     }
     

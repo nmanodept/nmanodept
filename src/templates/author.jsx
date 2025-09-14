@@ -30,21 +30,25 @@ const AuthorTemplate = ({ pageContext }) => {
     try {
       const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev'
       
-      // 獲取作者資訊
+      // 獲取作者列表
       const authorsResponse = await fetch(`${apiUrl}/authors`)
       if (authorsResponse.ok) {
         const authorsData = await authorsResponse.json()
         const authorInfo = authorsData.find(a => a.name === authorName)
-        console.log('Author data:', authorInfo) // 調試用
         
-        // 如果有 author_id，嘗試獲取詳細資料
+        // 如果有 author_id，獲取詳細資料
         if (authorInfo && authorInfo.id) {
           try {
+            // 修復：使用正確的 API 路徑
             const profileResponse = await fetch(`${apiUrl}/author-profiles/${authorInfo.id}`)
             if (profileResponse.ok) {
               const profileData = await profileResponse.json()
-              console.log('Author profile data:', profileData) // 調試用
-              setAuthor({ ...authorInfo, ...profileData })
+              setAuthor({ 
+                ...authorInfo, 
+                bio: profileData.bio,
+                avatar_url: profileData.avatar_url,
+                social_links: profileData.social_links || []
+              })
             } else {
               setAuthor(authorInfo)
             }
@@ -195,12 +199,13 @@ const AuthorTemplate = ({ pageContext }) => {
       <div className="author-container">
         {/* 作者資訊區 */}
         <div className="author-header">
+          {/* 作者頭像 */}
           <div className="author-avatar">
-            {author?.avatarurl || author?.avatar_url ? (
-              <img src={author.avatarurl || author.avatar_url} alt={authorName} />
+            {author?.avatar_url ? (
+              <img src={author.avatar_url} alt={author.name} />
             ) : (
               <div className="author-avatar-placeholder">
-                <span>{authorName.charAt(0)}</span>
+                {author?.name?.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
@@ -208,9 +213,11 @@ const AuthorTemplate = ({ pageContext }) => {
           <div className="author-info">
             <h1 className="author-name">{authorName}</h1>
             
-            {(author?.bio || author?.description) && (
-              <p className="author-bio">{author.bio || author.description}</p>
-            )}
+            {/* 作者簡介 */}
+            <div className="author-bio-section">
+              <h2>關於作者</h2>
+              <p>{author?.bio || '該作者尚未提供個人簡介。'}</p>
+            </div>
             
             <div className="author-stats">
               <div className="stat-item">
@@ -226,20 +233,29 @@ const AuthorTemplate = ({ pageContext }) => {
               )}
             </div>
             
-            {(author?.social_links || author?.socialLinks) && (author.social_links || author.socialLinks).length > 0 && (
-              <div className="author-social-links">
-                {(author.social_links || author.socialLinks).map((link, index) => (
-                  <a
-                    key={index}
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="social-link-btn"
-                    aria-label={getSocialName(link)}
-                  >
-                    {getSocialIcon(link)}
-                  </a>
-                ))}
+            {/* 社交連結 */}
+            {author?.social_links && author.social_links.length > 0 ? (
+              <div className="author-social">
+                <h3>社交連結</h3>
+                <div className="social-links">
+                  {author.social_links.map((link, index) => (
+                    <a 
+                      key={index}
+                      href={link.includes('http') ? link : `https://${link}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      aria-label={getSocialName(link)}
+                    >
+                      {getSocialIcon(link)}
+                      <span>連結 {index + 1}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="author-social empty">
+                <p>該作者尚未提供社交連結。</p>
               </div>
             )}
           </div>

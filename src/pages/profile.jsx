@@ -115,7 +115,8 @@ const ProfilePage = () => {
         updateData.newPassword = formData.newPassword
       }
       
-      const response = await fetch(`${apiUrl}/update-profile`, {
+      // 修復：使用正確的 API 路徑
+      const response = await fetch(`${apiUrl}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

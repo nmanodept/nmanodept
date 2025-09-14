@@ -58,6 +58,7 @@ const EditArtworkPage = ({ params, location }) => {
   const [mainImagePreview, setMainImagePreview] = useState('')
   const [galleryImages, setGalleryImages] = useState([])
   const [galleryPreviews, setGalleryPreviews] = useState([])
+  const [existingGalleryImages, setExistingGalleryImages] = useState([])
   const [deletedGalleryIds, setDeletedGalleryIds] = useState([])
   
   // 選項資料
@@ -108,34 +109,61 @@ const EditArtworkPage = ({ params, location }) => {
       if (response.ok) {
         const data = await response.json()
         
-        // 處理資料格式
+        // 修復：正確處理 gallery_images 數據格式
         const processedData = {
-          title: data.title || '',
-          description: data.description || '',
-          video_url: data.video_url || '',
-          authors: Array.isArray(data.authors) ? data.authors : 
-                   typeof data.authors === 'string' ? JSON.parse(data.authors || '[]') : [],
+          ...data,
+          authors: Array.isArray(data.authors) ? 
+            data.authors.map(a => typeof a === 'object' ? a.name : a) : 
+            [data.author],
           categories: Array.isArray(data.categories) ? 
-                      data.categories.map(cat => typeof cat === 'object' ? cat.id : cat) :
-                      typeof data.categories === 'string' ? JSON.parse(data.categories || '[]') : [],
-          tags: Array.isArray(data.tags) ? data.tags : 
-                typeof data.tags === 'string' ? JSON.parse(data.tags || '[]') : [],
-          social_links: data.social_links?.length > 0 ? data.social_links : [''],
-          gallery_video_urls: data.gallery_videos?.map(v => v.video_url || v.url) || [''],
-          project_year: data.project_year || '',
-          project_semester: data.project_semester || '',
-          disclaimer_accepted: true
+            data.categories.map(c => c.id) : 
+            [],
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          social_links: Array.isArray(data.social_links) ? data.social_links : [],
+          gallery_video_urls: Array.isArray(data.gallery_videos) ? 
+            data.gallery_videos.map(v => v.url || v) : 
+            [],
+          // 修復：正確處理 gallery_images
+          gallery_images: Array.isArray(data.gallery_images) ? 
+            data.gallery_images.map(img => {
+              // 處理不同格式的圖片數據
+              if (typeof img === 'string') {
+                return { url: img, id: null }
+              } else if (typeof img === 'object') {
+                return {
+                  url: img.url || img.image_url,
+                  id: img.id,
+                  key: img.key || img.image_key
+                }
+              }
+              return null
+            }).filter(Boolean) : 
+            []
         }
         
-        setFormData(processedData)
-        setMainImagePreview(data.main_image_url)
+        // 設置表單數據
+        setFormData({
+          title: processedData.title,
+          description: processedData.description,
+          video_url: processedData.video_url || '',
+          authors: processedData.authors,
+          categories: processedData.categories,
+          tags: processedData.tags,
+          social_links: processedData.social_links.length > 0 ? 
+            processedData.social_links : [''],
+          gallery_video_urls: processedData.gallery_video_urls.length > 0 ? 
+            processedData.gallery_video_urls : [''],
+          project_year: processedData.project_year || '',
+          project_semester: processedData.project_semester || '',
+          disclaimer_accepted: true
+        })
         
-        // 設定 gallery 圖片預覽
-        if (data.gallery_images && data.gallery_images.length > 0) {
-          setGalleryPreviews(data.gallery_images.map(img => ({
-            id: img.id,
-            url: img.image_url || img.url
-          })))
+        // 設置主圖片
+        setMainImagePreview(processedData.main_image_url)
+        
+        // 修復：設置 gallery 圖片
+        if (processedData.gallery_images && processedData.gallery_images.length > 0) {
+          setExistingGalleryImages(processedData.gallery_images)
         }
       } else if (response.status === 403) {
         setError('您沒有權限編輯此作品')
@@ -658,30 +686,76 @@ const EditArtworkPage = ({ params, location }) => {
                 </div>
               </div>
               
-              {/* 其他作品圖片 */}
-              <div>
-                <label className="block text-sm font-medium mb-2">其他作品圖片</label>
-                <div {...getGalleryProps()} className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center cursor-pointer hover:border-gray-600">
-                  <input {...getGalleryInputProps()} />
-                  <p className="text-sm text-gray-500">點擊或拖曳圖片到此處（可多選）</p>
-                </div>
+              {/* Gallery 圖片區域 */}
+              <div className="form-section">
+                <h3>其他展示圖片</h3>
                 
-                {galleryPreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    {galleryPreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img src={preview.url} alt={`Gallery ${index + 1}`} className="w-full h-32 object-cover rounded" />
-                        <button
-                          type="button"
-                          onClick={() => removeGalleryImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                {/* 顯示現有的 gallery 圖片 */}
+                {existingGalleryImages && existingGalleryImages.length > 0 && (
+                  <div className="existing-gallery">
+                    <p className="section-hint">現有圖片（勾選要刪除的圖片）：</p>
+                    <div className="gallery-grid">
+                      {existingGalleryImages.map((image, index) => (
+                        <div key={image.id || index} className="gallery-item">
+                          <img 
+                            src={image.url} 
+                            alt={`Gallery ${index + 1}`}
+                            onError={(e) => {
+                              console.error('Image load error:', image.url)
+                              e.target.src = '/placeholder-image.png' // 提供預設圖片
+                            }}
+                          />
+                          <label className="delete-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={deletedGalleryIds.includes(image.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setDeletedGalleryIds([...deletedGalleryIds, image.id])
+                                } else {
+                                  setDeletedGalleryIds(deletedGalleryIds.filter(id => id !== image.id))
+                                }
+                              }}
+                            />
+                            <span>刪除</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
+                
+                {/* 新增圖片的 dropzone */}
+                <div className="add-gallery">
+                  <p className="section-hint">新增圖片（最多 10 張）：</p>
+                  <div {...getGalleryProps()} className={`dropzone ${isGalleryDragActive ? 'active' : ''}`}>
+                    <input {...getGalleryInputProps()} />
+                    {galleryPreviews.length > 0 ? (
+                      <div className="gallery-preview-grid">
+                        {galleryPreviews.map((preview, index) => (
+                          <div key={index} className="preview-item">
+                            <img src={preview.url || preview} alt={`New ${index + 1}`} />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                removeGalleryImage(index)
+                              }}
+                              className="remove-btn"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="dropzone-content">
+                        <p>拖放圖片到這裡，或點擊選擇</p>
+                        <p className="hint">最多 10 張，每張最大 5MB</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
               {/* Gallery 影片連結 */}
