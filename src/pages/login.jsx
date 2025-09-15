@@ -106,8 +106,20 @@ const LoginPage = ({ location }) => {
 
             <button
               type="submit"
-              className="btn btn-primary btn-full"
+              className="btn btn-primary btn-md btn-full"
               disabled={isSubmitting}
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#000000',
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '1rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                minHeight: '44px'
+              }}
             >
               {isSubmitting ? '登入中...' : '登入'}
             </button>

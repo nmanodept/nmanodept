@@ -104,7 +104,25 @@ const RegisterPage = () => {
               <h2>註冊成功！</h2>
               <p>您的帳號已建立，正在等待管理員審核。</p>
               <p>審核通過後，您將收到通知郵件。</p>
-              <Link to="/" className="btn btn-primary">
+              <Link 
+                to="/" 
+                className="btn btn-primary btn-md"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#000000',
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  minHeight: '44px'
+                }}
+              >
                 返回首頁
               </Link>
             </div>
@@ -245,8 +263,20 @@ const RegisterPage = () => {
 
             <button
               type="submit"
-              className="btn btn-primary btn-full"
+              className="btn btn-primary btn-md btn-full"
               disabled={isSubmitting}
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#000000',
+                padding: '12px 24px',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '1rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                minHeight: '44px'
+              }}
             >
               {isSubmitting ? '註冊中...' : '註冊'}
             </button>
