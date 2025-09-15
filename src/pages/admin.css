@@ -307,7 +307,7 @@
 
 .artwork-actions {
   display: flex !important;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-top: var(--spacing-sm);
   width: 100%;
@@ -318,10 +318,9 @@
 
 .artwork-actions .button-group {
   display: flex !important;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-shrink: 0;
-  min-width: 160px;
   position: relative;
   z-index: 11;
 }
@@ -331,10 +330,11 @@
   visibility: visible !important;
   opacity: 1 !important;
   width: auto !important;
-  min-width: 70px !important;
+  min-width: 60px !important;
   flex-shrink: 0 !important;
   position: relative !important;
   z-index: 12 !important;
+  white-space: nowrap !important;
 }
 
 /* 展開內容 */
@@ -674,4 +674,149 @@
   .profile-links {
     justify-content: center;
   }
+}
+
+/* ========== 待審核用戶按鈕修復 ========== */
+
+/* 用戶卡片容器 */
+.user-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-gray-700);
+  border-radius: 12px;
+  padding: var(--spacing-lg);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.user-card:hover {
+  border-color: var(--color-gray-600);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* 用戶資訊區 */
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.user-name {
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  color: var(--color-gray-100);
+  margin: 0;
+}
+
+.user-email {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+}
+
+.user-author {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.user-created {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}
+
+/* 按鈕組 - 修復位置 */
+.user-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
+}
+
+/* 確保按鈕不會飄散 */
+.user-actions .btn {
+  min-width: 80px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.user-actions .btn-approve {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgb(34, 197, 94);
+  color: rgb(34, 197, 94);
+}
+
+.user-actions .btn-approve:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.user-actions .btn-reject {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgb(239, 68, 68);
+  color: rgb(239, 68, 68);
+}
+
+.user-actions .btn-reject:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* 網格佈局 */
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .user-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Loading 狀態 */
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spinner 0.6s linear infinite;
+}
+
+@keyframes spinner {
+  to { transform: rotate(360deg); }
 }

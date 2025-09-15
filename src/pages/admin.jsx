@@ -545,21 +545,21 @@ const AdminPage = () => {
             )}
             
             <div className="artwork-actions">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => toggleExpand(artwork.id)}
-              >
-                <EyeIcon className="w-4 h-4 mr-1" />
-                {expandedItem === artwork.id ? '收合' : '預覽'}
-                {expandedItem === artwork.id ? (
-                  <ChevronUpIcon className="w-4 h-4 ml-1" />
-                ) : (
-                  <ChevronDownIcon className="w-4 h-4 ml-1" />
-                )}
-              </Button>
-              
               <div className="button-group">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => toggleExpand(artwork.id)}
+                >
+                  <EyeIcon className="w-4 h-4 mr-1" />
+                  {expandedItem === artwork.id ? '收合' : '預覽'}
+                  {expandedItem === artwork.id ? (
+                    <ChevronUpIcon className="w-4 h-4 ml-1" />
+                  ) : (
+                    <ChevronDownIcon className="w-4 h-4 ml-1" />
+                  )}
+                </Button>
+                
                 {isPending ? (
                   <>
                     <Button
