@@ -283,6 +283,15 @@
   transform: translateX(4px);
 }
 
+/* 修復：支援 button 元素的 action-card */
+button.action-card {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
 /* 帳戶操作卡片 */
 .account-actions {
   display: flex;

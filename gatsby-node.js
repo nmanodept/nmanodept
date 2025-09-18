@@ -7,45 +7,83 @@ exports.createPages = async ({ graphql, actions }) => {
   try {
     // 從 API 獲取所有作品（包含內測作品）
     const apiUrl = process.env.GATSBY_API_URL || 'https://artwork-submit-api.nmanodept.workers.dev';
-    const response = await fetch(`${apiUrl}/artworks`);
+    
+    console.log(`正在從 ${apiUrl} 獲取作品資料...`);
+    
+    const response = await fetch(`${apiUrl}/artworks`, {
+      timeout: 30000, // 30 秒超時
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API 響應錯誤: ${response.status} ${response.statusText}`);
+    }
+    
     const artworks = await response.json();
     
-    console.log(`開始建立 ${artworks.length} 個作品頁面...`);
+    // 確保返回的是陣列
+    const artworksArray = Array.isArray(artworks) ? artworks : [];
+    
+    if (!Array.isArray(artworks)) {
+      console.warn('API 返回的作品資料不是陣列，使用空陣列');
+    }
+    
+    console.log(`開始建立 ${artworksArray.length} 個作品頁面...`);
     
     // 為每個作品建立靜態頁面 - 確保正確傳遞 artwork context
-    artworks.forEach(artwork => {
-      // 處理資料格式，確保陣列格式正確
-      const processedArtwork = {
-        ...artwork,
-        tags: Array.isArray(artwork.tags) ? artwork.tags : 
-              typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [],
-        authors: Array.isArray(artwork.authors) ? artwork.authors :
-                 typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : 
-                 artwork.author ? [artwork.author] : [],
-        categories: Array.isArray(artwork.categories) ? artwork.categories :
-                    typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') :
-                    artwork.category_name && artwork.category_id ? 
-                    [{ id: artwork.category_id, name: artwork.category_name }] : []
-      };
+    artworksArray.forEach(artwork => {
+      try {
+        // 驗證作品資料
+        if (!artwork || !artwork.id) {
+          console.warn('跳過無效的作品資料:', artwork);
+          return;
+        }
+        
+        // 處理資料格式，確保陣列格式正確
+        const processedArtwork = {
+          ...artwork,
+          tags: Array.isArray(artwork.tags) ? artwork.tags : 
+                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '[]') : [],
+          authors: Array.isArray(artwork.authors) ? artwork.authors :
+                   typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : 
+                   artwork.author ? [artwork.author] : [],
+          categories: Array.isArray(artwork.categories) ? artwork.categories :
+                      typeof artwork.categories === 'string' ? JSON.parse(artwork.categories || '[]') :
+                      artwork.category_name && artwork.category_id ? 
+                      [{ id: artwork.category_id, name: artwork.category_name }] : []
+        };
 
-      createPage({
-        path: `/art/${artwork.id}`,
-        component: path.resolve('./src/templates/artwork.jsx'),
-        context: {
-          id: artwork.id.toString(),
-          artwork: processedArtwork // 傳遞處理過的完整作品資料
-        },
-      });
+        createPage({
+          path: `/art/${artwork.id}`,
+          component: path.resolve('./src/templates/artwork.jsx'),
+          context: {
+            id: artwork.id.toString(),
+            artwork: processedArtwork // 傳遞處理過的完整作品資料
+          },
+        });
+      } catch (pageError) {
+        console.error(`創建作品頁面失敗: ${artwork.id}`, pageError);
+      }
     });
     
     // 獲取有作品的作者
-    const authorsResponse = await fetch(`${apiUrl}/authors`);
+    console.log('正在獲取作者資料...');
+    
+    const authorsResponse = await fetch(`${apiUrl}/authors`, {
+      timeout: 30000, // 30 秒超時
+    });
+    
+    if (!authorsResponse.ok) {
+      console.warn(`無法獲取作者資料: ${authorsResponse.status}`);
+      return; // 跳過作者頁面創建，但不影響作品頁面
+    }
+    
     const allAuthors = await authorsResponse.json();
+    const allAuthorsArray = Array.isArray(allAuthors) ? allAuthors : [];
     
     // 只為有作品的作者建立頁面
-    const authorsWithArtworks = allAuthors.filter(author => {
+    const authorsWithArtworks = allAuthorsArray.filter(author => {
       // 檢查是否有作品包含此作者
-      return artworks.some(artwork => {
+      return artworksArray.some(artwork => {
         const authors = Array.isArray(artwork.authors) ? artwork.authors :
                        typeof artwork.authors === 'string' ? JSON.parse(artwork.authors || '[]') : [];
         return authors.includes(author.name);
@@ -55,20 +93,26 @@ exports.createPages = async ({ graphql, actions }) => {
     console.log(`建立 ${authorsWithArtworks.length} 個作者頁面...`);
     
     authorsWithArtworks.forEach(author => {
-      createPage({
-        path: `/author/${encodeURIComponent(author.name)}/`,
-        component: path.resolve('./src/templates/author.jsx'),
-        context: {
-          author: author.name,
-          authorId: author.id
-        },
-      });
+      try {
+        createPage({
+          path: `/author/${encodeURIComponent(author.name)}/`,
+          component: path.resolve('./src/templates/author.jsx'),
+          context: {
+            author: author.name,
+            authorId: author.id
+          },
+        });
+      } catch (pageError) {
+        console.error(`創建作者頁面失敗: ${author.name}`, pageError);
+      }
     });
     
-    console.log(`成功建立 ${artworks.length} 個作品頁面和 ${authorsWithArtworks.length} 個作者頁面`);
+    console.log(`成功建立 ${artworksArray.length} 個作品頁面和 ${authorsWithArtworks.length} 個作者頁面`);
     
   } catch (error) {
     console.error('Error creating pages:', error);
+    // 不要讓錯誤完全中止構建過程
+    console.log('繼續構建過程...');
   }
 };
 
@@ -76,31 +120,54 @@ exports.createPages = async ({ graphql, actions }) => {
 exports.onCreatePage = async ({ page, actions }) => {
   const { createPage, deletePage } = actions;
 
-  // 處理 my-artworks 頁面
-  if (page.path.match(/^\/my-artworks/)) {
-    deletePage(page);
-    createPage({
-      ...page,
-      matchPath: "/my-artworks/*"
-    });
-  }
-  
-  // 處理 edit-artwork 頁面 - 關鍵修復
-  if (page.path === '/edit-artwork/') {
-    deletePage(page);
-    createPage({
-      ...page,
-      matchPath: '/edit-artwork/*'
-    });
-  }
-  
-  // 處理 author-profile 頁面
-  if (page.path.match(/^\/author-profile/)) {
-    deletePage(page);
-    createPage({
-      ...page,
-      matchPath: "/author-profile/*"
-    });
+  try {
+    // 處理 my-artworks 頁面
+    if (page.path.match(/^\/my-artworks/)) {
+      deletePage(page);
+      createPage({
+        ...page,
+        matchPath: "/my-artworks/*"
+      });
+    }
+    
+    // 處理 edit-artwork 頁面 - 關鍵修復
+    if (page.path === '/edit-artwork/') {
+      deletePage(page);
+      createPage({
+        ...page,
+        matchPath: '/edit-artwork/*'
+      });
+    }
+    
+    // 處理 author-profile 頁面
+    if (page.path.match(/^\/author-profile/)) {
+      deletePage(page);
+      createPage({
+        ...page,
+        matchPath: "/author-profile/*"
+      });
+    }
+    
+    // 處理其他動態路由
+    if (page.path.match(/^\/art\//)) {
+      // 確保作品頁面路由正確
+      createPage({
+        ...page,
+        matchPath: "/art/*"
+      });
+    }
+    
+    if (page.path.match(/^\/author\//)) {
+      // 確保作者頁面路由正確  
+      createPage({
+        ...page,
+        matchPath: "/author/*"
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error in onCreatePage:', error);
+    // 繼續執行，不要讓錯誤阻止頁面創建
   }
 };
 

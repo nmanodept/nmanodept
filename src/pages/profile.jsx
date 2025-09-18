@@ -287,14 +287,26 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 
-                {/* 快速連結卡片 */}
+                {/* 快速操作卡片 */}
                 <div className="profile-card quick-actions-card">
                   <div className="card-header">
                     <h2 className="card-title">快速操作</h2>
                   </div>
                   
                   <div className="quick-actions-grid">
-                    <Link to="/my-artworks" className="action-card">
+                    {/* 我的作品 - 修復手機版點擊 */}
+                    <button 
+                      className="action-card"
+                      onClick={() => navigate('/my-artworks')}
+                      type="button"
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        width: '100%',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                      }}
+                    >
                       <div className="action-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                           <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
@@ -312,9 +324,21 @@ const ProfilePage = () => {
                           <path d="M6 4L10 8L6 12"/>
                         </svg>
                       </div>
-                    </Link>
+                    </button>
                     
-                    <Link to="/submit" className="action-card">
+                    {/* 投稿作品 */}
+                    <button 
+                      className="action-card"
+                      onClick={() => navigate('/submit')}
+                      type="button"
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        width: '100%',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                      }}
+                    >
                       <div className="action-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
@@ -333,10 +357,22 @@ const ProfilePage = () => {
                           <path d="M6 4L10 8L6 12"/>
                         </svg>
                       </div>
-                    </Link>
+                    </button>
                     
+                    {/* 作者頁面 - 條件渲染 */}
                     {user.authorName && (
-                      <Link to={`/author/${encodeURIComponent(user.authorName)}`} className="action-card">
+                      <button 
+                        className="action-card"
+                        onClick={() => navigate(`/author/${encodeURIComponent(user.authorName)}`)}
+                        type="button"
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          width: '100%',
+                          textAlign: 'left',
+                          cursor: 'pointer'
+                        }}
+                      >
                         <div className="action-icon">
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2"/>
@@ -352,7 +388,7 @@ const ProfilePage = () => {
                             <path d="M6 4L10 8L6 12"/>
                           </svg>
                         </div>
-                      </Link>
+                      </button>
                     )}
                   </div>
                 </div>

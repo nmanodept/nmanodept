@@ -1,16 +1,91 @@
 // src/pages/index.js
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { navigate } from 'gatsby'
 import Seo from '../components/common/Seo'
 
-// Three.js 場景組件
-const ThreeScene = () => {
+// 圖片預載入管理器
+class ImagePreloader {
+  constructor() {
+    this.cache = new Map();
+    this.loading = new Map();
+    this.priorities = new Map();
+    this.maxConcurrent = 3;
+    this.currentLoading = 0;
+    this.queue = [];
+  }
+
+  preloadImage(url, priority = 1) {
+    if (this.cache.has(url)) {
+      return Promise.resolve(this.cache.get(url));
+    }
+
+    if (this.loading.has(url)) {
+      return this.loading.get(url);
+    }
+
+    const loadPromise = new Promise((resolve) => {
+      const request = { url, priority, resolve };
+      this.queue.push(request);
+      this.queue.sort((a, b) => b.priority - a.priority);
+      this.processQueue();
+    });
+
+    this.loading.set(url, loadPromise);
+    return loadPromise;
+  }
+
+  processQueue() {
+    if (this.currentLoading >= this.maxConcurrent || this.queue.length === 0) {
+      return;
+    }
+
+    const request = this.queue.shift();
+    this.currentLoading++;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    const handleComplete = (success = true) => {
+      this.currentLoading--;
+      this.loading.delete(request.url);
+      
+      if (success) {
+        this.cache.set(request.url, img);
+      }
+      
+      request.resolve(success ? img : null);
+      this.processQueue();
+    };
+
+    img.onload = () => handleComplete(true);
+    img.onerror = () => handleComplete(false);
+    img.src = request.url;
+  }
+
+  getCachedImage(url) {
+    return this.cache.get(url);
+  }
+
+  dispose() {
+    this.cache.clear();
+    this.loading.clear();
+    this.queue = [];
+  }
+}
+
+const imagePreloader = new ImagePreloader();
+
+// Three.js 場景組件 - 延遲載入版本
+const ThreeScene = ({ shouldLoad, onSceneReady }) => {
   const containerRef = useRef(null)
   const sceneRef = useRef(null)
   const [artworksData, setArtworksData] = useState([])
-  
-  // 獲取已審核的作品列表
+  const [sceneLoaded, setSceneLoaded] = useState(false)
+
+  // 快速獲取作品數據（不等待圖片）
   useEffect(() => {
+    if (!shouldLoad) return;
+    
     const fetchArtworks = async () => {
       try {
         const response = await fetch('https://artwork-submit-api.nmanodept.workers.dev/artworks')
@@ -26,13 +101,16 @@ const ThreeScene = () => {
     }
     
     fetchArtworks()
-  }, [])
+  }, [shouldLoad])
   
   useEffect(() => {
-    if (typeof window === 'undefined' || artworksData.length === 0) return
+    if (typeof window === 'undefined' || !shouldLoad || artworksData.length === 0) return
     
-    // 動態載入 Three.js
+    // 延遲載入 Three.js（讓 UI 先渲染）
     const loadThree = async () => {
+      // 給UI時間渲染，改善LCP
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const THREE = await import('three')
       
       if (!containerRef.current) return
@@ -44,15 +122,15 @@ const ThreeScene = () => {
       const CONFIG = {
         building: {
           mainWall: {
-            rows: isMobile ? 4 : 6,
-            cols: isMobile ? 6 : 8,
+            rows: isMobile ? 4 : 6,     // 恢復原版數量
+            cols: isMobile ? 6 : 8,     // 恢復原版數量
             spacing: 10,
             sizeMin: 9,
             sizeMax: 11,
             centerHeightBonus: 8  // 中心高度加成
           },
           sideWing: {
-            count: isMobile ? 30 : 60,  // 增加數量
+            count: isMobile ? 25 : 50,  // 稍微減少，但接近原版
             baseRadius: 15,
             maxRadius: 70,
             sizeMin: 6,
@@ -60,7 +138,7 @@ const ThreeScene = () => {
             xOffset: 40  // 側翼橫向偏移
           },
           foundation: {
-            count: isMobile ? 10 : 15,
+            count: isMobile ? 10 : 15,  // 恢復原版數量
             radius: 28,
             sizeMin: 7,
             sizeMax: 9.5,
@@ -100,16 +178,126 @@ const ThreeScene = () => {
           imageTextureSize: isMobile ? 512 : 1024
         },
         performance: {
-          maxFPS: isMobile ? 30 : 60,
-          shadowsEnabled: !isMobile,
+          maxFPS: isMobile ? 30 : 45,      // 稍微降低目標FPS來確保穩定
+          shadowsEnabled: !isMobile,       // 桌面恢復陰影
           antialias: false,
-          pixelRatio: isMobile ? 1 : 1.5
+          pixelRatio: isMobile ? 1 : Math.min(1.5, window.devicePixelRatio),  // 動態調整像素比
+          frustumCulling: true,
+          lodLevels: {
+            high: 60,    // 放寬高品質範圍
+            medium: 120, // 放寬中等品質範圍
+            low: 200     // 放寬可見範圍
+          },
+          updateIntervals: {
+            lod: 0.2,           // 稍微降低頻率
+            raycast: 0.1,       // 稍微降低頻率
+            lighting: 0.05,     // 稍微降低頻率
+            camera: 0.033       // 稍微降低頻率
+          },
+          // 新增優化參數
+          batchSize: isMobile ? 5 : 8,       // 批次更新大小
+          cullingDistance: isMobile ? 150 : 200,  // 裁剪距離
+          textureQuality: isMobile ? 0.8 : 1.0,   // 紋理品質
+          geometryInstancing: true,               // 啟用幾何實例化
+          materialMerging: true                   // 啟用材質合併
         }
       };
 
-      // 性能優化：幀率限制
+      // 性能優化：幀率限制和自適應性能管理
       let lastFrameTime = 0;
       const frameInterval = 1000 / CONFIG.performance.maxFPS;
+      
+      // 增強性能監控器
+      class PerformanceMonitor {
+        constructor() {
+          this.frameTimes = [];
+          this.maxSamples = 30;  // 減少樣本數量提高響應速度
+          this.averageFPS = 0;
+          this.performanceLevel = 'high'; // high, medium, low
+          this.lastCheck = 0;
+          this.consecutiveLowFrames = 0;
+          this.adaptiveSkipRate = 0;
+          this.memoryUsage = 0;
+        }
+        
+        update(currentTime) {
+          // 記錄幀時間
+          if (this.lastFrameTime) {
+            const frameTime = currentTime - this.lastFrameTime;
+            this.frameTimes.push(frameTime);
+            if (this.frameTimes.length > this.maxSamples) {
+              this.frameTimes.shift();
+            }
+            
+            // 即時檢測卡頓
+            if (frameTime > 50) { // 超過50ms就是卡頓
+              this.consecutiveLowFrames++;
+            } else {
+              this.consecutiveLowFrames = Math.max(0, this.consecutiveLowFrames - 1);
+            }
+          }
+          this.lastFrameTime = currentTime;
+          
+          // 更頻繁的性能檢查（每500ms）
+          if (currentTime - this.lastCheck > 500) {
+            this.checkPerformance();
+            this.lastCheck = currentTime;
+          }
+        }
+        
+        checkPerformance() {
+          if (this.frameTimes.length < 10) return;
+          
+          const avgFrameTime = this.frameTimes.reduce((a, b) => a + b) / this.frameTimes.length;
+          const recentFrameTime = this.frameTimes.slice(-5).reduce((a, b) => a + b) / 5;
+          this.averageFPS = 1000 / avgFrameTime;
+          const recentFPS = 1000 / recentFrameTime;
+          
+          // 更敏感的性能級別調整
+          const targetFPS = CONFIG.performance.maxFPS;
+          
+          if (recentFPS < targetFPS * 0.6 || this.consecutiveLowFrames > 3) {
+            this.performanceLevel = 'low';
+            this.adaptiveSkipRate = 0.4;
+          } else if (recentFPS < targetFPS * 0.8) {
+            this.performanceLevel = 'medium';
+            this.adaptiveSkipRate = 0.2;
+          } else {
+            this.performanceLevel = 'high';
+            this.adaptiveSkipRate = 0;
+          }
+          
+          // 檢測記憶體使用（如果支援）
+          if (performance.memory) {
+            this.memoryUsage = performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize;
+            if (this.memoryUsage > 0.8) {
+              this.performanceLevel = Math.min(this.performanceLevel, 'medium');
+            }
+          }
+        }
+        
+        shouldSkipFrame() {
+          return Math.random() < this.adaptiveSkipRate;
+        }
+        
+        getUpdateMultiplier() {
+          switch (this.performanceLevel) {
+            case 'low': return 0.4;
+            case 'medium': return 0.7;
+            default: return 1.0;
+          }
+        }
+        
+        getBatchSize() {
+          switch (this.performanceLevel) {
+            case 'low': return CONFIG.performance.batchSize * 0.5;
+            case 'medium': return CONFIG.performance.batchSize * 0.75;
+            default: return CONFIG.performance.batchSize;
+          }
+        }
+      }
+      
+      const performanceMonitor = new PerformanceMonitor();
       
       // 記憶體管理
       const textureCache = new Map();
@@ -185,18 +373,47 @@ const ThreeScene = () => {
         powerPreference: "high-performance",
         stencil: false,
         depth: true,
-        preserveDrawingBuffer: false
+        preserveDrawingBuffer: false,
+        failIfMajorPerformanceCaveat: false,  // 允許軟體渲染作為備選
+        precision: "highp"  // 使用高精度，但會根據性能動態調整
       });
+      
+      // 動態調整渲染器設置
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.performance.pixelRatio));
       renderer.shadowMap.enabled = CONFIG.performance.shadowsEnabled;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if (CONFIG.performance.shadowsEnabled) {
+        renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+        renderer.shadowMap.autoUpdate = false;  // 手動控制陰影更新
+      }
       renderer.outputEncoding = THREE.sRGBEncoding;
-      containerRef.current.appendChild(renderer.domElement);
       
+      // 進階 WebGL 優化
+      const gl = renderer.getContext();
+      if (gl) {
+        // 啟用深度測試優化
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        
+        // 啟用背面裁剪
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        
+        // 設置視口優化
+        gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+      }
+      
+      // 設置渲染器優化參數
+      renderer.sortObjects = true;  // 重新啟用，但會智能管理
+      renderer.autoClear = false;   // 手動控制清除
+      renderer.autoClearColor = true;
+      renderer.autoClearDepth = true;
+      renderer.autoClearStencil = false;
+      
+      containerRef.current.appendChild(renderer.domElement);
       renderer.domElement.style.cursor = 'default';
 
-      // 燈光設置 - 參考 thebuildingiwant.html 的較暗設置
+      // 燈光設置 - 恢復原版設置但稍微優化
       const ambientLight = new THREE.AmbientLight(0x404040, 0.25);
       scene.add(ambientLight);
       
@@ -204,8 +421,8 @@ const ThreeScene = () => {
       mainLight.position.set(30, 50, 20);
       if (CONFIG.performance.shadowsEnabled) {
         mainLight.castShadow = true;
-        mainLight.shadow.mapSize.width = 2048;
-        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.mapSize.width = 1024;  // 降低陰影解析度
+        mainLight.shadow.mapSize.height = 1024;
       }
       scene.add(mainLight);
       
@@ -227,15 +444,15 @@ const ThreeScene = () => {
         }
         
         createGrid() {
-          const gridSize = 400;
-          const divisions = 20;
+          const gridSize = 400;              // 恢復原版尺寸
+          const divisions = isMobile ? 15 : 20; // 稍微減少但接近原版
           const step = gridSize / divisions;
           const halfSize = gridSize / 2;
           
           const lineMaterial = new THREE.LineBasicMaterial({
-            color: 0xaaaaaa,
+            color: 0xaaaaaa,  // 恢復原版顏色
             transparent: true,
-            opacity: 0.2,
+            opacity: 0.2,     // 恢復原版透明度
             fog: true
           });
           
@@ -304,7 +521,7 @@ const ThreeScene = () => {
       
       const floatingGrid = new FloatingGrid();
 
-      // 背景方塊
+      // 背景方塊 - 大幅簡化
       class BackgroundCubes {
         constructor() {
           this.group = new THREE.Group();
@@ -314,7 +531,7 @@ const ThreeScene = () => {
         }
         
         createCubes() {
-          const count = isMobile ? 10 : 20;
+          const count = isMobile ? 10 : 18; // 恢復接近原版數量
           
           for(let i = 0; i < count; i++) {
             const size = 2 + Math.random() * 6;
@@ -425,7 +642,7 @@ const ThreeScene = () => {
           flipGroup.add(frontPlane);
           
           const backMat = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: 0xffffff, // 恢復白色效果
             side: THREE.BackSide,
             transparent: true,
             opacity: 1
@@ -508,9 +725,10 @@ const ThreeScene = () => {
                   const glitchIntensity = scaleEased * 1.5;
                   flipGroup.position.x += (Math.random() - 0.5) * glitchIntensity;
                   flipGroup.position.y += (Math.random() - 0.5) * glitchIntensity;
+                  // 恢復原本的白色閃爍效果
                   backMat.color.setHex(Math.random() > 0.5 ? 0xff0080 : 0x00ff80);
                   setTimeout(() => {
-                    backMat.color.setHex(0xffffff);
+                    backMat.color.setHex(0xffffff); // 恢復為白色
                   }, 50);
                 }
               }
@@ -562,7 +780,7 @@ const ThreeScene = () => {
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, size, size);
         
-        // 網格線
+        // 網格線 - 恢復白色
         ctx.strokeStyle = 'rgba(255,255,255,0.05)';
         ctx.lineWidth = 1;
         for(let i = 0; i < size; i += 25) {
@@ -576,9 +794,9 @@ const ThreeScene = () => {
           ctx.stroke();
         }
         
-        // 雜訊
+        // 雜訊 - 恢復白色噪點
         for(let i = 0; i < 150; i++) {
-          const n = Math.random() > 0.5 ? 255 : 0;
+          const n = Math.random() > 0.5 ? 255 : 0; // 恢復原本白黑對比
           ctx.fillStyle = `rgba(${n},${n},${n},${Math.random() * 0.02})`;
           ctx.fillRect(
             Math.random() * size,
@@ -588,12 +806,12 @@ const ThreeScene = () => {
           );
         }
         
-        // 邊框
+        // 邊框 - 恢復白色
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 2;
         ctx.strokeRect(12, 12, size - 24, size - 24);
         
-        // ID文字
+        // ID文字 - 恢復白色
         ctx.fillStyle = 'rgba(255,255,255,0.5)';
         ctx.font = `bold ${size/7}px monospace`;
         ctx.textAlign = 'center';
@@ -615,74 +833,78 @@ const ThreeScene = () => {
         return texture;
       }
 
-      // 載入作品圖片
-      function loadArtworkTexture(artwork) {
+      // 載入作品圖片 - 使用預載入系統
+      function loadArtworkTexture(artwork, priority = 1) {
         const cacheKey = `artwork_${artwork.id}`;
         
         if (textureCache.has(cacheKey)) {
-          return textureCache.get(cacheKey);
+          return Promise.resolve(textureCache.get(cacheKey));
         }
         
         if (loadingTextures.has(cacheKey)) {
           return loadingTextures.get(cacheKey);
         }
         
-        const loadPromise = new Promise((resolve) => {
-          const texture = textureLoader.load(
-            artwork.main_image_url,
-            (loadedTexture) => {
-              loadedTexture.minFilter = THREE.LinearFilter;
-              loadedTexture.magFilter = THREE.LinearFilter;
-              loadedTexture.generateMipmaps = false;
-              loadedTexture.encoding = THREE.sRGBEncoding;
+        const loadPromise = imagePreloader.preloadImage(artwork.main_image_url, priority)
+          .then((img) => {
+            if (img) {
+              const texture = new THREE.Texture(img);
+              texture.minFilter = THREE.LinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.generateMipmaps = false;
+              texture.encoding = THREE.sRGBEncoding;
+              texture.needsUpdate = true;
               
               if (textureCache.size >= MAX_TEXTURE_CACHE) {
                 const firstKey = textureCache.keys().next().value;
                 const firstTexture = textureCache.get(firstKey);
+                if (firstTexture && firstTexture.dispose) {
                 firstTexture.dispose();
+                }
                 textureCache.delete(firstKey);
               }
               
-              textureCache.set(cacheKey, loadedTexture);
+              textureCache.set(cacheKey, texture);
               loadingTextures.delete(cacheKey);
-              resolve(loadedTexture);
-            },
-            undefined,
-            (error) => {
-              console.error('Error loading texture:', error);
+              return texture;
+            } else {
               loadingTextures.delete(cacheKey);
-              resolve(createFallbackTexture(artwork));
+              return createFallbackTexture(artwork);
             }
-          );
+          })
+          .catch((error) => {
+            console.error('Error loading texture:', error);
+            loadingTextures.delete(cacheKey);
+            return createFallbackTexture(artwork);
         });
         
         loadingTextures.set(cacheKey, loadPromise);
         return loadPromise;
       }
 
-      // 創建備用紋理
+      // 創建備用紋理 - 恢復原版效果
       function createFallbackTexture(artwork) {
         const size = CONFIG.visual.imageTextureSize;
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = size;
         const ctx = canvas.getContext('2d', { alpha: false });
         
-        const g = Math.floor(30 + Math.random() * 50);
+        const g = Math.floor(30 + Math.random() * 50); // 恢復原版亮度
         ctx.fillStyle = `rgb(${g},${g},${g})`;
         ctx.fillRect(0, 0, size, size);
         
-        ctx.strokeStyle = 'rgba(255,255,255,.1)';
+        ctx.strokeStyle = 'rgba(255,255,255,.1)'; // 恢復白色邊框
         ctx.lineWidth = 4;
         ctx.strokeRect(20, 20, size - 40, size - 40);
         
-        ctx.fillStyle = 'rgba(255,255,255,.7)';
+        ctx.fillStyle = 'rgba(255,255,255,.7)'; // 恢復白色文字
         ctx.font = `bold ${size/12}px monospace`;
         ctx.textAlign = 'center';
         ctx.fillText(artwork.title || `#${artwork.id}`, size/2, size/2);
         
         if (artwork.author) {
           ctx.font = `${size/16}px monospace`;
-          ctx.fillStyle = 'rgba(255,255,255,.5)';
+          ctx.fillStyle = 'rgba(255,255,255,.5)'; // 恢復白色作者名稱
           ctx.fillText(artwork.author, size/2, size/2 + size/10);
         }
         
@@ -693,7 +915,7 @@ const ThreeScene = () => {
         return texture;
       }
 
-      // WorkPlane 類別 - 整合 thebuildingiwant.html 的效果
+      // WorkPlane 類別 - 整合 thebuildingiwant.html 的效果 + LOD 系統
       class WorkPlane {
         constructor(position, size, driftIntensity, rotation, group, index) {
           this.artwork = getRandomArtwork();
@@ -715,6 +937,12 @@ const ThreeScene = () => {
           };
           this.group = group;
           
+          // LOD 相關變量
+          this.distanceToCamera = Infinity;
+          this.lodLevel = 'low';
+          this.isVisible = true;
+          this.lastLodUpdate = 0;
+          
           // 決定是否顯示彩色圖片
           this.showColorImage = Math.random() < CONFIG.visual.imageDisplayRatio;
           
@@ -724,12 +952,12 @@ const ThreeScene = () => {
           // 創建幾何體
           const geometry = new THREE.PlaneGeometry(size * aspect, size);
           
-          // 創建材質
+          // 創建材質 - 恢復原本亮度
           const material = new THREE.MeshPhongMaterial({
             transparent: true,
             opacity: 0,
             side: THREE.DoubleSide,
-            color: new THREE.Color(0.5 + Math.random() * 0.2, 0.5 + Math.random() * 0.2, 0.5 + Math.random() * 0.2),
+            color: new THREE.Color(0.5 + Math.random() * 0.2, 0.5 + Math.random() * 0.2, 0.5 + Math.random() * 0.2), // 恢復原本亮度
             shininess: 15
           });
           
@@ -750,25 +978,25 @@ const ThreeScene = () => {
             this.mesh.receiveShadow = true;
           }
 
-          // 邊框線條
+          // 邊框線條 - 恢復白色
           const edges = new THREE.LineSegments(
             new THREE.EdgesGeometry(geometry),
             new THREE.LineBasicMaterial({
-              color: 0xffffff,
+              color: 0xffffff, // 恢復白色
               transparent: true,
-              opacity: 0.05,
+              opacity: 0.05,   // 恢復原本透明度
               linewidth: 1
             })
           );
           this.mesh.add(edges);
           this.edges = edges;
 
-          // 發光效果（hover用）
+          // 發光效果（hover用）- 恢復白色發光
           const glowGeometry = new THREE.PlaneGeometry(size * aspect * 1.08, size * 1.08);
           const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: 0xffffff, // 恢復白色發光
             transparent: true,
-            opacity: 0.1,
+            opacity: 0.1,    // 恢復原本透明度
             side: THREE.DoubleSide
           });
           this.glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -798,7 +1026,11 @@ const ThreeScene = () => {
                 this.updateGeometry(dimensions.aspect);
               }
               
-              const texture = await loadArtworkTexture(this.artwork);
+              // 根据距离决定加载优先级
+              const priority = this.distanceToCamera < CONFIG.performance.lodLevels.high ? 10 : 
+                              this.distanceToCamera < CONFIG.performance.lodLevels.medium ? 5 : 1;
+              
+              const texture = await loadArtworkTexture(this.artwork, priority);
               if (this.mesh && this.mesh.material) {
                 this.mesh.material.map = texture;
                 this.mesh.material.needsUpdate = true;
@@ -814,6 +1046,63 @@ const ThreeScene = () => {
               this.mesh.material.needsUpdate = true;
               this.textureLoaded = true;
             }
+          }
+        }
+        
+        // LOD 系統更新 - 更少的更新頻率
+        updateLOD(cameraPosition, time) {
+          // 只在必要時更新 LOD（每0.2秒）
+          if (time - this.lastLodUpdate < CONFIG.performance.updateIntervals.lod) return;
+          this.lastLodUpdate = time;
+          
+          // 計算到相機的距離
+          this.distanceToCamera = this.mesh.position.distanceTo(cameraPosition);
+          
+          // 視錐裁剪 - 隱藏過遠的物件
+          const wasVisible = this.isVisible;
+          this.isVisible = this.distanceToCamera < CONFIG.performance.lodLevels.low;
+          
+          if (this.isVisible !== wasVisible) {
+            this.mesh.visible = this.isVisible;
+          }
+          
+          if (!this.isVisible) return;
+          
+          // 決定 LOD 級別
+          const newLodLevel = this.distanceToCamera < CONFIG.performance.lodLevels.high ? 'high' :
+                              this.distanceToCamera < CONFIG.performance.lodLevels.medium ? 'medium' : 'low';
+          
+          if (newLodLevel !== this.lodLevel) {
+            this.lodLevel = newLodLevel;
+            this.applyLOD();
+          }
+        }
+        
+        // 應用 LOD 設置
+        applyLOD() {
+          if (!this.mesh || !this.mesh.material) return;
+          
+          switch (this.lodLevel) {
+            case 'high':
+              // 高品質：正常渲染
+              this.mesh.material.transparent = true;
+              if (this.edges) this.edges.visible = true;
+              if (this.glow) this.glow.visible = true;
+              break;
+              
+            case 'medium':
+              // 中等品質：隱藏邊框和發光
+              this.mesh.material.transparent = true;
+              if (this.edges) this.edges.visible = false;
+              if (this.glow) this.glow.visible = false;
+              break;
+              
+            case 'low':
+              // 低品質：簡化材質
+              this.mesh.material.transparent = false;
+              if (this.edges) this.edges.visible = false;
+              if (this.glow) this.glow.visible = false;
+              break;
           }
         }
         
@@ -862,24 +1151,30 @@ const ThreeScene = () => {
           }, delay * 1000);
         }
         
-        update(deltaTime, time) {
-          if (!this.entranceComplete) return;
+        update(deltaTime, time, cameraPosition) {
+          // LOD 更新（包含視錐裁剪）
+          if (CONFIG.performance.frustumCulling && cameraPosition) {
+            this.updateLOD(cameraPosition, time);
+          }
+          
+          if (!this.entranceComplete || !this.isVisible) return;
           
           this.time += deltaTime * 0.08 * CONFIG.animation.speedMultiplier;
           
-          // 漂浮動畫
+          // 漂浮動畫 - 根據 LOD 調整複雜度
+          const driftMultiplier = this.lodLevel === 'high' ? 1 : this.lodLevel === 'medium' ? 0.7 : 0.5;
           const drift = new THREE.Vector3(
-            Math.sin(this.time * this.drift.speed.x + this.drift.phase.x) * this.drift.intensity,
-            Math.cos(this.time * this.drift.speed.y + this.drift.phase.y) * this.drift.intensity,
-            Math.sin(this.time * this.drift.speed.z + this.drift.phase.z) * this.drift.intensity * 0.3
+            Math.sin(this.time * this.drift.speed.x + this.drift.phase.x) * this.drift.intensity * driftMultiplier,
+            Math.cos(this.time * this.drift.speed.y + this.drift.phase.y) * this.drift.intensity * driftMultiplier,
+            Math.sin(this.time * this.drift.speed.z + this.drift.phase.z) * this.drift.intensity * 0.3 * driftMultiplier
           );
           
-          // 故障效果
-          if (Math.random() < CONFIG.animation.glitchChance) {
+          // 故障效果 - 只在高品質時啟用
+          if (this.lodLevel === 'high' && Math.random() < CONFIG.animation.glitchChance) {
             this.glitchUntil = time + 0.08 + Math.random() * 0.15;
           }
           
-          if (time < this.glitchUntil) {
+          if (this.lodLevel === 'high' && time < this.glitchUntil) {
             drift.add(new THREE.Vector3(
               (Math.random() - 0.5) * CONFIG.animation.glitchIntensity,
               (Math.random() - 0.5) * CONFIG.animation.glitchIntensity,
@@ -903,9 +1198,9 @@ const ThreeScene = () => {
             const targetOpacity = this.currentScale > 1 ? CONFIG.visual.hoverOpacity : this.baseOpacity;
             this.mesh.material.opacity += (targetOpacity - this.mesh.material.opacity) * 0.08;
             
-            // 恢復原色
+            // 恢復原色 - 保持白色效果
             if (this.showColorImage) {
-              this.mesh.material.color.setRGB(1, 1, 1);
+              this.mesh.material.color.setRGB(1, 1, 1); // 恢復完整白色
             } else {
               const g = this.mesh.material.userData?.originalGray || 0.6;
               this.mesh.material.color.setRGB(g, g, g);
@@ -914,16 +1209,20 @@ const ThreeScene = () => {
           
           this.mesh.position.copy(this.basePos).add(drift);
           
-          // 輕微旋轉
+          // 輕微旋轉 - 僅在高品質時
+          if (this.lodLevel === 'high') {
           this.mesh.rotation.y += Math.cos(this.time * 0.2) * 0.001;
+          }
           
           // 縮放動畫
           this.currentScale += (this.targetScale - this.currentScale) * 0.4;
           this.mesh.scale.setScalar(this.currentScale);
           
-          // 發光效果
+          // 發光效果 - 僅在高品質時
+          if (this.lodLevel === 'high' && this.glow) {
           const glowIntensity = this.currentScale > 1 ? 0.12 : 0.03;
           this.glow.material.opacity += (glowIntensity - this.glow.material.opacity) * 0.08;
+          }
         }
         
         setHover(isHovered) {
@@ -1093,8 +1392,35 @@ const ThreeScene = () => {
           animate();
         }
         
-        update(deltaTime, time) {
-          this.planes.forEach(plane => plane.update(deltaTime, time));
+        update(deltaTime, time, cameraPosition) {
+          // 批次更新系統 - 每幀只更新部分物件
+          const batchSize = Math.ceil(performanceMonitor.getBatchSize());
+          const totalPlanes = this.planes.length;
+          
+          if (!this.updateIndex) this.updateIndex = 0;
+          
+          // 計算本幀要更新的物件範圍
+          const startIndex = this.updateIndex;
+          const endIndex = Math.min(startIndex + batchSize, totalPlanes);
+          
+          // 更新指定範圍的物件
+          for (let i = startIndex; i < endIndex; i++) {
+            const plane = this.planes[i];
+            if (!CONFIG.performance.frustumCulling || plane.isVisible) {
+              plane.update(deltaTime, time, cameraPosition);
+            }
+          }
+          
+          // 更新索引，下一幀從下個批次開始
+          this.updateIndex = endIndex >= totalPlanes ? 0 : endIndex;
+          
+          // 如果性能差，增加額外的跳過邏輯
+          if (performanceMonitor.performanceLevel === 'low') {
+            // 每隔一幀才更新一次批次
+            if (!this.skipFrame) this.skipFrame = false;
+            this.skipFrame = !this.skipFrame;
+            if (this.skipFrame) return;
+          }
         }
         
         dispose() {
@@ -1103,9 +1429,15 @@ const ThreeScene = () => {
         }
       }
 
-      // 建立場景
+      // 建立場景 - 漸進式載入
       const building = new Building();
-      building.generate();
+      
+      // 延遲場景生成以改善LCP
+      requestIdleCallback(() => {
+        building.generate();
+        setSceneLoaded(true);
+        if (onSceneReady) onSceneReady();
+      }, { timeout: 200 });
 
       // 互動
       const raycaster = new THREE.Raycaster();
@@ -1162,14 +1494,29 @@ const ThreeScene = () => {
         window.addEventListener('wheel', handleWheel, { passive: true });
       }
 
-      // 主迴圈
+      // 主迴圈 - 激進優化版本
       const clock = new THREE.Clock();
       let frame = 0;
+      let lastLightingUpdate = 0;
+      let lastCameraUpdate = 0;
+      let lastRaycastUpdate = 0;
+      
+      // 陰影更新管理
+      let lastShadowUpdate = 0;
+      const shadowUpdateInterval = 100; // 每100ms更新一次陰影
       
       const animate = (currentTime) => {
         if (!containerRef.current) return;
         
         requestAnimationFrame(animate);
+        
+        // 性能監控
+        performanceMonitor.update(currentTime);
+        
+        // 自適應跳幀
+        if (performanceMonitor.shouldSkipFrame()) {
+          return;
+        }
         
         // 幀率限制
         if (currentTime - lastFrameTime < frameInterval) return;
@@ -1177,27 +1524,57 @@ const ThreeScene = () => {
         
         const deltaTime = clock.getDelta();
         const time = clock.getElapsedTime();
+        const updateMultiplier = performanceMonitor.getUpdateMultiplier();
         
-        // 更新元素
-        building.update(deltaTime, time);
-        floatingGrid.update(time);
-        backgroundCubes.update();
-
-        // 光源移動
-        mainLight.position.x = Math.sin(time * 0.03) * 25;
-        mainLight.position.z = Math.cos(time * 0.03) * 25;
-        fillLight.position.x = -20 + Math.sin(time * 0.05) * 10;
-        fillLight.position.y = 20 + Math.cos(time * 0.04) * 8;
-        accentLight.position.x = 15 + Math.cos(time * 0.045) * 12;
-        accentLight.position.z = 40 + Math.sin(time * 0.055) * 10;
+        // 手動清除緩衝區（性能優化）
+        renderer.clear(true, true, false);
         
-        // 相機呼吸
-        camera.position.x = Math.sin(time * 0.012) * CONFIG.camera.breathIntensity;
-        camera.position.y = Math.cos(time * 0.015) * CONFIG.camera.breathIntensity * 0.8;
-        camera.lookAt(0, 10, -15);
+        // 更新元素（傳遞相機位置）- 使用批次更新系統
+        building.update(deltaTime * updateMultiplier, time, camera.position);
+        
+        // 背景元素更新 - 更智能的更新邏輯
+        const backgroundSkipRate = performanceMonitor.performanceLevel === 'low' ? 4 : 
+                                  performanceMonitor.performanceLevel === 'medium' ? 2 : 1;
+        
+        if (frame % backgroundSkipRate === 0) {
+          floatingGrid.update(time);
+        }
+        if (frame % (backgroundSkipRate + 1) === 0) {
+          backgroundCubes.update();
+        }
 
-        // Hover 檢測
-        if (!(frame++ % 3)) {
+        // 光源移動 - 恢復原版邏輯但根據性能調整
+        if (time - lastLightingUpdate > CONFIG.performance.updateIntervals.lighting) {
+          const intensity = performanceMonitor.getUpdateMultiplier();
+          mainLight.position.x = Math.sin(time * 0.03) * 25 * intensity;
+          mainLight.position.z = Math.cos(time * 0.03) * 25 * intensity;
+          fillLight.position.x = -20 + Math.sin(time * 0.05) * 10 * intensity;
+          fillLight.position.y = 20 + Math.cos(time * 0.04) * 8 * intensity;
+          accentLight.position.x = 15 + Math.cos(time * 0.045) * 12 * intensity;
+          accentLight.position.z = 40 + Math.sin(time * 0.055) * 10 * intensity;
+          lastLightingUpdate = time;
+          
+          // 動態陰影更新
+          if (CONFIG.performance.shadowsEnabled && 
+              currentTime - lastShadowUpdate > shadowUpdateInterval) {
+            renderer.shadowMap.needsUpdate = true;
+            lastShadowUpdate = currentTime;
+          }
+        }
+        
+        // 相機呼吸 - 降低更新頻率
+        if (time - lastCameraUpdate > CONFIG.performance.updateIntervals.camera) {
+          camera.position.x = Math.sin(time * 0.012) * CONFIG.camera.breathIntensity;
+          camera.position.y = Math.cos(time * 0.015) * CONFIG.camera.breathIntensity * 0.8;
+          camera.lookAt(0, 10, -15);
+          lastCameraUpdate = time;
+        }
+
+        // Hover 檢測 - 根據性能動態調整頻率
+        const raycastInterval = CONFIG.performance.updateIntervals.raycast * 
+                               (performanceMonitor.performanceLevel === 'low' ? 2 : 1);
+        
+        if (time - lastRaycastUpdate > raycastInterval) {
           raycaster.setFromCamera(mouse, camera);
           const intersects = raycaster.intersectObjects(building.group.children, false);
           const hit = intersects.length > 0 ? intersects[0].object.userData.workPlane : null;
@@ -1211,15 +1588,53 @@ const ThreeScene = () => {
               renderer.domElement.style.cursor = hoveredPlane ? 'pointer' : 'default';
             }
           }
+          lastRaycastUpdate = time;
+        }
+        
+        // 根據性能調整渲染品質
+        if (performanceMonitor.performanceLevel === 'low' && frame % 2 === 0) {
+          // 低性能時降低像素比
+          const lowPixelRatio = CONFIG.performance.pixelRatio * 0.7;
+          if (renderer.getPixelRatio() > lowPixelRatio) {
+            renderer.setPixelRatio(lowPixelRatio);
+          }
+        } else if (performanceMonitor.performanceLevel === 'high') {
+          // 高性能時恢復像素比
+          const targetPixelRatio = Math.min(window.devicePixelRatio, CONFIG.performance.pixelRatio);
+          if (renderer.getPixelRatio() < targetPixelRatio) {
+            renderer.setPixelRatio(targetPixelRatio);
+          }
         }
         
         renderer.render(scene, camera);
+        frame++;
       };
       animate();
+      
+      // 定期記憶體清理
+      const memoryCleanupInterval = setInterval(() => {
+        // 清理未使用的紋理
+        if (textureCache.size > MAX_TEXTURE_CACHE * 1.5) {
+          const keysToDelete = Array.from(textureCache.keys()).slice(0, MAX_TEXTURE_CACHE * 0.3);
+          keysToDelete.forEach(key => {
+            const texture = textureCache.get(key);
+            if (texture && texture.dispose) texture.dispose();
+            textureCache.delete(key);
+          });
+        }
+        
+        // 強制垃圾收集（如果支援）
+        if (window.gc) {
+          window.gc();
+        }
+      }, 30000); // 每30秒清理一次
       
       // 儲存清理函數
       sceneRef.current = {
         dispose: () => {
+          // 清理定期任務
+          clearInterval(memoryCleanupInterval);
+          
           window.removeEventListener('resize', handleResize);
           window.removeEventListener('mousemove', handleMouseMove);
           window.removeEventListener('click', handleClick);
@@ -1227,16 +1642,35 @@ const ThreeScene = () => {
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchstart', handleTouchStart);
           }
+          
+          // 清理場景物件
           floatingGrid.dispose();
           backgroundCubes.dispose();
           building.dispose();
-          textureCache.forEach(texture => texture.dispose());
+          
+          // 清理紋理和快取
+          textureCache.forEach(texture => {
+            if (texture && texture.dispose) texture.dispose();
+          });
           textureCache.clear();
           loadingTextures.clear();
           imageDimensionsCache.clear();
+          imagePreloader.dispose();
+          
+          // 清理渲染器
           renderer.dispose();
+          renderer.forceContextLoss();
+          renderer.domElement = null;
+          
           if (containerRef.current && renderer.domElement) {
             containerRef.current.removeChild(renderer.domElement);
+          }
+          
+          // 清理 WebGL 上下文
+          const gl = renderer.getContext();
+          if (gl) {
+            const loseContext = gl.getExtension('WEBGL_lose_context');
+            if (loseContext) loseContext.loseContext();
           }
         }
       };
@@ -1250,20 +1684,82 @@ const ThreeScene = () => {
         sceneRef.current.dispose();
       }
     };
-  }, [artworksData]);
+  }, [shouldLoad, artworksData]);
   
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return (
+    <div 
+      ref={containerRef} 
+      className="absolute inset-0"
+      style={{ 
+        opacity: sceneLoaded ? 1 : 0.3,
+        transition: 'opacity 1s ease-in-out'
+      }}
+    />
+  );
 };
 
 const IndexPage = () => {
+  const [uiReady, setUiReady] = useState(false);
+  const [shouldLoad3D, setShouldLoad3D] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  
   const handleEnter = (e) => {
     e.preventDefault();
     navigate('/search');
   };
+
+  // 立即顯示UI，延遲載入3D場景
+  useEffect(() => {
+    // UI立即準備好
+    setUiReady(true);
+    
+    // 延遲啟動3D場景載入以改善LCP
+    const timer = setTimeout(() => {
+      setShouldLoad3D(true);
+    }, 500); // 給UI 500ms 時間完全渲染
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 背景預載入（不阻塞渲染）
+  useEffect(() => {
+    if (!uiReady) return;
+    
+    const backgroundPreload = async () => {
+      // 預載入字體
+      const link = document.createElement('link');
+      link.rel = 'preconnect';
+      link.href = 'https://fonts.googleapis.com';
+      document.head.appendChild(link);
+      
+      const link2 = document.createElement('link');
+      link2.rel = 'preconnect';
+      link2.href = 'https://fonts.gstatic.com';
+      link2.crossOrigin = 'anonymous';
+      document.head.appendChild(link2);
+      
+      // 預載入 API（不等待結果）
+      if ('fetch' in window) {
+        fetch('https://artwork-submit-api.nmanodept.workers.dev/artworks', {
+          method: 'HEAD'
+        }).catch(() => {});
+      }
+    };
+    
+    // 延遲背景預載入
+    setTimeout(backgroundPreload, 100);
+  }, [uiReady]);
   
   return (
     <>
-      <Seo title="首頁" description="探索藝術作品的數位展示空間" />
+      <Seo 
+        title="NMANODEPT - 新沒系館" 
+        description="探索藝術作品的虛擬數位空間，新沒系館是一個創新的藝術展示平台，展現當代藝術創作的多元面貌。"
+        keywords="藝術,數位展覽,虛擬空間,當代藝術,創作展示"
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        image="/preview-image.jpg"
+        type="website"
+      />
       
       <div className="min-h-screen bg-black">
         {/* Three.js 場景容器 */}
@@ -1282,21 +1778,40 @@ const IndexPage = () => {
             }}
           />
           
-          {/* Three.js 渲染區域 */}
+          {/* Three.js 渲染區域 - 條件載入 */}
           <div className="relative z-0">
-            <ThreeScene />
+            {shouldLoad3D && (
+              <ThreeScene 
+                shouldLoad={shouldLoad3D}
+                onSceneReady={() => setSceneReady(true)}
+              />
+            )}
+            {/* 快速載入的佔位背景 */}
+            {!sceneReady && (
+              <div 
+                className="absolute inset-0"
+                style={{
+                  background: 'radial-gradient(ellipse at center, #0a0a0a 0%, #000 100%)',
+                  opacity: shouldLoad3D ? 0.7 : 1,
+                  transition: 'opacity 0.5s ease-out'
+                }}
+              />
+            )}
           </div>
           
           {/* UI 層 - 保留原本的位置 */}
           <div className="absolute inset-0 flex flex-col items-center pointer-events-none z-50" style={{ top: '2vh' }}>
             <h1 
               id="ui-title"
-              className="text-white font-thin tracking-[1rem] sm:tracking-[1.2rem] md:tracking-[1.5rem] opacity-0 pointer-events-auto cursor-default select-none"
+              className="text-white font-thin tracking-[1rem] sm:tracking-[1.2rem] md:tracking-[1.5rem] pointer-events-auto cursor-default select-none"
               style={{
                 fontSize: 'clamp(3rem, 12vw, 6rem)',
                 textShadow: '0 0 60px rgba(255,255,255,.15)',
                 mixBlendMode: 'difference',
-                animation: 'titleFadeIn 2s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                opacity: uiReady ? 1 : 0,
+                transform: uiReady ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.95)',
+                filter: uiReady ? 'blur(0px)' : 'blur(10px)',
+                transition: 'all 1s cubic-bezier(0.22, 1, 0.36, 1)',
                 willChange: 'transform, opacity'
               }}
             >
@@ -1305,10 +1820,12 @@ const IndexPage = () => {
             
             <p 
               id="ui-subtitle"
-              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-6 sm:mt-8 md:mt-2 opacity-0 pointer-events-auto cursor-default select-none"
+              className="text-center text-white/45 font-light tracking-[0.12rem] leading-[1.8] px-8 max-w-[600px] mt-6 sm:mt-8 md:mt-2 pointer-events-auto cursor-default select-none"
               style={{
                 fontSize: 'clamp(0.7rem, 1.8vw, 0.9rem)',
-                animation: 'subtitleFadeIn 2s 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                opacity: uiReady ? 1 : 0,
+                transform: uiReady ? 'translateY(0)' : 'translateY(20px)',
+                transition: 'all 1s 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
                 willChange: 'transform, opacity'
               }}
             >
@@ -1319,10 +1836,12 @@ const IndexPage = () => {
             <button 
               id="ui-enter"
               onClick={handleEnter}
-              className="mt-6 sm:mt-8 md:mt-6 text-white/70 font-light tracking-[0.5rem] transition-all duration-[600ms] opacity-0 hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group pointer-events-auto cursor-pointer"
+              className="mt-6 sm:mt-8 md:mt-6 text-white/70 font-light tracking-[0.5rem] duration-[600ms] hover:text-white hover:tracking-[0.6rem] hover:-translate-y-0.5 active:translate-y-0 relative group pointer-events-auto cursor-pointer"
               style={{
                 fontSize: 'clamp(0.8rem, 1.6vw, 1rem)',
-                animation: 'enterFadeIn 2s 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                opacity: uiReady ? 1 : 0,
+                transform: uiReady ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.95)',
+                transition: 'opacity 1s 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 1s 0.5s cubic-bezier(0.22, 1, 0.36, 1), color 600ms, letter-spacing 600ms, transform 300ms',
                 background: 'none',
                 border: 'none',
                 willChange: 'transform, opacity'
@@ -1354,6 +1873,38 @@ const IndexPage = () => {
             }}
           />
         </div>
+        
+        {/* 結構化數據 */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "NMANODEPT 新沒系館",
+              "description": "探索藝術作品的虛擬數位空間，新沒系館是一個創新的藝術展示平台",
+              "url": typeof window !== 'undefined' ? window.location.origin : '',
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": `${typeof window !== 'undefined' ? window.location.origin : ''}/search?q={search_term_string}`
+                },
+                "query-input": "required name=search_term_string"
+              },
+              "mainEntity": {
+                "@type": "Organization",
+                "name": "NMANODEPT",
+                "description": "虛擬藝術展示空間",
+                "sameAs": []
+              }
+            })
+          }}
+        />
+        
+        {/* 預載入連結 */}
+        <link rel="preconnect" href="https://artwork-submit-api.nmanodept.workers.dev" crossOrigin="anonymous" />
+        <link rel="prefetch" href="/search" />
       </div>
       
       <style jsx global>{`

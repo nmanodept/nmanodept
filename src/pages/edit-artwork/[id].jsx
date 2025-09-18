@@ -166,11 +166,16 @@ const EditArtworkPage = ({ params, location }) => {
           setExistingGalleryImages(processedData.gallery_images)
         }
       } else if (response.status === 403) {
-        setError('您沒有權限編輯此作品')
+        setError('您沒有權限編輯此作品。請確認您已登入且是此作品的作者。')
       } else if (response.status === 404) {
         setError('找不到此作品')
       } else {
-        setError('載入作品失敗')
+        try {
+          const errorData = await response.json()
+          setError(errorData.error || '載入作品失敗')
+        } catch (jsonError) {
+          setError('載入作品失敗')
+        }
       }
     } catch (error) {
       console.error('Fetch error:', error)
